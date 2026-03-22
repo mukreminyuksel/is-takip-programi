@@ -5,10 +5,16 @@ import { storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) {
-  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList } = useTasks();
+  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor } = useTasks();
   const [title, setTitle] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [customerTaxNo, setCustomerTaxNo] = useState('');
+  const [customerTaxOffice, setCustomerTaxOffice] = useState('');
+  const [customerTradeRegNo, setCustomerTradeRegNo] = useState('');
+  const [customerPhone2, setCustomerPhone2] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('medium');
   const [assignee, setAssignee] = useState('');
@@ -36,6 +42,12 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
         setTitle(editTask.title || '');
         setCustomerName(editTask.customerName || '');
         setCustomerPhone(editTask.customerPhone || '');
+        setCustomerEmail(editTask.customerEmail || '');
+        setCustomerAddress(editTask.customerAddress || '');
+        setCustomerTaxNo(editTask.customerTaxNo || '');
+        setCustomerTaxOffice(editTask.customerTaxOffice || '');
+        setCustomerTradeRegNo(editTask.customerTradeRegNo || '');
+        setCustomerPhone2(editTask.customerPhone2 || '');
         setDescription(editTask.description || '');
         setPriority(editTask.priority || 'medium');
         setAssignee(editTask.assignee || '');
@@ -49,6 +61,12 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
         setTitle('');
         setCustomerName('');
         setCustomerPhone('');
+        setCustomerEmail('');
+        setCustomerAddress('');
+        setCustomerTaxNo('');
+        setCustomerTaxOffice('');
+        setCustomerTradeRegNo('');
+        setCustomerPhone2('');
         setDescription('');
         setPriority('medium');
         setAssignee(currentUser || '');
@@ -129,6 +147,12 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
     content += `--- GENEL BİLGİLER ---\n`;
     if (customerName) content += `Müşteri Adı/Ünvanı: ${customerName}\n`;
     if (customerPhone) content += `İletişim Tel/GSM: ${customerPhone}\n`;
+    if (customerPhone2) content += `Telefon 2: ${customerPhone2}\n`;
+    if (customerEmail) content += `E-mail: ${customerEmail}\n`;
+    if (customerAddress) content += `Adres: ${customerAddress}\n`;
+    if (customerTaxNo) content += `Vergi No: ${customerTaxNo}\n`;
+    if (customerTaxOffice) content += `Vergi Dairesi: ${customerTaxOffice}\n`;
+    if (customerTradeRegNo) content += `Ticaret Sicil No: ${customerTradeRegNo}\n`;
     content += `Atanan Kişi: ${assignee || 'Atanmadı'}\n`;
     content += `Durum: ${editTask ? statusMap[editTask.status] : 'Yeni'}\n`;
     content += `Öncelik Derecesi: ${prioMap[priority]}\n`;
@@ -340,11 +364,18 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
     if (!title.trim()) return;
     
     const finalPhone = formatPhone(customerPhone);
+    const finalPhone2 = formatPhone(customerPhone2);
     
     const taskData = {
       title,
       customerName,
       customerPhone: finalPhone,
+      customerEmail,
+      customerAddress,
+      customerTaxNo,
+      customerTaxOffice,
+      customerTradeRegNo,
+      customerPhone2: finalPhone2,
       description,
       priority,
       assignee,
@@ -440,6 +471,37 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
               <input type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} onBlur={() => setCustomerPhone(formatPhone(customerPhone))} placeholder="Örn: 0555..." />
             </div>
           </div>
+
+          <div style={{display:'flex', gap:'0.75rem', marginBottom:'0.5rem', flexWrap:'wrap'}}>
+            <div className="form-group" style={{flex: 1, minWidth:'150px', marginBottom: 0}}>
+              <label>E-mail</label>
+              <input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="Örn: ornek@firma.com" />
+            </div>
+            <div className="form-group" style={{flex: 1, minWidth:'150px', marginBottom: 0}}>
+              <label>Telefon 2</label>
+              <input type="text" value={customerPhone2} onChange={e => setCustomerPhone2(e.target.value)} onBlur={() => setCustomerPhone2(formatPhone(customerPhone2))} placeholder="Örn: 0212..." />
+            </div>
+          </div>
+
+          <div className="form-group" style={{marginBottom:'0.5rem'}}>
+            <label>Adres Bilgisi</label>
+            <input type="text" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} placeholder="Örn: Atatürk Cad. No:1 İstanbul" />
+          </div>
+
+          <div style={{display:'flex', gap:'0.75rem', marginBottom:'0.5rem', flexWrap:'wrap'}}>
+            <div className="form-group" style={{flex: 1, minWidth:'120px', marginBottom: 0}}>
+              <label>Vergi No</label>
+              <input type="text" value={customerTaxNo} onChange={e => setCustomerTaxNo(e.target.value)} placeholder="Örn: 1234567890" />
+            </div>
+            <div className="form-group" style={{flex: 1, minWidth:'120px', marginBottom: 0}}>
+              <label>Vergi Dairesi</label>
+              <input type="text" value={customerTaxOffice} onChange={e => setCustomerTaxOffice(e.target.value)} placeholder="Örn: Kadıköy V.D." />
+            </div>
+            <div className="form-group" style={{flex: 1, minWidth:'120px', marginBottom: 0}}>
+              <label>Ticaret Sicil No</label>
+              <input type="text" value={customerTradeRegNo} onChange={e => setCustomerTradeRegNo(e.target.value)} placeholder="Örn: 123456" />
+            </div>
+          </div>
           
           <div className="form-group">
             <label>Açıklama (İsteğe bağlı)</label>
@@ -449,9 +511,9 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
           <div className="form-row" style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
               <label>Atanan Kişi</label>
-              <select value={assignee} onChange={e => setAssignee(e.target.value)} style={{width:'100%', padding:'0.4rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem', background: 'var(--bg-main)'}}>
-                <option value="">Atanmadı</option>
-                {usersList.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+              <select value={assignee} onChange={e => setAssignee(e.target.value)} style={{width:'100%', padding:'0.4rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem', background: 'var(--bg-main)', color: getUserColor(assignee) || 'var(--text-main)', fontWeight: getUserColor(assignee) ? 600 : 400}}>
+                <option value="" style={{color:'var(--text-main)', fontWeight:400}}>Atanmadı</option>
+                {usersList.map(u => <option key={u.id} value={u.name} style={u.color ? {color: u.color, fontWeight: 600} : {}}>{u.name}</option>)}
               </select>
             </div>
             <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
@@ -637,7 +699,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
                   <div key={note.id} className={`note-card ${note.importance === 'important' ? 'note-important' : ''}`}>
                     <div className="note-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                       <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
-                        <span className="note-author" style={{fontWeight: 600, fontSize:'0.75rem', color: note.importance === 'important' ? '#991b1b' : 'var(--primary)'}}>{note.author || 'Sistem'}</span>
+                        <span className="note-author" style={{fontWeight: 600, fontSize:'0.75rem', color: note.importance === 'important' ? '#991b1b' : (getUserColor(note.author) || 'var(--primary)')}}>{note.author || 'Sistem'}</span>
                         {isAdmin && (
                           <button type="button" onClick={() => toggleNotePriority(note.id)} title="Önem Derecesini Değiştir (Admin)" style={{background:'none', border:'none', cursor:'pointer', padding:0, display:'flex'}}>
                             <Star size={12} fill={note.importance === 'important' ? '#eab308' : 'none'} color={note.importance === 'important' ? '#eab308' : '#94a3b8'} />

@@ -12,7 +12,7 @@ const statusColors = { 'todo': '#ef4444', 'in-progress': '#3b82f6', 'done': '#10
 const statusLabels = { 'todo': 'Yapılacak', 'in-progress': 'Devam Eden', 'done': 'Tamamlandı' };
 
 export default function GanttView() {
-  const { tasks, updateTask, currentUser } = useTasks();
+  const { tasks, updateTask, currentUser, getUserColor } = useTasks();
   const [scale, setScale] = useState('week');
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -253,6 +253,11 @@ export default function GanttView() {
                 <span style={{overflow:'hidden', textOverflow:'ellipsis', fontWeight:500, color:'var(--text-main)'}}>
                   {task.title}
                 </span>
+                {task.assignee && (
+                  <span style={{fontSize:'0.55rem', color: getUserColor(task.assignee) || 'var(--text-muted)', fontWeight: getUserColor(task.assignee) ? 600 : 400, marginLeft:'0.2rem', flexShrink:0}}>
+                    ({task.assignee})
+                  </span>
+                )}
               </div>
               <div style={{width:'65px', textAlign:'center', color:'var(--text-muted)', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>
                 {formatShortDate(task.startDate)}
