@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db, auth, googleProvider } from '../firebase';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 
 const TaskContext = createContext();
@@ -13,6 +13,7 @@ export const TaskProvider = ({ children }) => {
   const [tagsList, setTagsList] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [appNotifications, setAppNotifications] = useState([]);
+  const [hideAllTasksForUsers, setHideAllTasksForUsers] = useState(false);
   
   const [authUser, setAuthUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null); // String name for backwards compatibility
@@ -119,10 +120,18 @@ export const TaskProvider = ({ children }) => {
       }
     });
 
+    // Settings listener
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
+      if (docSnap.exists()) {
+        setHideAllTasksForUsers(docSnap.data().hideAllTasksForUsers || false);
+      }
+    });
+
     return () => {
       unsubTasks();
       unsubUsers();
       unsubTags();
+      unsubSettings();
     };
   }, [authUser]);
 
@@ -140,6 +149,14 @@ export const TaskProvider = ({ children }) => {
       await updateDoc(doc(db, 'usersList', userId), { color });
     } catch (e) {
       addNotification('Renk güncellenemedi.');
+    }
+  };
+
+  const toggleHideAllTasks = async (value) => {
+    try {
+      await setDoc(doc(db, 'settings', 'general'), { hideAllTasksForUsers: value }, { merge: true });
+    } catch (e) {
+      addNotification('Ayar güncellenemedi.');
     }
   };
 
@@ -333,6 +350,7 @@ export const TaskProvider = ({ children }) => {
       addUser, editUser, deleteUser, isAdmin,
       tagsList, addTag, editTag, deleteTag,
       getUserColor, updateUserColor,
+      hideAllTasksForUsers, toggleHideAllTasks,
       loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading
     }}>
       {children}

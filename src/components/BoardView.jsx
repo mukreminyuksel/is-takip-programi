@@ -520,7 +520,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
 }
 
 export default function BoardView() {
-  const { tasks, updateTaskStatus, deleteTask, currentUser, updateTask, usersList, isAdmin, getUserColor } = useTasks();
+  const { tasks, updateTaskStatus, deleteTask, currentUser, updateTask, usersList, isAdmin, getUserColor, hideAllTasksForUsers, toggleHideAllTasks } = useTasks();
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
 
@@ -567,7 +567,7 @@ export default function BoardView() {
       </div>
 
       <div className="split-view">
-        <div className="split-pane">
+        <div className={hideAllTasksForUsers && !isAdmin ? '' : 'split-pane'}  style={hideAllTasksForUsers && !isAdmin ? {width: '100%'} : {}}>
           <TaskTable 
             title={`Benim İşlerim (${currentUser})`} 
             tasksList={myTasks} 
@@ -581,20 +581,32 @@ export default function BoardView() {
             getUserColor={getUserColor}
           />
         </div>
-        <div className="split-pane">
-          <TaskTable 
-            title="Tüm İşler Listesi" 
-            tasksList={activeTasks} 
-            onEdit={openEditModal} 
-            onDelete={deleteTask}
-            onStatusChange={updateTaskStatus}
-            usersList={usersList}
-            isAdmin={isAdmin}
-            currentUser={currentUser}
-            updateTask={updateTask}
-            getUserColor={getUserColor}
-          />
-        </div>
+        {!(hideAllTasksForUsers && !isAdmin) && (
+          <div className="split-pane">
+            <TaskTable 
+              title={
+                <span style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                  Tüm İşler Listesi
+                  {isAdmin && (
+                    <label style={{display:'flex', alignItems:'center', gap:'0.3rem', fontSize:'0.7rem', fontWeight:500, color: hideAllTasksForUsers ? '#ef4444' : 'var(--text-muted)', cursor:'pointer', background: hideAllTasksForUsers ? '#fef2f2' : 'var(--bg-alt)', padding:'0.15rem 0.5rem', borderRadius:'12px', border: `1px solid ${hideAllTasksForUsers ? '#fecaca' : 'var(--border)'}`, whiteSpace:'nowrap'}}>
+                      <input type="checkbox" checked={hideAllTasksForUsers} onChange={(e) => toggleHideAllTasks(e.target.checked)} style={{cursor:'pointer', width:'13px', height:'13px'}} />
+                      Diğer kullanıcılar için gizle
+                    </label>
+                  )}
+                </span>
+              }
+              tasksList={activeTasks} 
+              onEdit={openEditModal} 
+              onDelete={deleteTask}
+              onStatusChange={updateTaskStatus}
+              usersList={usersList}
+              isAdmin={isAdmin}
+              currentUser={currentUser}
+              updateTask={updateTask}
+              getUserColor={getUserColor}
+            />
+          </div>
+        )}
       </div>
 
       <TaskModal 

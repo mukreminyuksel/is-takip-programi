@@ -12,7 +12,7 @@ const statusColors = { 'todo': '#ef4444', 'in-progress': '#10b981', 'done': '#9c
 const statusLabels = { 'todo': 'Yapılacak', 'in-progress': 'Devam Eden', 'done': 'Tamamlandı' };
 
 export default function GanttView() {
-  const { tasks, updateTask, currentUser, getUserColor } = useTasks();
+  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers } = useTasks();
   const [scale, setScale] = useState('week');
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -22,7 +22,11 @@ export default function GanttView() {
   const [isPanning, setIsPanning] = useState(false);
   const panStart = useRef({ x: 0, scrollLeft: 0 });
 
-  const activeTasks = tasks.filter(t => !t.isDeleted && t.startDate && t.deadline);
+  const activeTasks = tasks.filter(t => {
+    if (t.isDeleted || !t.startDate || !t.deadline) return false;
+    if (hideAllTasksForUsers && !isAdmin && t.assignee !== currentUser) return false;
+    return true;
+  });
 
   const { minDate, maxDate, totalDays, dateColumns } = useMemo(() => {
     if (activeTasks.length === 0) {

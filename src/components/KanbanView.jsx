@@ -92,13 +92,17 @@ const KanbanCard = ({ task, onEdit, onDragStart }) => {
 };
 
 export default function KanbanView() {
-  const { tasks, updateTaskStatus, updateTask, deleteTask, currentUser, usersList, isAdmin } = useTasks();
+  const { tasks, updateTaskStatus, updateTask, deleteTask, currentUser, usersList, isAdmin, hideAllTasksForUsers } = useTasks();
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [defaultStatus, setDefaultStatus] = useState('todo');
   const [dragOverCol, setDragOverCol] = useState(null);
 
-  const activeTasks = tasks.filter(t => !t.isDeleted);
+  const activeTasks = tasks.filter(t => {
+    if (t.isDeleted) return false;
+    if (hideAllTasksForUsers && !isAdmin && t.assignee !== currentUser) return false;
+    return true;
+  });
 
   const openNewTask = (status) => {
     setEditingTask(null);
