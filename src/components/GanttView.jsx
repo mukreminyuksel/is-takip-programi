@@ -8,7 +8,7 @@ const SCALE_OPTIONS = [
   { id: 'month', label: 'Ay', days: 30 }
 ];
 
-const statusColors = { 'todo': '#ef4444', 'in-progress': '#3b82f6', 'done': '#10b981' };
+const statusColors = { 'todo': '#ef4444', 'in-progress': '#10b981', 'done': '#9ca3af' };
 const statusLabels = { 'todo': 'Yapılacak', 'in-progress': 'Devam Eden', 'done': 'Tamamlandı' };
 
 export default function GanttView() {
@@ -412,11 +412,11 @@ export default function GanttView() {
           <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Yapılacak</span>
         </div>
         <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
-          <span style={{width:12, height:12, borderRadius:'2px', background:'#3b82f6cc'}}></span>
+          <span style={{width:12, height:12, borderRadius:'2px', background:'#10b981cc'}}></span>
           <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Devam Eden</span>
         </div>
         <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
-          <span style={{width:12, height:12, borderRadius:'2px', background:'#10b981cc'}}></span>
+          <span style={{width:12, height:12, borderRadius:'2px', background:'#9ca3afcc'}}></span>
           <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Tamamlandı</span>
         </div>
         <div style={{display:'flex', alignItems:'center', gap:'0.3rem', borderLeft:'1px solid var(--border)', paddingLeft:'1rem'}}>

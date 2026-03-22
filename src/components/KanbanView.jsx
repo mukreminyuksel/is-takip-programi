@@ -5,8 +5,8 @@ import { Plus, GripVertical, User, Clock, AlertTriangle } from 'lucide-react';
 
 const COLUMNS = [
   { id: 'todo', title: 'Yapılacak', color: '#ef4444', bgColor: 'rgba(239,68,68,0.08)' },
-  { id: 'in-progress', title: 'Devam Eden', color: '#f59e0b', bgColor: 'rgba(245,158,11,0.08)' },
-  { id: 'done', title: 'Tamamlandı', color: '#10b981', bgColor: 'rgba(16,185,129,0.08)' }
+  { id: 'in-progress', title: 'Devam Eden', color: '#10b981', bgColor: 'rgba(16,185,129,0.08)' },
+  { id: 'done', title: 'Tamamlandı', color: '#9ca3af', bgColor: 'rgba(156,163,175,0.08)' }
 ];
 
 const KanbanCard = ({ task, onEdit, onDragStart }) => {

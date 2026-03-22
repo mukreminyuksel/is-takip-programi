@@ -431,11 +431,11 @@ export default function SettingsModal({ isOpen, onClose }) {
                 <div style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>Toplam Görev</div>
               </div>
               <div style={{background:'var(--bg-card)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border)', textAlign:'center'}}>
-                <div style={{fontSize:'2rem', fontWeight:800, color:'#10b981'}}>{tasks.filter(t=>t.status==='done' && !t.isDeleted).length}</div>
+                <div style={{fontSize:'2rem', fontWeight:800, color:'#9ca3af'}}>{tasks.filter(t=>t.status==='done' && !t.isDeleted).length}</div>
                 <div style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>Tamamlanan</div>
               </div>
               <div style={{background:'var(--bg-card)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border)', textAlign:'center'}}>
-                <div style={{fontSize:'2rem', fontWeight:800, color:'#f59e0b'}}>{tasks.filter(t=>t.status==='in-progress' && !t.isDeleted).length}</div>
+                <div style={{fontSize:'2rem', fontWeight:800, color:'#10b981'}}>{tasks.filter(t=>t.status==='in-progress' && !t.isDeleted).length}</div>
                 <div style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>Devam Eden</div>
               </div>
               <div style={{background:'var(--bg-card)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border)', textAlign:'center'}}>
@@ -457,7 +457,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                           tasks.filter(t=>t.status==='in-progress' && !t.isDeleted).length,
                           tasks.filter(t=>t.status==='done' && !t.isDeleted).length
                         ],
-                        backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
+                        backgroundColor: ['#ef4444', '#10b981', '#9ca3af'],
                         borderWidth: 0,
                         hoverOffset: 6
                       }]
@@ -487,13 +487,13 @@ export default function SettingsModal({ isOpen, onClose }) {
                       {
                         label: 'Devam Eden',
                         data: usersList.map(u => tasks.filter(t => t.assignee === u.name && t.status === 'in-progress' && !t.isDeleted).length),
-                        backgroundColor: '#f59e0b',
+                        backgroundColor: '#10b981',
                         borderRadius: 3
                       },
                       {
                         label: 'Tamamlanan',
                         data: usersList.map(u => tasks.filter(t => t.assignee === u.name && t.status === 'done' && !t.isDeleted).length),
-                        backgroundColor: '#10b981',
+                        backgroundColor: '#9ca3af',
                         borderRadius: 3
                       }
                     ]

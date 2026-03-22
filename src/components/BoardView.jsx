@@ -557,7 +557,7 @@ export default function BoardView() {
             <span style={{color:'var(--text-muted)'}}>Üzerinizde:</span>
             <span style={{color:'#ef4444', fontWeight:600}}>{myTodoCount} Yapılacak</span>
             <span style={{color:'var(--border)'}}>|</span>
-            <span style={{color:'#eab308', fontWeight:600}}>{myInProgressCount} Devam Eden</span>
+            <span style={{color:'#10b981', fontWeight:600}}>{myInProgressCount} Devam Eden</span>
             <span style={{color:'var(--text-main)', fontSize:'0.8rem'}}>iş bulunuyor.</span>
           </div>
         </div>
