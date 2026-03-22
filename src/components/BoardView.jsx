@@ -239,7 +239,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
     });
 
     return result;
-  }, [tasksList, sortCol, sortDir, searchTerm]);
+  }, [tasksList, sortCol, sortDir, searchTerm, filters]);
 
   const SortIcon = ({ col }) => {
     if (sortCol !== col) return <ArrowUpDown size={12} style={{marginLeft:'4px', opacity:0.3}}/>;
