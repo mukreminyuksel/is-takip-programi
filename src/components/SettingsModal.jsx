@@ -1,0 +1,501 @@
+import React, { useState, useEffect } from 'react';
+import { useTasks } from '../context/TaskContext';
+import { X, Plus, Trash2, Edit2, ShieldAlert } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { db } from '../firebase';
+import { doc, setDoc } from 'firebase/firestore';
+
+export default function SettingsModal({ isOpen, onClose }) {
+  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin } = useTasks();
+  const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState('personnel');
+  const [formData, setFormData] = useState({ id: null, name: '', role: 'admin', phone: '', whatsapp: '', email: '', finance: '' });
+
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (isOpen) {
+      setPosition({ x: 0, y: 0 });
+      setIsEditing(false);
+      setActiveTab('personnel');
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (isDragging) setPosition({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y });
+    };
+    const handleMouseUp = () => setIsDragging(false);
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset]);
+
+  const startDrag = (e) => {
+    setIsDragging(true);
+    setDragOffset({ x: e.clientX - position.x, y: e.clientY - position.y });
+  };
+
+  if (!isOpen) return null;
+
+  if (!isAdmin) {
+    return (
+      <div className="modal-overlay" onMouseDown={onClose} style={{ zIndex: 1050 }}>
+        <div className="modal-content" style={{maxWidth: '450px', transform: `translate(${position.x}px, ${position.y}px)`, transition: isDragging ? 'none' : 'transform 0.1s ease', resize: 'both', position: 'relative'}} onMouseDown={e => e.stopPropagation()}>
+          <div className="modal-header" onMouseDown={startDrag} style={{ cursor: 'move' }}>
+            <h2>Personel Kontrol Paneli</h2>
+            <div onMouseDown={e => e.stopPropagation()}>
+              <button className="icon-btn" onClick={onClose}><X size={20} /></button>
+            </div>
+          </div>
+          <div style={{padding: '3rem 2rem', textAlign: 'center'}}>
+            <ShieldAlert size={48} color="#ef4444" style={{marginBottom: '1rem', opacity: 0.8}} />
+            <h3 style={{color: '#ef4444', marginBottom: '0.5rem'}}>Erişim Engellendi</h3>
+            <p style={{color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5'}}>
+              Şirket çalışanlarının bilgilerini görüntülemek ve yönetmek için <strong>Admin</strong> yetkisine sahip olmalısınız. Lütfen aktif kullanıcınızı değiştirin.
+            </p>
+            <button className="btn btn-secondary" style={{marginTop: '1.5rem', margin: '1.5rem auto 0 auto'}} onClick={onClose}>Geri Dön</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const openForm = (user = null) => {
+    if (user) {
+      setFormData(user);
+    } else {
+      setFormData({ id: null, name: '', role: 'admin', phone: '', whatsapp: '', email: '', finance: '' });
+    }
+    setIsEditing(true);
+  };
+
+  const formatPhone = (phone) => {
+    if (!phone) return '';
+    const cleaned = phone.replace(/[^0-9+]/g, '');
+    if (cleaned.startsWith('+')) return cleaned;
+    
+    const digits = phone.replace(/\D/g, '');
+    if (digits.startsWith('90') && digits.length === 12) return '+' + digits;
+    if (digits.startsWith('0') && digits.length === 11) return '+90' + digits.substring(1);
+    if (digits.length === 10) return '+90' + digits;
+    
+    return phone.trim();
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    if (!formData.name) return;
+    
+    const savedData = { ...formData };
+    if (savedData.phone) savedData.phone = formatPhone(savedData.phone);
+    if (savedData.whatsapp) savedData.whatsapp = formatPhone(savedData.whatsapp);
+    
+    if (savedData.id) {
+      editUser(savedData.id, savedData);
+    } else {
+      addUser(savedData);
+    }
+    setIsEditing(false);
+  };
+
+  const handleMigrateData = async () => {
+    if (!window.confirm("Bilgisayarınızdaki eski yerel veriler (localStorage), Google Bulut sistemine kopyalanacak. Onaylıyor musunuz? Sadece 1 kez yapmanız yeterlidir.")) return;
+    
+    try {
+      const savedTasks = localStorage.getItem('is-takip-tasks');
+      const savedUsers = localStorage.getItem('is-takip-usersList');
+      
+      let tasksMigrated = 0;
+      let usersMigrated = 0;
+
+      if (savedTasks) {
+        const parsedTasks = JSON.parse(savedTasks);
+        for (const t of parsedTasks) {
+          await setDoc(doc(db, 'tasks', String(t.id)), t);
+          tasksMigrated++;
+        }
+      }
+
+      if (savedUsers) {
+        const parsedUsers = JSON.parse(savedUsers);
+        for (const u of parsedUsers) {
+          await setDoc(doc(db, 'usersList', String(u.id)), u);
+          usersMigrated++;
+        }
+      }
+
+      alert(`Taşıma Başarılı! \n\n${tasksMigrated} Adet Görev\n${usersMigrated} Adet Personel başarıyla buluta kopyalandı.`);
+    } catch (e) {
+      alert("Hata oluştu: " + e.message);
+    }
+  };
+
+  const handleExportExcel = () => {
+    const tasksData = tasks.map(t => ({
+      'Görev ID': t.id || '',
+      'Görev Adı': t.title,
+      'Müşteri Adı/Ünvanı': t.customerName || '',
+      'Müşteri Telefonu': t.customerPhone || '',
+      'Durum': t.status === 'done' ? 'Tamamlandı' : (t.status === 'in-progress' ? 'Devam Eden' : 'Yapılacak'),
+      'Öncelik': t.priority === 'high' ? 'Yüksek' : (t.priority === 'medium' ? 'Orta' : 'Düşük'),
+      'Atanan Kişi': t.assignee || '',
+      'Başlangıç Tarihi': t.startDate ? new Date(t.startDate).toLocaleDateString('tr-TR') : '-',
+      'Bitiş Tarihi': t.deadline ? new Date(t.deadline).toLocaleDateString('tr-TR') : '-',
+      'Açıklama/Detay': t.description || '',
+      'Silinmiş (Çöp)': t.isDeleted ? 'Evet' : 'Hayır',
+      '__NOTES_JSON__': JSON.stringify(t.notes || [])
+    }));
+
+    const usersData = usersList.map(u => ({
+      'Kayıt ID': u.id,
+      'Ad Soyad': u.name,
+      'Sistem Yetkisi': u.role === 'admin' ? 'Admin Yöneticisi' : 'Kullanıcı',
+      'Telefon Numarası': u.phone || '-',
+      'WhatsApp Numarası': u.whatsapp || '-',
+      'E-Posta Adresi': u.email || '-',
+      'Mali ve Diğer Notlar': u.finance || '-'
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const wsTasks = XLSX.utils.json_to_sheet(tasksData);
+    const wsUsers = XLSX.utils.json_to_sheet(usersData);
+
+    XLSX.utils.book_append_sheet(wb, wsTasks, "Görev Listesi");
+    XLSX.utils.book_append_sheet(wb, wsUsers, "Personel Listesi");
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `istakip_excel_rapor_${dateStr}.xlsx`);
+  };
+
+  const handleImportExcel = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!window.confirm("Uyarı: Excel 'Görev Listesi' sekmenizdeki veriler sisteme eklenecek. \nGörev ID'si dolu olanlar güncellenecek, boş olanlar yeni görev olarak eklenecek. Onaylıyor musunuz?")) {
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        
+        const wsTasks = wb.Sheets["Görev Listesi"];
+        if (!wsTasks) throw new Error("Excel dosyasında 'Görev Listesi' isimli bir sayfa (sekme) bulunamadı.");
+        const tasksData = XLSX.utils.sheet_to_json(wsTasks);
+
+        let tCount = 0;
+        let pCount = 0;
+
+        for (const row of tasksData) {
+          let status = 'todo';
+          if (row['Durum'] === 'Devam Eden') status = 'in-progress';
+          if (row['Durum'] === 'Tamamlandı') status = 'done';
+
+          let priority = 'medium';
+          if (row['Öncelik'] === 'Düşük') priority = 'low';
+          if (row['Öncelik'] === 'Yüksek') priority = 'high';
+
+          const parseDate = (d) => {
+            if (!d || d === '-') return null;
+            if (typeof d === 'number') {
+              const date = new Date(Math.round((d - 25569) * 86400 * 1000));
+              return date.toISOString();
+            }
+            if (typeof d === 'string') {
+              const parts = d.split('.');
+              if (parts.length === 3) {
+                 return new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00Z`).toISOString();
+              }
+              const date = new Date(d);
+              if (!isNaN(date.getTime())) return date.toISOString();
+            }
+            return null;
+          };
+
+          const taskObj = {
+            title: row['Görev Adı'] || 'İsimsiz Görev',
+            customerName: row['Müşteri Adı/Ünvanı'] || '',
+            customerPhone: row['Müşteri Telefonu'] || '',
+            description: row['Açıklama/Detay'] || row['Açıklama'] || '',
+            status,
+            priority,
+            assignee: row['Atanan Kişi'] || '',
+            startDate: parseDate(row['Başlangıç Tarihi']),
+            deadline: parseDate(row['Bitiş Tarihi']),
+            isDeleted: row['Silinmiş (Çöp)'] === 'Evet',
+            notes: []
+          };
+
+          try {
+            if (row['__NOTES_JSON__']) {
+              taskObj.notes = JSON.parse(row['__NOTES_JSON__']);
+            }
+          } catch(e) {}
+
+          const id = row['Görev ID'];
+          if (id) {
+             taskObj.id = id;
+             await setDoc(doc(db, 'tasks', String(id)), taskObj);
+             tCount++;
+          } else {
+             taskObj.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+             taskObj.date = new Date().toISOString(); 
+             taskObj.isNewForAssignee = true;
+             await setDoc(doc(db, 'tasks', String(taskObj.id)), taskObj);
+             pCount++;
+          }
+        }
+        alert(`Excel İçe Aktarma Başarılı!\n${tCount} mevcut görev güncellendi, ${pCount} yeni görev eklendi.`);
+        onClose();
+      } catch (err) {
+        console.error(err);
+        alert("Excel içe aktarma hatası: " + err.message);
+      }
+      e.target.value = '';
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleExportData = () => {
+    const data = {
+      tasks: tasks,
+      usersList: usersList,
+      exportDate: new Date().toISOString()
+    };
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.download = `istakip_yedek_${dateStr}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportData = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        if (!data.tasks || !data.usersList) {
+          alert('Geçersiz veya bozuk yedekleme dosyası formatı!');
+          return;
+        }
+
+        if (!window.confirm(`DİKKAT: Bu işlem mevcut verilerinizin üzerine ${data.tasks.length} Görev ve ${data.usersList.length} Personel yazacaktır. Onaylıyor musunuz?`)) {
+          e.target.value = null;
+          return;
+        }
+
+        let tCount = 0;
+        let uCount = 0;
+
+        for (const t of data.tasks) {
+          await setDoc(doc(db, 'tasks', String(t.id)), t);
+          tCount++;
+        }
+        for (const u of data.usersList) {
+          await setDoc(doc(db, 'usersList', String(u.id)), u);
+          uCount++;
+        }
+        alert(`Geri Yükleme Başarılı!\n${tCount} Görev ve ${uCount} Personel başarıyla buluta yüklendi.`);
+      } catch (err) {
+        alert('Dosya okuma veya yükleme hatası: ' + err.message);
+      }
+      e.target.value = null;
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div className="modal-overlay" onMouseDown={onClose} style={{ zIndex: 1050 }}>
+      <div className="modal-content" style={{maxWidth: '1100px', width: '90vw', transform: `translate(${position.x}px, ${position.y}px)`, transition: isDragging ? 'none' : 'transform 0.1s ease', resize: 'both', position: 'relative'}} onMouseDown={e => e.stopPropagation()}>
+        <div className="modal-header" onMouseDown={startDrag} style={{ cursor: 'move', paddingBottom: 0 }}>
+          <div style={{display:'flex', alignItems:'center', gap:'1.5rem', alignSelf:'flex-end'}}>
+            <h2 onClick={() => {setActiveTab('personnel'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'personnel' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'personnel' ? '2px solid var(--primary)' : '2px solid transparent'}}>
+              Personel Yönetimi
+            </h2>
+            <h2 onClick={() => {setActiveTab('analytics'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'analytics' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'analytics' ? '2px solid var(--primary)' : '2px solid transparent'}}>
+              İstatistik ve Raporlar
+            </h2>
+          </div>
+          <div onMouseDown={e => e.stopPropagation()} style={{paddingBottom:'0.8rem'}}>
+            <button className="icon-btn" onClick={onClose}><X size={20} /></button>
+          </div>
+        </div>
+        
+        {!isEditing && activeTab === 'personnel' && (
+          <div className="settings-body" style={{padding: '1.5rem'}}>
+            <div style={{display:'flex', justifyContent:'space-between', marginBottom:'1rem', alignItems:'center'}}>
+              <h3 style={{fontSize:'1rem'}}>Şirket Çalışanları ({usersList.length})</h3>
+              <div style={{display:'flex', gap: '0.5rem'}}>
+                <button className="btn btn-secondary btn-small" onClick={handleMigrateData} style={{color:'#f59e0b', fontSize:'0.75rem', padding:'0.2rem 0.5rem', background:'transparent', border:'1px solid #f59e0b'}} title="Lokal veriyi kurtar">
+                  Lokal Kurtarma
+                </button>
+                <button className="btn btn-secondary btn-small" onClick={handleExportExcel} style={{color:'#10b981', fontSize:'0.75rem', padding:'0.2rem 0.5rem', background:'transparent', border:'1px solid #10b981'}} title="Görevleri ve personeli Excel tablosu olarak indir">
+                  Excel Çıktısı Al
+                </button>
+                <label className="btn btn-secondary btn-small" style={{color:'#10b981', background:'transparent', border:'1px dotted #10b981', cursor: 'pointer', margin: 0, display:'flex', alignItems:'center'}} title="Düzenlenmiş Excel dosyasını geri yükle">
+                  Excel'den Yükle
+                  <input type="file" accept=".xlsx, .xls" style={{display:'none'}} onChange={handleImportExcel} />
+                </label>
+                <div style={{width:'1px', background:'var(--border)'}}></div>
+                <button className="btn btn-secondary btn-small" onClick={handleExportData} style={{background:'#10b981', color:'#fff', borderColor:'#10b981'}} title="JSON Geri Yükleme Dosyası">
+                  Yedek İndir (JSON)
+                </button>
+                <label className="btn btn-secondary btn-small" style={{background:'#3b82f6', color:'#fff', borderColor:'#3b82f6', cursor: 'pointer', margin: 0, display:'flex', alignItems:'center'}} title="Yedek dosyasından veritabanını geri yükle">
+                  Yedek Yükle
+                  <input type="file" accept=".json" style={{display:'none'}} onChange={handleImportData} />
+                </label>
+                <div style={{width:'1px', background:'var(--border)'}}></div>
+                <button className="btn btn-primary btn-small" onClick={() => openForm()}><Plus size={14} style={{marginRight: '4px'}}/> Yeni Kişi Ekle</button>
+              </div>
+            </div>
+            <div className="table-container" style={{maxHeight:'60vh', overflowY:'auto'}}>
+              <table className="compact-table">
+                <thead>
+                  <tr>
+                    <th>Ad Soyad / Yetki</th>
+                    <th>İletişim Bilgileri</th>
+                    <th>E-Posta Adresi</th>
+                    <th>Mali / Diğer Notlar</th>
+                    <th style={{width: '60px'}}>İşlem</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usersList.map(u => (
+                    <tr key={u.id}>
+                      <td>
+                        <div style={{fontWeight: 600, color: 'var(--text-main)', display:'flex', alignItems:'center', gap:'0.4rem'}}>
+                          {u.name}
+                          {u.isOnline && <span title="Şu an Sistemde Aktif (Çevrimiçi)" style={{width: 8, height: 8, background: '#10b981', borderRadius: '50%', display: 'inline-block'}}></span>}
+                        </div>
+                        <div style={{fontSize: '0.7rem', color: u.role === 'admin' ? '#ef4444' : 'var(--text-muted)', fontWeight: u.role==='admin'?600:400}}>
+                          {u.role === 'admin' ? 'Admin Yöneticisi' : 'Kullanıcı'}
+                        </div>
+                      </td>
+                      <td>
+                        {u.phone && <div style={{fontSize:'0.8rem'}}>Tel: {u.phone}</div>}
+                        {u.whatsapp && <div style={{fontSize:'0.8rem'}}>WP: {u.whatsapp}</div>}
+                        {(!u.phone && !u.whatsapp) && <span style={{color:'var(--text-muted)'}}>-</span>}
+                      </td>
+                      <td>{u.email || '-'}</td>
+                      <td style={{fontSize:'0.75rem', color: 'var(--text-muted)'}}>{u.finance || '-'}</td>
+                      <td>
+                        <button className="icon-btn" onClick={() => openForm(u)}><Edit2 size={14}/></button>
+                        <button className="icon-btn delete-btn" onClick={() => deleteUser(u.id)}><Trash2 size={14}/></button>
+                      </td>
+                    </tr>
+                  ))}
+                  {usersList.length === 0 && (
+                    <tr><td colSpan="5" className="empty-row" style={{textAlign:'center', padding:'1rem'}}>Çalışan bulunamadı.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        
+        {!isEditing && activeTab === 'analytics' && (
+          <div className="settings-body" style={{padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto'}}>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'1rem', marginBottom:'2rem'}}>
+              <div style={{background:'var(--bg-card)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border)', textAlign:'center'}}>
+                <div style={{fontSize:'2rem', fontWeight:800, color:'var(--text-main)'}}>{tasks.length}</div>
+                <div style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>Toplam Görev</div>
+              </div>
+              <div style={{background:'var(--bg-card)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border)', textAlign:'center'}}>
+                <div style={{fontSize:'2rem', fontWeight:800, color:'#10b981'}}>{tasks.filter(t=>t.status==='done').length}</div>
+                <div style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>Tamamlanan</div>
+              </div>
+              <div style={{background:'var(--bg-card)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border)', textAlign:'center'}}>
+                <div style={{fontSize:'2rem', fontWeight:800, color:'#ef4444'}}>{tasks.filter(t=>t.status==='todo').length}</div>
+                <div style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>Bekleyen (Yapılacak)</div>
+              </div>
+            </div>
+
+            <h3 style={{fontSize:'1rem', marginBottom:'1rem'}}>Personel Performans Analizi</h3>
+            <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
+              {usersList.map(u => {
+                 const uTasks = tasks.filter(t => t.assignee === u.name && !t.isDeleted);
+                 const uDone = uTasks.filter(t => t.status === 'done').length;
+                 const uTotal = uTasks.length;
+                 const pct = uTotal === 0 ? 0 : Math.round((uDone / uTotal) * 100);
+                 return (
+                   <div key={u.id} style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
+                     <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.85rem'}}>
+                       <span style={{fontWeight:600}}>{u.name}</span>
+                       <span style={{color:'var(--text-muted)'}}>{uDone} / {uTotal} iş tamamlandı (%{pct})</span>
+                     </div>
+                     <div style={{width:'100%', height:'8px', background:'var(--bg-hover)', borderRadius:'4px', overflow:'hidden'}}>
+                       <div style={{height:'100%', width:`${pct}%`, background:'var(--primary)', transition:'width 0.5s ease', borderRadius:'4px'}}></div>
+                     </div>
+                   </div>
+                 );
+              })}
+            </div>
+          </div>
+        )}
+
+        {isEditing && (
+          <form className="modal-form" onSubmit={handleSave} style={{padding:'1.5rem'}}>
+            <h3 style={{marginBottom:'1.5rem', fontSize:'1.1rem', color: 'var(--primary)'}}>{formData.id ? 'Kurumsal Çalışan Düzenle' : 'Yeni Kurumsal Çalışan Kaydı'}</h3>
+            
+            <div className="form-row" style={{display:'flex', gap:'1rem'}}>
+              <div className="form-group" style={{flex:2}}>
+                <label>Ad Soyad *</label>
+                <input type="text" value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})} required autoFocus/>
+              </div>
+              <div className="form-group" style={{flex:1}}>
+                <label>Sistem Yetkisi *</label>
+                <select value={formData.role || 'user'} onChange={e=>setFormData({...formData, role: e.target.value})} style={{width:'100%', padding:'0.45rem', border:'1px solid var(--border)', borderRadius:'4px', background: 'var(--bg-main)', fontSize:'0.85rem'}}>
+                  <option value="user">Standart Kullanıcı</option>
+                  <option value="admin">Sistem Yöneticisi (Admin)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row" style={{display:'flex', gap:'1rem'}}>
+              <div className="form-group" style={{flex:1}}>
+                <label>Telefon Numarası</label>
+                <input type="text" value={formData.phone} onChange={e=>setFormData({...formData, phone: e.target.value})} placeholder="0555..."/>
+              </div>
+              <div className="form-group" style={{flex:1}}>
+                <label>WhatsApp Numarası</label>
+                <input type="text" value={formData.whatsapp} onChange={e=>setFormData({...formData, whatsapp: e.target.value})} placeholder="+90555..."/>
+              </div>
+            </div>
+            
+            <div className="form-group">
+              <label>E-Posta Adresi</label>
+              <input type="email" value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} placeholder="ornek@sirket.com"/>
+            </div>
+            <div className="form-group">
+              <label>Mali Bilgiler (IBAN, Banka, Maaş, SSK vs.)</label>
+              <input type="text" value={formData.finance} onChange={e=>setFormData({...formData, finance: e.target.value})} placeholder="TR00..."/>
+            </div>
+            
+            <div className="modal-actions" style={{marginTop:'2rem'}}>
+              <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>İptal</button>
+              <button type="submit" className="btn btn-primary" style={{paddingLeft:'1.5rem', paddingRight:'1.5rem'}}>Kaydet</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
