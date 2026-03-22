@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
-import { X, Plus, Trash2, Edit2, ShieldAlert, Tag } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
@@ -10,7 +10,7 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 export default function SettingsModal({ isOpen, onClose }) {
-  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag } = useTasks();
+  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor } = useTasks();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('personnel');
   const [tagForm, setTagForm] = useState({ id: null, label: '', color: '#3b82f6' });
@@ -342,6 +342,9 @@ export default function SettingsModal({ isOpen, onClose }) {
             <h2 onClick={() => {setActiveTab('tags'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'tags' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'tags' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
               <Tag size={16}/> Etiket Yönetimi
             </h2>
+            <h2 onClick={() => {setActiveTab('colors'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'colors' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'colors' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
+              <Palette size={16}/> Renk Yönetimi
+            </h2>
           </div>
           <div onMouseDown={e => e.stopPropagation()} style={{paddingBottom:'0.8rem'}}>
             <button className="icon-btn" onClick={onClose}><X size={20} /></button>
@@ -583,6 +586,81 @@ export default function SettingsModal({ isOpen, onClose }) {
               {tagsList.length === 0 && (
                 <div style={{textAlign:'center', padding:'2rem', color:'var(--text-muted)', fontSize:'0.85rem'}}>Henüz etiket eklenmemiş.</div>
               )}
+            </div>
+          </div>
+        )}
+
+        {!isEditing && activeTab === 'colors' && (
+          <div className="settings-body" style={{padding: '1.5rem'}}>
+            <div style={{marginBottom:'1rem'}}>
+              <h3 style={{fontSize:'1rem', marginBottom:'0.5rem', color:'var(--text-main)'}}>Personel Renk Kişiselleştirme</h3>
+              <p style={{fontSize:'0.8rem', color:'var(--text-muted)', lineHeight:'1.5', marginBottom:'1.5rem'}}>
+                Her personel için bir renk seçebilirsiniz. Seçtiğiniz renk, uygulamadaki tüm alanlarda (tablo, kanban, gantt vb.) ilgili kişinin adının yanında gösterilecektir.
+              </p>
+            </div>
+            <div style={{display:'flex', flexDirection:'column', gap:'0.75rem'}}>
+              {usersList.map(u => {
+                const currentColor = u.color || '#6b7280';
+                return (
+                  <div key={u.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0.75rem 1rem', background:'var(--bg-main)', border:'1px solid var(--border)', borderRadius:'8px', transition:'box-shadow 0.2s ease'}}
+                    onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+                  >
+                    <div style={{display:'flex', alignItems:'center', gap:'0.75rem'}}>
+                      <div style={{width:36, height:36, borderRadius:'50%', background: currentColor, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:'0.85rem', textShadow:'0 1px 2px rgba(0,0,0,0.3)', flexShrink:0}}>
+                        {u.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{fontWeight:600, fontSize:'0.9rem', color: currentColor}}>{u.name}</div>
+                        <div style={{fontSize:'0.7rem', color:'var(--text-muted)'}}>{u.role === 'admin' ? 'Admin' : 'Kullanıcı'}</div>
+                      </div>
+                    </div>
+                    <div style={{display:'flex', alignItems:'center', gap:'0.75rem'}}>
+                      <span style={{fontSize:'0.7rem', color:'var(--text-muted)', fontFamily:'monospace'}}>{currentColor}</span>
+                      <input 
+                        type="color" 
+                        value={currentColor} 
+                        onChange={(e) => updateUserColor(u.id, e.target.value)}
+                        style={{width:'40px', height:'32px', border:'1px solid var(--border)', borderRadius:'6px', cursor:'pointer', padding:'2px'}}
+                      />
+                      {u.color && (
+                        <button 
+                          className="icon-btn" 
+                          onClick={() => updateUserColor(u.id, '')} 
+                          title="Rengi kaldır"
+                          style={{fontSize:'0.65rem', color:'#ef4444', padding:'0.2rem 0.4rem', border:'1px solid #fecaca', borderRadius:'4px'}}
+                        >
+                          <Trash2 size={12}/>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {usersList.length === 0 && (
+                <div style={{textAlign:'center', padding:'2rem', color:'var(--text-muted)', fontSize:'0.85rem'}}>Henüz personel eklenmemiş.</div>
+              )}
+            </div>
+
+            <div style={{marginTop:'2rem', padding:'1rem', background:'var(--bg-alt)', borderRadius:'8px', border:'1px solid var(--border)'}}>              <h4 style={{fontSize:'0.85rem', marginBottom:'0.75rem', color:'var(--text-main)'}}>Hızlı Renk Paleti</h4>
+              <div style={{display:'flex', flexWrap:'wrap', gap:'0.5rem'}}>
+                {[
+                  {name:'Mor', color:'#8b5cf6'}, {name:'Mavi', color:'#3b82f6'}, {name:'Camgöbeği', color:'#06b6d4'},
+                  {name:'Yeşil', color:'#10b981'}, {name:'Sarı', color:'#eab308'}, {name:'Turuncu', color:'#f97316'},
+                  {name:'Kırmızı', color:'#ef4444'}, {name:'Pembe', color:'#ec4899'}, {name:'Gül', color:'#f43f5e'},
+                  {name:'İndigo', color:'#6366f1'}, {name:'Koyu Yeşil', color:'#059669'}, {name:'Kahverengi', color:'#92400e'}
+                ].map(p => (
+                  <div key={p.color} style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'0.2rem'}}>
+                    <div style={{width:28, height:28, borderRadius:'50%', background: p.color, cursor:'pointer', border:'2px solid transparent', transition:'transform 0.15s ease, border-color 0.15s ease'}}
+                      title={`${p.name} (${p.color}) - Kopyalamak için tıklayın`}
+                      onClick={() => { navigator.clipboard.writeText(p.color); }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.2)'; e.currentTarget.style.borderColor = 'var(--text-main)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'transparent'; }}
+                    />
+                    <span style={{fontSize:'0.55rem', color:'var(--text-muted)'}}>{p.name}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

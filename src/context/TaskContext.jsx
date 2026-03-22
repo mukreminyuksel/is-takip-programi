@@ -129,6 +129,20 @@ export const TaskProvider = ({ children }) => {
   const currentUserObj = usersList.find(u => u.name === currentUser) || { role: 'user' };
   const isAdmin = currentUserObj.role === 'admin';
 
+  const getUserColor = (userName) => {
+    if (!userName) return null;
+    const user = usersList.find(u => u.name === userName);
+    return user?.color || null;
+  };
+
+  const updateUserColor = async (userId, color) => {
+    try {
+      await updateDoc(doc(db, 'usersList', userId), { color });
+    } catch (e) {
+      addNotification('Renk güncellenemedi.');
+    }
+  };
+
   const loginWithGoogle = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
@@ -318,6 +332,7 @@ export const TaskProvider = ({ children }) => {
       notifications, appNotifications, markAppNotificationAsRead, currentUser, setCurrentUser, usersList, 
       addUser, editUser, deleteUser, isAdmin,
       tagsList, addTag, editTag, deleteTag,
+      getUserColor, updateUserColor,
       loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading
     }}>
       {children}

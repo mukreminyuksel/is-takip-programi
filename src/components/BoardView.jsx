@@ -162,7 +162,7 @@ const TaskTitleCell = ({ task, onEdit }) => {
   );
 };
 
-function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersList, isAdmin, currentUser, updateTask }) {
+function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersList, isAdmin, currentUser, updateTask, getUserColor }) {
   const [sortCol, setSortCol] = useState('deadline');
   const [sortDir, setSortDir] = useState('asc');
   const [searchTerm, setSearchTerm] = useState('');
@@ -475,12 +475,13 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
                         onChange={(e) => updateTask(task.id, { assignee: e.target.value })}
                         className="status-select"
                         onClick={e => e.stopPropagation()}
+                        style={getUserColor(task.assignee) ? {color: getUserColor(task.assignee), fontWeight: 600} : {}}
                       >
                         <option value="">Atanmamış</option>
-                        {usersList?.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                        {usersList?.map(u => <option key={u.id} value={u.name} style={u.color ? {color: u.color, fontWeight: 600} : {}}>{u.name}</option>)}
                       </select>
                     ) : (
-                      task.assignee || '-'
+                      <span style={getUserColor(task.assignee) ? {color: getUserColor(task.assignee), fontWeight: 600} : {}}>{task.assignee || '-'}</span>
                     )}
                   </td>
                   <td style={{fontSize:'0.65rem', fontWeight:400}}>
@@ -519,7 +520,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
 }
 
 export default function BoardView() {
-  const { tasks, updateTaskStatus, deleteTask, currentUser, updateTask, usersList, isAdmin } = useTasks();
+  const { tasks, updateTaskStatus, deleteTask, currentUser, updateTask, usersList, isAdmin, getUserColor } = useTasks();
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
 
@@ -577,6 +578,7 @@ export default function BoardView() {
             isAdmin={isAdmin}
             currentUser={currentUser}
             updateTask={updateTask}
+            getUserColor={getUserColor}
           />
         </div>
         <div className="split-pane">
@@ -590,6 +592,7 @@ export default function BoardView() {
             isAdmin={isAdmin}
             currentUser={currentUser}
             updateTask={updateTask}
+            getUserColor={getUserColor}
           />
         </div>
       </div>

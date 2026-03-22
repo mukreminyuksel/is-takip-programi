@@ -10,6 +10,7 @@ const COLUMNS = [
 ];
 
 const KanbanCard = ({ task, onEdit, onDragStart }) => {
+  const { tagsList, getUserColor } = useTasks();
   const prioColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
   const prioLabels = { low: 'Düşük', medium: 'Orta', high: 'Yüksek' };
 
@@ -44,7 +45,8 @@ const KanbanCard = ({ task, onEdit, onDragStart }) => {
 
       <div style={{ display:'flex', flexWrap:'wrap', gap:'0.4rem', alignItems:'center', marginTop:'0.3rem' }}>
         {task.assignee && (
-          <span style={{ display:'flex', alignItems:'center', gap:'0.2rem', fontSize:'0.65rem', color:'var(--text-muted)', background:'var(--bg-alt)', padding:'0.15rem 0.4rem', borderRadius:'10px' }}>
+          <span style={{ display:'flex', alignItems:'center', gap:'0.2rem', fontSize:'0.65rem', color: getUserColor(task.assignee) || 'var(--text-muted)', fontWeight: getUserColor(task.assignee) ? 600 : 400, background:'var(--bg-alt)', padding:'0.15rem 0.4rem', borderRadius:'10px' }}>
+            {getUserColor(task.assignee) && <span style={{width:6, height:6, borderRadius:'50%', background: getUserColor(task.assignee), flexShrink:0}}></span>}
             <User size={10}/> {task.assignee}
           </span>
         )}

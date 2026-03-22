@@ -10,7 +10,7 @@ const priorityColors = {
 const priorityLabels = { low: 'Düşük', medium: 'Orta', high: 'Yüksek' };
 
 export default function TaskCard({ task, onEdit }) {
-  const { deleteTask } = useTasks();
+  const { deleteTask, getUserColor } = useTasks();
 
   const handleDragStart = (e) => {
     e.dataTransfer.setData('taskId', task.id);
@@ -50,7 +50,8 @@ export default function TaskCard({ task, onEdit }) {
       
       <div className="task-meta">
         {task.assignee && (
-          <span className="meta-badge assignee">
+          <span className="meta-badge assignee" style={getUserColor(task.assignee) ? {color: getUserColor(task.assignee), fontWeight: 600, borderColor: getUserColor(task.assignee) + '40'} : {}}>
+            {getUserColor(task.assignee) && <span style={{width:7, height:7, borderRadius:'50%', background: getUserColor(task.assignee), display:'inline-block', marginRight:'3px'}}></span>}
             <User size={12} style={{marginRight: '4px'}}/>
             {task.assignee}
           </span>

@@ -62,8 +62,15 @@
 [data-theme="dark"] .status-select {
   background: var(--bg-alt);
   border-color: var(--border);
-  color: inherit;
 }
+
+[data-theme="dark"] .status-todo { color: #f87171 !important; }
+[data-theme="dark"] .status-in-progress { color: #34d399 !important; }
+[data-theme="dark"] .status-done { color: #94a3b8 !important; }
+
+[data-theme="dark"] .text-prio-low { color: #34d399 !important; }
+[data-theme="dark"] .text-prio-medium { color: #fbbf24 !important; }
+[data-theme="dark"] .text-prio-high { color: #f87171 !important; }
 
 [data-theme="dark"] .search-input {
   background: var(--bg-alt);
