@@ -99,6 +99,15 @@ const TaskTitleCell = ({ task, onEdit }) => {
             ({daysLeft} gün kaldı)
           </span>
         )}
+        {task.tags && task.tags.length > 0 && task.tags.map(tagId => {
+          const tagColors = { web:'#3b82f6', tasarim:'#8b5cf6', mobil:'#06b6d4', acil:'#ef4444', musteri:'#f59e0b', bakim:'#10b981', rapor:'#6366f1', toplanti:'#ec4899' };
+          const tagLabels = { web:'Web', tasarim:'Tasarım', mobil:'Mobil', acil:'Acil', musteri:'Müşteri', bakim:'Bakım', rapor:'Rapor', toplanti:'Toplantı' };
+          return (
+            <span key={tagId} style={{ fontSize:'0.55rem', padding:'0.1rem 0.3rem', borderRadius:'8px', background:`${tagColors[tagId]}18`, color: tagColors[tagId], fontWeight:500, border:`1px solid ${tagColors[tagId]}40` }}>
+              {tagLabels[tagId] || tagId}
+            </span>
+          );
+        })}
       </div>
       {showTooltip && (
         <div 
@@ -541,7 +550,7 @@ export default function BoardView() {
     <>
       <div className="table-header-actions" style={{display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem'}}>
         <div style={{display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap'}}>
-          <h2 style={{margin:0}}>Görev Paneli (v7.0)</h2>
+          <h2 style={{margin:0}}>Görev Paneli (v8.0)</h2>
           <div style={{fontSize:'0.85rem', display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--bg-main)', padding:'0.4rem 0.8rem', borderRadius:'20px', border:'1px solid var(--border)'}}>
             <span style={{color:'var(--text-muted)'}}>Üzerinizde:</span>
             <span style={{color:'#ef4444', fontWeight:600}}>{myTodoCount} Yapılacak</span>

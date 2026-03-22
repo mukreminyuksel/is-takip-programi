@@ -4,6 +4,10 @@ import { X, Plus, Trash2, Edit2, ShieldAlert } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
+import { Doughnut, Bar } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 export default function SettingsModal({ isOpen, onClose }) {
   const { tasks, usersList, addUser, editUser, deleteUser, isAdmin } = useTasks();
@@ -413,18 +417,90 @@ export default function SettingsModal({ isOpen, onClose }) {
         
         {!isEditing && activeTab === 'analytics' && (
           <div className="settings-body" style={{padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto'}}>
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'1rem', marginBottom:'2rem'}}>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:'1rem', marginBottom:'2rem'}}>
               <div style={{background:'var(--bg-card)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border)', textAlign:'center'}}>
-                <div style={{fontSize:'2rem', fontWeight:800, color:'var(--text-main)'}}>{tasks.length}</div>
+                <div style={{fontSize:'2rem', fontWeight:800, color:'var(--text-main)'}}>{tasks.filter(t => !t.isDeleted).length}</div>
                 <div style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>Toplam Görev</div>
               </div>
               <div style={{background:'var(--bg-card)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border)', textAlign:'center'}}>
-                <div style={{fontSize:'2rem', fontWeight:800, color:'#10b981'}}>{tasks.filter(t=>t.status==='done').length}</div>
+                <div style={{fontSize:'2rem', fontWeight:800, color:'#10b981'}}>{tasks.filter(t=>t.status==='done' && !t.isDeleted).length}</div>
                 <div style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>Tamamlanan</div>
               </div>
               <div style={{background:'var(--bg-card)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border)', textAlign:'center'}}>
-                <div style={{fontSize:'2rem', fontWeight:800, color:'#ef4444'}}>{tasks.filter(t=>t.status==='todo').length}</div>
-                <div style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>Bekleyen (Yapılacak)</div>
+                <div style={{fontSize:'2rem', fontWeight:800, color:'#f59e0b'}}>{tasks.filter(t=>t.status==='in-progress' && !t.isDeleted).length}</div>
+                <div style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>Devam Eden</div>
+              </div>
+              <div style={{background:'var(--bg-card)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border)', textAlign:'center'}}>
+                <div style={{fontSize:'2rem', fontWeight:800, color:'#ef4444'}}>{tasks.filter(t=>t.status==='todo' && !t.isDeleted).length}</div>
+                <div style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>Bekleyen</div>
+              </div>
+            </div>
+
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem', marginBottom:'2rem'}}>
+              <div style={{background:'var(--bg-card)', padding:'1.5rem', borderRadius:'8px', border:'1px solid var(--border)'}}>
+                <h4 style={{fontSize:'0.9rem', marginBottom:'1rem', textAlign:'center', color:'var(--text-main)'}}>Görev Durum Dağılımı</h4>
+                <div style={{maxWidth:'220px', margin:'0 auto'}}>
+                  <Doughnut
+                    data={{
+                      labels: ['Yapılacak', 'Devam Eden', 'Tamamlandı'],
+                      datasets: [{
+                        data: [
+                          tasks.filter(t=>t.status==='todo' && !t.isDeleted).length,
+                          tasks.filter(t=>t.status==='in-progress' && !t.isDeleted).length,
+                          tasks.filter(t=>t.status==='done' && !t.isDeleted).length
+                        ],
+                        backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
+                        borderWidth: 0,
+                        hoverOffset: 6
+                      }]
+                    }}
+                    options={{
+                      responsive: true,
+                      plugins: {
+                        legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12, color: 'var(--text-main)' } }
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{background:'var(--bg-card)', padding:'1.5rem', borderRadius:'8px', border:'1px solid var(--border)'}}>
+                <h4 style={{fontSize:'0.9rem', marginBottom:'1rem', textAlign:'center', color:'var(--text-main)'}}>Kişi Başına Görev Yükü</h4>
+                <Bar
+                  data={{
+                    labels: usersList.map(u => u.name),
+                    datasets: [
+                      {
+                        label: 'Bekleyen',
+                        data: usersList.map(u => tasks.filter(t => t.assignee === u.name && t.status === 'todo' && !t.isDeleted).length),
+                        backgroundColor: '#ef4444',
+                        borderRadius: 3
+                      },
+                      {
+                        label: 'Devam Eden',
+                        data: usersList.map(u => tasks.filter(t => t.assignee === u.name && t.status === 'in-progress' && !t.isDeleted).length),
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 3
+                      },
+                      {
+                        label: 'Tamamlanan',
+                        data: usersList.map(u => tasks.filter(t => t.assignee === u.name && t.status === 'done' && !t.isDeleted).length),
+                        backgroundColor: '#10b981',
+                        borderRadius: 3
+                      }
+                    ]
+                  }}
+                  options={{
+                    responsive: true,
+                    plugins: {
+                      legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12 } }
+                    },
+                    scales: {
+                      x: { stacked: true, grid: { display: false } },
+                      y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+                    }
+                  }}
+                />
               </div>
             </div>
 

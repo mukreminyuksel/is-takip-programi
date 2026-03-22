@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { TaskProvider, useTasks } from './context/TaskContext'
 import BoardView from './components/BoardView'
+import KanbanView from './components/KanbanView'
 import SettingsModal from './components/SettingsModal'
 import DeletedTasksModal from './components/DeletedTasksModal'
-import { Layout, Bell, UserCircle, Settings, Trash, LogOut } from 'lucide-react'
+import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns } from 'lucide-react'
 
 const NotificationContainer = () => {
   const { notifications } = useTasks();
@@ -56,9 +57,22 @@ const NotificationDropdown = ({ isOpen, onClose }) => {
   );
 };
 
-const Header = ({ onOpenSettings, onOpenDeleted }) => {
+const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
   const { currentUser, logout, isAdmin, appNotifications } = useTasks();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'light');
+
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    localStorage.setItem('app-theme', next);
+    document.documentElement.setAttribute('data-theme', next);
+  };
+
+  // Apply theme on mount
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, []);
 
   const safeAppNotifications = appNotifications || [];
   const unreadCount = safeAppNotifications.filter(n => !(n.readBy || []).includes(currentUser)).length;
@@ -69,6 +83,14 @@ const Header = ({ onOpenSettings, onOpenDeleted }) => {
         <div className="logo-title">
           <Layout className="logo-icon" size={24} />
           <h1>İş Takip Programı</h1>
+          <div className="view-toggle" style={{marginLeft:'0.5rem'}}>
+            <button className={viewMode === 'table' ? 'active' : ''} onClick={() => onViewChange('table')}>
+              <LayoutGrid size={14}/> Tablo
+            </button>
+            <button className={viewMode === 'kanban' ? 'active' : ''} onClick={() => onViewChange('kanban')}>
+              <Columns size={14}/> Kanban
+            </button>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <div className="user-profile" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -78,6 +100,10 @@ const Header = ({ onOpenSettings, onOpenDeleted }) => {
           </div>
           <button className="icon-btn" onClick={logout} title="Çıkış Yap">
             <LogOut size={18} />
+          </button>
+          
+          <button className="icon-btn" onClick={toggleTheme} title={theme === 'light' ? 'Karanlık Tema' : 'Aydınlık Tema'} style={{display:'flex', alignItems:'center'}}>
+            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} color="#fbbf24" />}
           </button>
           
           <div style={{ width: '1px', height: '24px', background: 'var(--border)', margin: '0 0.5rem' }}></div>
@@ -105,9 +131,47 @@ const Header = ({ onOpenSettings, onOpenDeleted }) => {
 };
 
 const AppContent = () => {
-  const { currentUser, loginWithGoogle, loginWithEmail, registerWithEmail, authLoading } = useTasks();
+  const { currentUser, loginWithGoogle, loginWithEmail, registerWithEmail, authLoading, tasks } = useTasks();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDeletedOpen, setIsDeletedOpen] = useState(false);
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('app-view') || 'table');
+  
+  const handleViewChange = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('app-view', mode);
+  };
+
+  // Push notification for overdue tasks
+  useEffect(() => {
+    if (!currentUser || !tasks || tasks.length === 0) return;
+    
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const myOverdue = tasks.filter(t => {
+        if (t.isDeleted || t.status === 'done') return false;
+        if (t.assignee !== currentUser) return false;
+        if (!t.deadline) return false;
+        const dl = new Date(t.deadline); dl.setHours(0,0,0,0);
+        return dl <= today;
+      });
+
+      if (myOverdue.length > 0) {
+        const lastNotif = localStorage.getItem('last-push-date');
+        const todayStr = today.toISOString().split('T')[0];
+        if (lastNotif !== todayStr) {
+          new Notification('İş Takip - Dikkat!', {
+            body: `${myOverdue.length} adet görevinizin süresi dolmuş veya bugün bitiyor!`,
+            icon: '📋'
+          });
+          localStorage.setItem('last-push-date', todayStr);
+        }
+      }
+    }
+  }, [currentUser, tasks]);
   
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -190,9 +254,9 @@ const AppContent = () => {
 
   return (
     <div className="app-container">
-      <Header onOpenSettings={() => setIsSettingsOpen(true)} onOpenDeleted={() => setIsDeletedOpen(true)} />
+      <Header onOpenSettings={() => setIsSettingsOpen(true)} onOpenDeleted={() => setIsDeletedOpen(true)} viewMode={viewMode} onViewChange={handleViewChange} />
       <main className="app-main">
-        <BoardView />
+        {viewMode === 'kanban' ? <KanbanView /> : <BoardView />}
       </main>
       <NotificationContainer />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />

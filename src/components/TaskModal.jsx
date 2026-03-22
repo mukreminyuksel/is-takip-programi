@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
-import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar, History, Paperclip, Download, Loader, ListTodo } from 'lucide-react';
+import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar, History, Paperclip, Download, Loader, ListTodo, Tag } from 'lucide-react';
 import { storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+const TAG_OPTIONS = [
+  { id: 'web', label: 'Web', color: '#3b82f6' },
+  { id: 'tasarim', label: 'Tasarım', color: '#8b5cf6' },
+  { id: 'mobil', label: 'Mobil', color: '#06b6d4' },
+  { id: 'acil', label: 'Acil', color: '#ef4444' },
+  { id: 'musteri', label: 'Müşteri', color: '#f59e0b' },
+  { id: 'bakim', label: 'Bakım', color: '#10b981' },
+  { id: 'rapor', label: 'Rapor', color: '#6366f1' },
+  { id: 'toplanti', label: 'Toplantı', color: '#ec4899' },
+];
 
 export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) {
   const { addTask, updateTask, currentUser, usersList, isAdmin } = useTasks();
@@ -22,6 +33,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
   const [notePriority, setNotePriority] = useState('normal');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+  const [tags, setTags] = useState([]);
 
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -43,6 +55,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
         setNotes(editTask.notes || []);
         setAttachments(editTask.attachments || []);
         setSubtasks(editTask.subtasks || []);
+        setTags(editTask.tags || []);
       } else {
         setTitle('');
         setCustomerName('');
@@ -59,6 +72,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
         setNotes([]);
         setAttachments([]);
         setSubtasks([]);
+        setTags([]);
       }
       setNewNote('');
       setNewSubtask('');
@@ -349,7 +363,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
       deadline: deadline ? new Date(deadline).toISOString() : null,
       notes,
       attachments,
-      subtasks
+      subtasks,
+      tags
     };
 
     if (editTask) {
@@ -472,6 +487,35 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
               <label className={`priority-opt ${priority === 'high' ? 'active high' : ''}`}>
                 <input type="radio" value="high" checked={priority === 'high'} onChange={() => setPriority('high')} /> Yüksek
               </label>
+            </div>
+          </div>
+
+          <div className="form-group" style={{marginBottom:'0.5rem'}}>
+            <label style={{display:'flex', alignItems:'center', gap:'0.3rem'}}><Tag size={12}/> Etiketler</label>
+            <div style={{display:'flex', flexWrap:'wrap', gap:'0.3rem'}}>
+              {TAG_OPTIONS.map(tag => {
+                const isSelected = tags.includes(tag.id);
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) setTags(tags.filter(t => t !== tag.id));
+                      else setTags([...tags, tag.id]);
+                    }}
+                    style={{
+                      padding:'0.2rem 0.5rem', borderRadius:'12px',
+                      fontSize:'0.7rem', fontWeight: isSelected ? 600 : 400,
+                      border: `1px solid ${isSelected ? tag.color : 'var(--border)'}`,
+                      background: isSelected ? `${tag.color}20` : 'transparent',
+                      color: isSelected ? tag.color : 'var(--text-muted)',
+                      cursor:'pointer', transition:'all 0.15s ease'
+                    }}
+                  >
+                    {tag.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
