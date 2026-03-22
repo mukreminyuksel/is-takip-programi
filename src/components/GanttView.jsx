@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useTasks } from '../context/TaskContext';
 import TaskModal from './TaskModal';
 
@@ -8,18 +8,22 @@ const SCALE_OPTIONS = [
   { id: 'month', label: 'Ay', days: 30 }
 ];
 
-const prioColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
 const statusColors = { 'todo': '#ef4444', 'in-progress': '#3b82f6', 'done': '#10b981' };
+const statusLabels = { 'todo': 'Yapılacak', 'in-progress': 'Devam Eden', 'done': 'Tamamlandı' };
 
 export default function GanttView() {
   const { tasks, updateTask, currentUser } = useTasks();
   const [scale, setScale] = useState('week');
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [dragInfo, setDragInfo] = useState(null); // { taskId, edge: 'left'|'right', startX, origDate }
+  const timelineRef = useRef(null);
+  const leftPanelRef = useRef(null);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef({ x: 0, scrollLeft: 0 });
 
   const activeTasks = tasks.filter(t => !t.isDeleted && t.startDate && t.deadline);
 
-  // Calculate date range
   const { minDate, maxDate, totalDays, dateColumns } = useMemo(() => {
     if (activeTasks.length === 0) {
       const today = new Date();
@@ -38,7 +42,6 @@ export default function GanttView() {
       if (e > max) max = e;
     });
 
-    // Add padding
     min.setDate(min.getDate() - 3);
     max.setDate(max.getDate() + 7);
     min.setHours(0,0,0,0);
@@ -46,7 +49,6 @@ export default function GanttView() {
 
     const total = Math.ceil((max - min) / (1000*60*60*24));
     
-    // Generate date columns based on scale
     const cols = [];
     const scaleObj = SCALE_OPTIONS.find(s => s.id === scale);
     const step = scaleObj.days;
@@ -60,7 +62,6 @@ export default function GanttView() {
     return { minDate: min, maxDate: max, totalDays: total, dateColumns: cols };
   }, [activeTasks, scale]);
 
-  const scaleObj = SCALE_OPTIONS.find(s => s.id === scale);
   const colWidth = scale === 'day' ? 40 : scale === 'week' ? 80 : 120;
   const totalWidth = dateColumns.length * colWidth;
 
@@ -71,6 +72,11 @@ export default function GanttView() {
       return `${date.getDate()} - ${end.toLocaleDateString('tr-TR', { day:'numeric', month:'short' })}`;
     }
     return date.toLocaleDateString('tr-TR', { month:'long', year:'numeric' });
+  };
+
+  const formatShortDate = (dateStr) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('tr-TR', { day:'2-digit', month:'2-digit' });
   };
 
   const getBarPosition = (task) => {
@@ -105,13 +111,90 @@ export default function GanttView() {
     return (offset / totalDays) * totalWidth;
   })();
 
-  // Sort tasks: by assignee then by start date
   const sortedTasks = [...activeTasks].sort((a, b) => {
     if (a.assignee !== b.assignee) return (a.assignee || '').localeCompare(b.assignee || '');
     return new Date(a.startDate) - new Date(b.startDate);
   });
 
   const ROW_HEIGHT = 32;
+
+  // --- Drag to resize bars ---
+  const pxPerDay = totalDays > 0 ? totalWidth / totalDays : 1;
+
+  const handleEdgeDragStart = (e, taskId, edge) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const origDate = edge === 'left' ? task.startDate : task.deadline;
+    setDragInfo({ taskId, edge, startX: e.clientX, origDate });
+
+    const handleMove = (ev) => {
+      const dx = ev.clientX - e.clientX;
+      const daysDelta = Math.round(dx / pxPerDay);
+      if (daysDelta === 0) return;
+      
+      const orig = new Date(origDate);
+      orig.setDate(orig.getDate() + daysDelta);
+      const newDateStr = orig.toISOString();
+
+      if (edge === 'left') {
+        if (new Date(newDateStr) < new Date(task.deadline)) {
+          updateTask(taskId, { startDate: newDateStr });
+        }
+      } else {
+        if (new Date(newDateStr) > new Date(task.startDate)) {
+          updateTask(taskId, { deadline: newDateStr });
+        }
+      }
+    };
+
+    const handleUp = () => {
+      setDragInfo(null);
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+  };
+
+  // --- Middle-click or grab to pan timeline ---
+  const handleTimelinePanStart = (e) => {
+    // Only pan on middle click or if clicking on empty space (not on a bar)
+    if (e.target.closest('.gantt-bar') || e.target.closest('.gantt-bar-edge')) return;
+    setIsPanning(true);
+    panStart.current = { x: e.clientX, scrollLeft: timelineRef.current?.scrollLeft || 0 };
+
+    const handleMove = (ev) => {
+      if (!timelineRef.current) return;
+      const dx = ev.clientX - panStart.current.x;
+      timelineRef.current.scrollLeft = panStart.current.scrollLeft - dx;
+    };
+
+    const handleUp = () => {
+      setIsPanning(false);
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+  };
+
+  // Sync vertical scroll between left panel and timeline
+  const handleTimelineScroll = (e) => {
+    if (leftPanelRef.current) {
+      leftPanelRef.current.scrollTop = e.target.scrollTop;
+    }
+  };
+
+  const handleLeftPanelScroll = (e) => {
+    if (timelineRef.current) {
+      timelineRef.current.scrollTop = e.target.scrollTop;
+    }
+  };
 
   return (
     <>
@@ -138,34 +221,67 @@ export default function GanttView() {
         </div>
       </div>
 
-      <div className="gantt-container" style={{ display:'flex', border:'1px solid var(--border)', borderRadius:'6px', overflow:'hidden', background:'var(--bg-main)', maxHeight: 'calc(100vh - 160px)' }}>
-        {/* Left: Task names */}
-        <div style={{ minWidth:'200px', maxWidth:'250px', borderRight:'2px solid var(--border)', flexShrink:0, overflowY:'auto' }}>
-          <div style={{ height:'40px', display:'flex', alignItems:'center', padding:'0 0.75rem', background:'var(--bg-alt)', borderBottom:'1px solid var(--border)', fontWeight:600, fontSize:'0.75rem', color:'var(--text-main)', position:'sticky', top:0, zIndex:2 }}>
-            Görev Adı
+      <div className="gantt-container" style={{ display:'flex', border:'1px solid var(--border)', borderRadius:'6px', overflow:'hidden', background:'var(--bg-main)', maxHeight: 'calc(100vh - 200px)' }}>
+        {/* Left: Task info columns */}
+        <div 
+          ref={leftPanelRef}
+          onScroll={handleLeftPanelScroll}
+          style={{ minWidth:'380px', maxWidth:'420px', borderRight:'2px solid var(--border)', flexShrink:0, overflowY:'auto', overflowX:'hidden', scrollbarWidth:'none' }}
+        >
+          {/* Header */}
+          <div style={{ height:'40px', display:'flex', alignItems:'center', background:'var(--bg-alt)', borderBottom:'1px solid var(--border)', position:'sticky', top:0, zIndex:2, fontSize:'0.7rem', fontWeight:600, color:'var(--text-main)' }}>
+            <div style={{flex:1, padding:'0 0.5rem', minWidth:'150px'}}>Görev Adı</div>
+            <div style={{width:'65px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>Başlangıç</div>
+            <div style={{width:'65px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>Bitiş</div>
+            <div style={{width:'75px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>Durum</div>
           </div>
+          {/* Rows */}
           {sortedTasks.map((task, i) => (
             <div
               key={task.id}
               onClick={() => openEdit(task)}
               style={{
                 height: ROW_HEIGHT,
-                display:'flex', alignItems:'center', padding:'0 0.75rem', gap:'0.4rem',
+                display:'flex', alignItems:'center',
                 borderBottom:'1px solid var(--border)', cursor:'pointer',
                 background: i % 2 === 0 ? 'var(--bg-main)' : 'var(--bg-alt)',
-                fontSize:'0.7rem', overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis'
+                fontSize:'0.65rem',
               }}
             >
-              <span className={`prio-dot prio-${task.priority}`} style={{flexShrink:0}}></span>
-              <span style={{overflow:'hidden', textOverflow:'ellipsis', fontWeight:500, color:'var(--text-main)'}}>
-                {task.title}
-              </span>
+              <div style={{flex:1, display:'flex', alignItems:'center', gap:'0.3rem', padding:'0 0.5rem', overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis', minWidth:'150px'}}>
+                <span style={{width:6, height:6, borderRadius:'50%', background: statusColors[task.status], flexShrink:0}}></span>
+                <span style={{overflow:'hidden', textOverflow:'ellipsis', fontWeight:500, color:'var(--text-main)'}}>
+                  {task.title}
+                </span>
+              </div>
+              <div style={{width:'65px', textAlign:'center', color:'var(--text-muted)', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>
+                {formatShortDate(task.startDate)}
+              </div>
+              <div style={{width:'65px', textAlign:'center', color:'var(--text-muted)', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>
+                {formatShortDate(task.deadline)}
+              </div>
+              <div style={{width:'75px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>
+                <span style={{
+                  fontSize:'0.55rem', padding:'0.1rem 0.3rem', borderRadius:'8px',
+                  background: `${statusColors[task.status]}18`, color: statusColors[task.status], fontWeight:600
+                }}>
+                  {statusLabels[task.status]}
+                </span>
+              </div>
             </div>
           ))}
         </div>
 
         {/* Right: Timeline */}
-        <div style={{ flex:1, overflowX:'auto', overflowY:'auto', position:'relative' }}>
+        <div
+          ref={timelineRef}
+          onScroll={handleTimelineScroll}
+          onMouseDown={handleTimelinePanStart}
+          style={{
+            flex:1, overflowX:'scroll', overflowY:'auto', position:'relative',
+            cursor: isPanning ? 'grabbing' : 'grab',
+          }}
+        >
           {/* Column headers */}
           <div style={{ display:'flex', height:'40px', position:'sticky', top:0, zIndex:2, background:'var(--bg-alt)', borderBottom:'1px solid var(--border)' }}>
             {dateColumns.map((date, i) => (
@@ -214,7 +330,9 @@ export default function GanttView() {
 
               return (
                 <div key={task.id} style={{ height: ROW_HEIGHT, position:'relative', borderBottom:'1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--bg-alt)' }}>
+                  {/* Main bar */}
                   <div
+                    className="gantt-bar"
                     onClick={() => openEdit(task)}
                     title={`${task.title}\n${task.assignee || 'Atanmamış'}\n${new Date(task.startDate).toLocaleDateString('tr-TR')} → ${new Date(task.deadline).toLocaleDateString('tr-TR')}`}
                     style={{
@@ -223,16 +341,46 @@ export default function GanttView() {
                       left, width,
                       background: isDone ? `${barColor}60` : `${barColor}cc`,
                       borderRadius:'3px', cursor:'pointer',
-                      display:'flex', alignItems:'center', padding:'0 6px',
+                      display:'flex', alignItems:'center', justifyContent:'center',
                       fontSize:'0.6rem', color:'#fff', fontWeight:500,
                       overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis',
-                      transition:'opacity 0.15s',
                       textDecoration: isDone ? 'line-through' : 'none',
-                      opacity: isDone ? 0.5 : 1
+                      opacity: isDone ? 0.5 : 1,
                     }}
                   >
-                    {width > 60 && <span>{task.assignee || ''}</span>}
+                    {width > 60 && <span style={{padding:'0 6px'}}>{task.assignee || ''}</span>}
                   </div>
+
+                  {/* Left drag handle */}
+                  <div
+                    className="gantt-bar-edge"
+                    onMouseDown={(e) => handleEdgeDragStart(e, task.id, 'left')}
+                    style={{
+                      position:'absolute',
+                      top: 4, height: ROW_HEIGHT - 8,
+                      left: left - 2, width: 8,
+                      cursor:'ew-resize', zIndex: 3,
+                      borderRadius:'3px 0 0 3px',
+                      background: 'transparent',
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = `${barColor}88`}
+                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                  />
+                  {/* Right drag handle */}
+                  <div
+                    className="gantt-bar-edge"
+                    onMouseDown={(e) => handleEdgeDragStart(e, task.id, 'right')}
+                    style={{
+                      position:'absolute',
+                      top: 4, height: ROW_HEIGHT - 8,
+                      left: left + width - 6, width: 8,
+                      cursor:'ew-resize', zIndex: 3,
+                      borderRadius:'0 3px 3px 0',
+                      background: 'transparent',
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = `${barColor}88`}
+                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                  />
                 </div>
               );
             })}
@@ -244,6 +392,35 @@ export default function GanttView() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Color legend */}
+      <div style={{
+        display:'flex', gap:'1.5rem', alignItems:'center', justifyContent:'center',
+        marginTop:'0.75rem', padding:'0.5rem 1rem',
+        background:'var(--bg-alt)', borderRadius:'6px', border:'1px solid var(--border)',
+        flexWrap:'wrap'
+      }}>
+        <span style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)'}}>Renk Kodları:</span>
+        <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+          <span style={{width:12, height:12, borderRadius:'2px', background:'#ef4444cc'}}></span>
+          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Yapılacak</span>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+          <span style={{width:12, height:12, borderRadius:'2px', background:'#3b82f6cc'}}></span>
+          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Devam Eden</span>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+          <span style={{width:12, height:12, borderRadius:'2px', background:'#10b981cc'}}></span>
+          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Tamamlandı</span>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:'0.3rem', borderLeft:'1px solid var(--border)', paddingLeft:'1rem'}}>
+          <span style={{width:12, height:2, background:'var(--primary)'}}></span>
+          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Bugün</span>
+        </div>
+        <span style={{fontSize:'0.65rem', color:'var(--text-muted)', fontStyle:'italic'}}>
+          ↔ Çubuk kenarlarından çekerek tarih değiştirin • Boş alana tıklayıp sürükleyerek kaydırın
+        </span>
       </div>
 
       <TaskModal

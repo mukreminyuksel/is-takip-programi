@@ -490,3 +490,27 @@ body {
     max-height: 400px;
   }
 }
+
+/* Gantt always-visible scrollbar */
+.gantt-container {
+  scrollbar-gutter: stable;
+}
+.gantt-container > div:last-child {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.gantt-container > div:last-child::-webkit-scrollbar {
+  height: 10px;
+  width: 8px;
+}
+.gantt-container > div:last-child::-webkit-scrollbar-track {
+  background: var(--bg-alt);
+}
+.gantt-container > div:last-child::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+}
+.gantt-container > div:last-child::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
