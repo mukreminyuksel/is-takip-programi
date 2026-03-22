@@ -10,6 +10,7 @@ export const useTasks = () => useContext(TaskContext);
 export const TaskProvider = ({ children }) => {
   const [tasks, setTasks] = useState([]);
   const [usersList, setUsersList] = useState([]);
+  const [tagsList, setTagsList] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [appNotifications, setAppNotifications] = useState([]);
   
@@ -39,6 +40,28 @@ export const TaskProvider = ({ children }) => {
 
     const unsubTasks = onSnapshot(collection(db, 'tasks'), (snapshot) => {
       setTasks(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+
+    const unsubTags = onSnapshot(collection(db, 'tagsList'), async (snapshot) => {
+      const dbTags = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      if (dbTags.length === 0) {
+        // Seed default tags
+        const defaults = [
+          { label: 'Web', color: '#3b82f6', order: 0 },
+          { label: 'Tasar\u0131m', color: '#8b5cf6', order: 1 },
+          { label: 'Mobil', color: '#06b6d4', order: 2 },
+          { label: 'Acil', color: '#ef4444', order: 3 },
+          { label: 'M\u00fc\u015fteri', color: '#f59e0b', order: 4 },
+          { label: 'Bak\u0131m', color: '#10b981', order: 5 },
+          { label: 'Rapor', color: '#6366f1', order: 6 },
+          { label: 'Toplant\u0131', color: '#ec4899', order: 7 },
+        ];
+        for (const t of defaults) {
+          try { await addDoc(collection(db, 'tagsList'), t); } catch(e) {}
+        }
+      } else {
+        setTagsList(dbTags.sort((a,b) => (a.order||0) - (b.order||0)));
+      }
     });
 
     const unsubUsers = onSnapshot(collection(db, 'usersList'), async (snapshot) => {
@@ -99,6 +122,7 @@ export const TaskProvider = ({ children }) => {
     return () => {
       unsubTasks();
       unsubUsers();
+      unsubTags();
     };
   }, [authUser]);
 
@@ -156,6 +180,16 @@ export const TaskProvider = ({ children }) => {
   };
   const deleteUser = async (id) => { 
     try { await deleteDoc(doc(db, 'usersList', id)); } catch (e) { addNotification("Hata"); }
+  };
+
+  const addTag = async (tagData) => {
+    try { await addDoc(collection(db, 'tagsList'), { ...tagData, order: tagsList.length }); } catch (e) { addNotification("Etiket eklenemedi."); }
+  };
+  const editTag = async (id, data) => {
+    try { await updateDoc(doc(db, 'tagsList', id), data); } catch (e) { addNotification("Hata"); }
+  };
+  const deleteTag = async (id) => {
+    try { await deleteDoc(doc(db, 'tagsList', id)); } catch (e) { addNotification("Hata"); }
   };
 
   const triggerCommunicationSimulations = (assigneeName, taskTitle) => {
@@ -283,6 +317,7 @@ export const TaskProvider = ({ children }) => {
       tasks, addTask, updateTaskStatus, updateTask, deleteTask, permanentDeleteTask, restoreTask, 
       notifications, appNotifications, markAppNotificationAsRead, currentUser, setCurrentUser, usersList, 
       addUser, editUser, deleteUser, isAdmin,
+      tagsList, addTag, editTag, deleteTag,
       loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading
     }}>
       {children}

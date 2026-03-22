@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
-import { X, Plus, Trash2, Edit2, ShieldAlert } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, ShieldAlert, Tag } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
@@ -10,9 +10,11 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 export default function SettingsModal({ isOpen, onClose }) {
-  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin } = useTasks();
+  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag } = useTasks();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('personnel');
+  const [tagForm, setTagForm] = useState({ id: null, label: '', color: '#3b82f6' });
+  const [isEditingTag, setIsEditingTag] = useState(false);
   const [formData, setFormData] = useState({ id: null, name: '', role: 'admin', phone: '', whatsapp: '', email: '', finance: '' });
 
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -337,6 +339,9 @@ export default function SettingsModal({ isOpen, onClose }) {
             <h2 onClick={() => {setActiveTab('analytics'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'analytics' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'analytics' ? '2px solid var(--primary)' : '2px solid transparent'}}>
               İstatistik ve Raporlar
             </h2>
+            <h2 onClick={() => {setActiveTab('tags'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'tags' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'tags' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
+              <Tag size={16}/> Etiket Yönetimi
+            </h2>
           </div>
           <div onMouseDown={e => e.stopPropagation()} style={{paddingBottom:'0.8rem'}}>
             <button className="icon-btn" onClick={onClose}><X size={20} /></button>
@@ -523,6 +528,61 @@ export default function SettingsModal({ isOpen, onClose }) {
                    </div>
                  );
               })}
+            </div>
+          </div>
+        )}
+
+        {!isEditing && activeTab === 'tags' && (
+          <div className="settings-body" style={{padding: '1.5rem'}}>
+            <div style={{marginBottom:'1.5rem', padding:'1rem', background:'var(--bg-alt)', borderRadius:'8px', border:'1px solid var(--border)'}}>
+              <h4 style={{fontSize:'0.9rem', marginBottom:'0.75rem', color:'var(--text-main)'}}>Yeni Etiket Ekle / Düzenle</h4>
+              <div style={{display:'flex', gap:'0.75rem', alignItems:'flex-end', flexWrap:'wrap'}}>
+                <div style={{flex:1, minWidth:'150px'}}>
+                  <label style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)', display:'block', marginBottom:'0.15rem'}}>Etiket Adı</label>
+                  <input type="text" value={tagForm.label} onChange={e => setTagForm({...tagForm, label: e.target.value})} placeholder="Örn: Web Tasarım" style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.8rem'}} />
+                </div>
+                <div style={{width:'80px'}}>
+                  <label style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)', display:'block', marginBottom:'0.15rem'}}>Renk</label>
+                  <input type="color" value={tagForm.color} onChange={e => setTagForm({...tagForm, color: e.target.value})} style={{width:'100%', height:'32px', border:'1px solid var(--border)', borderRadius:'4px', cursor:'pointer', padding:'2px'}} />
+                </div>
+                <button className="btn btn-primary btn-small" onClick={() => {
+                  if (!tagForm.label.trim()) return;
+                  if (tagForm.id) {
+                    editTag(tagForm.id, { label: tagForm.label, color: tagForm.color });
+                  } else {
+                    addTag({ label: tagForm.label, color: tagForm.color });
+                  }
+                  setTagForm({ id: null, label: '', color: '#3b82f6' });
+                  setIsEditingTag(false);
+                }} style={{height:'32px'}}>
+                  {tagForm.id ? 'Güncelle' : 'Ekle'}
+                </button>
+                {tagForm.id && (
+                  <button className="btn btn-secondary btn-small" onClick={() => { setTagForm({ id: null, label: '', color: '#3b82f6' }); setIsEditingTag(false); }} style={{height:'32px'}}>
+                    İptal
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <h4 style={{fontSize:'0.9rem', marginBottom:'0.75rem', color:'var(--text-main)'}}>Mevcut Etiketler ({tagsList.length})</h4>
+            <div style={{display:'flex', flexDirection:'column', gap:'0.5rem'}}>
+              {tagsList.map(tag => (
+                <div key={tag.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0.6rem 0.75rem', background:'var(--bg-main)', border:'1px solid var(--border)', borderRadius:'6px'}}>
+                  <div style={{display:'flex', alignItems:'center', gap:'0.75rem'}}>
+                    <span style={{width:16, height:16, borderRadius:'50%', background: tag.color, flexShrink:0}}></span>
+                    <span style={{fontWeight:600, fontSize:'0.85rem', color:'var(--text-main)'}}>{tag.label}</span>
+                    <span style={{fontSize:'0.7rem', color:'var(--text-muted)'}}>{tag.color}</span>
+                  </div>
+                  <div style={{display:'flex', gap:'0.3rem'}}>
+                    <button className="icon-btn" onClick={() => { setTagForm({ id: tag.id, label: tag.label, color: tag.color }); setIsEditingTag(true); }}><Edit2 size={14}/></button>
+                    <button className="icon-btn delete-btn" onClick={() => { if(window.confirm(`"${tag.label}" etiketini silmek istediğinize emin misiniz?`)) deleteTag(tag.id); }}><Trash2 size={14}/></button>
+                  </div>
+                </div>
+              ))}
+              {tagsList.length === 0 && (
+                <div style={{textAlign:'center', padding:'2rem', color:'var(--text-muted)', fontSize:'0.85rem'}}>Henüz etiket eklenmemiş.</div>
+              )}
             </div>
           </div>
         )}

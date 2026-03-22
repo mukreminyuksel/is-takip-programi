@@ -4,19 +4,8 @@ import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar, Hist
 import { storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-const TAG_OPTIONS = [
-  { id: 'web', label: 'Web', color: '#3b82f6' },
-  { id: 'tasarim', label: 'Tasarım', color: '#8b5cf6' },
-  { id: 'mobil', label: 'Mobil', color: '#06b6d4' },
-  { id: 'acil', label: 'Acil', color: '#ef4444' },
-  { id: 'musteri', label: 'Müşteri', color: '#f59e0b' },
-  { id: 'bakim', label: 'Bakım', color: '#10b981' },
-  { id: 'rapor', label: 'Rapor', color: '#6366f1' },
-  { id: 'toplanti', label: 'Toplantı', color: '#ec4899' },
-];
-
 export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) {
-  const { addTask, updateTask, currentUser, usersList, isAdmin } = useTasks();
+  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList } = useTasks();
   const [title, setTitle] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -493,7 +482,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
           <div className="form-group" style={{marginBottom:'0.5rem'}}>
             <label style={{display:'flex', alignItems:'center', gap:'0.3rem'}}><Tag size={12}/> Etiketler</label>
             <div style={{display:'flex', flexWrap:'wrap', gap:'0.3rem'}}>
-              {TAG_OPTIONS.map(tag => {
+              {tagsList.map(tag => {
                 const isSelected = tags.includes(tag.id);
                 return (
                   <button

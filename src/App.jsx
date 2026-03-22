@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { TaskProvider, useTasks } from './context/TaskContext'
 import BoardView from './components/BoardView'
 import KanbanView from './components/KanbanView'
+import GanttView from './components/GanttView'
 import SettingsModal from './components/SettingsModal'
 import DeletedTasksModal from './components/DeletedTasksModal'
-import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns } from 'lucide-react'
+import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart } from 'lucide-react'
 
 const NotificationContainer = () => {
   const { notifications } = useTasks();
@@ -89,6 +90,9 @@ const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
             </button>
             <button className={viewMode === 'kanban' ? 'active' : ''} onClick={() => onViewChange('kanban')}>
               <Columns size={14}/> Kanban
+            </button>
+            <button className={viewMode === 'gantt' ? 'active' : ''} onClick={() => onViewChange('gantt')}>
+              <GanttChart size={14}/> Gantt
             </button>
           </div>
         </div>
@@ -256,7 +260,7 @@ const AppContent = () => {
     <div className="app-container">
       <Header onOpenSettings={() => setIsSettingsOpen(true)} onOpenDeleted={() => setIsDeletedOpen(true)} viewMode={viewMode} onViewChange={handleViewChange} />
       <main className="app-main">
-        {viewMode === 'kanban' ? <KanbanView /> : <BoardView />}
+        {viewMode === 'kanban' ? <KanbanView /> : viewMode === 'gantt' ? <GanttView /> : <BoardView />}
       </main>
       <NotificationContainer />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
