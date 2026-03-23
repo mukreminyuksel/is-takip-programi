@@ -18,12 +18,12 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [formData, setFormData] = useState({ id: null, name: '', role: 'admin', phone: '', whatsapp: '', email: '', finance: '' });
 
   // Auth management states
-  const [authNewEmail, setAuthNewEmail] = useState('');
+  const [authNewLogin, setAuthNewLogin] = useState('');
   const [authNewPassword, setAuthNewPassword] = useState('');
-  const [authResetEmail, setAuthResetEmail] = useState('');
-  const [authChangeEmail, setAuthChangeEmail] = useState('');
-  const [authChangeCurrentPw, setAuthChangeCurrentPw] = useState('');
+  const [authNewLinkedUser, setAuthNewLinkedUser] = useState('');
+  const [authChangeUserId, setAuthChangeUserId] = useState('');
   const [authChangeNewPw, setAuthChangeNewPw] = useState('');
+  const [authResetEmail, setAuthResetEmail] = useState('');
   const [authMessage, setAuthMessage] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
 
@@ -686,6 +686,116 @@ export default function SettingsModal({ isOpen, onClose }) {
               </div>
             )}
 
+            {/* Current Users & Passwords Table */}
+            <div style={{marginBottom:'1.5rem'}}>
+              <h4 style={{fontSize:'0.95rem', marginBottom:'0.75rem', color:'var(--text-main)'}}>Kayıtlı Hesaplar ve Şifreler</h4>
+              <div className="table-container" style={{maxHeight:'35vh', overflowY:'auto'}}>
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>Personel</th>
+                      <th>Yetki</th>
+                      <th>Giriş Bilgisi (Telefon/E-posta)</th>
+                      <th>Şifre</th>
+                      <th style={{width:'60px'}}>İşlem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usersList.map(u => (
+                      <tr key={u.id}>
+                        <td style={{fontWeight:600}}>{u.name}</td>
+                        <td>
+                          <span style={{fontSize:'0.7rem', color: u.role === 'admin' ? '#ef4444' : 'var(--text-muted)', fontWeight: u.role === 'admin' ? 600 : 400}}>
+                            {u.role === 'admin' ? 'Admin' : 'Kullanıcı'}
+                          </span>
+                        </td>
+                        <td style={{fontSize:'0.8rem'}}>
+                          {u.authLogin || u.authEmail || u.email || <span style={{color:'#ef4444', fontSize:'0.75rem'}}>Hesap yok</span>}
+                        </td>
+                        <td>
+                          {u.authPassword ? (
+                            <span style={{fontFamily:'monospace', fontSize:'0.8rem', background:'var(--bg-hover)', padding:'0.15rem 0.4rem', borderRadius:'4px', userSelect:'all'}}>{u.authPassword}</span>
+                          ) : (
+                            <span style={{color:'var(--text-muted)', fontSize:'0.75rem'}}>-</span>
+                          )}
+                        </td>
+                        <td>
+                          {(u.authEmail || u.email) && (
+                            <button className="icon-btn" title="Şifre Değiştir" onClick={() => {
+                              setAuthChangeUserId(u.id);
+                              setAuthChangeNewPw('');
+                              setAuthMessage(null);
+                            }}>
+                              <KeyRound size={14}/>
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {usersList.length === 0 && (
+                      <tr><td colSpan="5" style={{textAlign:'center', padding:'1rem', color:'var(--text-muted)'}}>Personel bulunamadı.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Inline Password Change */}
+            {authChangeUserId && (() => {
+              const selectedUser = usersList.find(u => u.id === authChangeUserId);
+              if (!selectedUser) return null;
+              const targetAuthEmail = selectedUser.authEmail || selectedUser.email;
+              const currentPw = selectedUser.authPassword || '';
+              return (
+                <div style={{background:'#fef3c7', padding:'1rem', borderRadius:'8px', border:'1px solid #fcd34d', marginBottom:'1.5rem'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.75rem'}}>
+                    <h4 style={{fontSize:'0.9rem', margin:0, color:'#92400e'}}>
+                      {selectedUser.name} - Şifre Değiştir
+                    </h4>
+                    <button className="icon-btn" onClick={() => setAuthChangeUserId('')} style={{color:'#92400e'}}><X size={16}/></button>
+                  </div>
+                  <div style={{display:'flex', gap:'0.75rem', alignItems:'flex-end', flexWrap:'wrap'}}>
+                    <div style={{flex:1, minWidth:'120px'}}>
+                      <label style={{fontSize:'0.7rem', fontWeight:600, color:'#92400e', display:'block', marginBottom:'0.15rem'}}>Giriş Bilgisi</label>
+                      <input type="text" value={targetAuthEmail || ''} disabled style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid #fcd34d', borderRadius:'4px', fontSize:'0.85rem', background:'#fffbeb', color:'#78350f'}} />
+                    </div>
+                    <div style={{flex:1, minWidth:'120px'}}>
+                      <label style={{fontSize:'0.7rem', fontWeight:600, color:'#92400e', display:'block', marginBottom:'0.15rem'}}>Mevcut Şifre</label>
+                      <input type="text" value={currentPw} disabled style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid #fcd34d', borderRadius:'4px', fontSize:'0.85rem', background:'#fffbeb', color:'#78350f', fontFamily:'monospace'}} />
+                    </div>
+                    <div style={{flex:1, minWidth:'120px'}}>
+                      <label style={{fontSize:'0.7rem', fontWeight:600, color:'#92400e', display:'block', marginBottom:'0.15rem'}}>Yeni Şifre (en az 6 karakter)</label>
+                      <input type="text" value={authChangeNewPw} onChange={e => setAuthChangeNewPw(e.target.value)} placeholder="Yeni şifre girin" style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid #fcd34d', borderRadius:'4px', fontSize:'0.85rem', background:'#fff'}} />
+                    </div>
+                    <button
+                      className="btn btn-primary btn-small"
+                      disabled={authLoading || !authChangeNewPw || !currentPw}
+                      onClick={async () => {
+                        setAuthLoading(true);
+                        setAuthMessage(null);
+                        const result = await adminChangePassword(targetAuthEmail, currentPw, authChangeNewPw);
+                        if (result.success) {
+                          setAuthMessage({ type: 'success', text: `${selectedUser.name} kullanıcısının şifresi başarıyla değiştirildi.` });
+                          setAuthChangeUserId('');
+                          setAuthChangeNewPw('');
+                        } else {
+                          setAuthMessage({ type: 'error', text: `Hata: ${result.error}` });
+                        }
+                        setAuthLoading(false);
+                      }}
+                    >
+                      {authLoading ? 'İşleniyor...' : 'Şifreyi Değiştir'}
+                    </button>
+                  </div>
+                  {!currentPw && (
+                    <p style={{fontSize:'0.75rem', color:'#dc2626', marginTop:'0.5rem', marginBottom:0}}>
+                      Bu kullanıcının mevcut şifresi kayıtlı değil. Aşağıdaki "Şifre Sıfırlama E-postası" yöntemini kullanabilirsiniz.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem'}}>
               {/* Create New User */}
               <div style={{background:'var(--bg-card)', padding:'1.5rem', borderRadius:'8px', border:'1px solid var(--border)'}}>
@@ -693,28 +803,43 @@ export default function SettingsModal({ isOpen, onClose }) {
                   <Plus size={16}/> Yeni Kullanıcı Hesabı Oluştur
                 </h4>
                 <p style={{fontSize:'0.75rem', color:'var(--text-muted)', marginBottom:'1rem', lineHeight:'1.5'}}>
-                  Firebase Authentication'a yeni bir e-posta/şifre hesabı ekler. Kullanıcı bu bilgilerle sisteme giriş yapabilir.
+                  Telefon numarası veya e-posta adresi ile yeni hesap oluşturur. Kullanıcı bu bilgilerle sisteme giriş yapabilir.
                 </p>
                 <div style={{display:'flex', flexDirection:'column', gap:'0.5rem'}}>
                   <div>
-                    <label style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)', display:'block', marginBottom:'0.15rem'}}>E-Posta Adresi</label>
-                    <input type="email" value={authNewEmail} onChange={e => setAuthNewEmail(e.target.value)} placeholder="ornek@sirket.com" style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem'}} />
+                    <label style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)', display:'block', marginBottom:'0.15rem'}}>Bağlı Personel</label>
+                    <select value={authNewLinkedUser} onChange={e => setAuthNewLinkedUser(e.target.value)} style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem', background:'var(--bg-main)'}}>
+                      <option value="">Personel seçin (isteğe bağlı)...</option>
+                      {usersList.filter(u => !u.authEmail).map(u => (
+                        <option key={u.id} value={u.id}>{u.name} {u.email ? `(${u.email})` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)', display:'block', marginBottom:'0.15rem'}}>Kullanıcı Adı (Telefon veya E-posta)</label>
+                    <input type="text" value={authNewLogin} onChange={e => setAuthNewLogin(e.target.value)} placeholder="05351234567 veya ornek@sirket.com" style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem'}} />
+                    {authNewLogin && !/\S+@\S+/.test(authNewLogin) && (
+                      <span style={{fontSize:'0.65rem', color:'var(--text-muted)', marginTop:'0.15rem', display:'block'}}>
+                        Giriş adresi: {authNewLogin.trim()}@istakip.com
+                      </span>
+                    )}
                   </div>
                   <div>
                     <label style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)', display:'block', marginBottom:'0.15rem'}}>Şifre (en az 6 karakter)</label>
-                    <input type="password" value={authNewPassword} onChange={e => setAuthNewPassword(e.target.value)} placeholder="••••••" style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem'}} />
+                    <input type="text" value={authNewPassword} onChange={e => setAuthNewPassword(e.target.value)} placeholder="Şifre belirleyin" style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem'}} />
                   </div>
                   <button
                     className="btn btn-primary btn-small"
-                    disabled={authLoading || !authNewEmail || !authNewPassword}
+                    disabled={authLoading || !authNewLogin || !authNewPassword}
                     onClick={async () => {
                       setAuthLoading(true);
                       setAuthMessage(null);
-                      const result = await adminCreateAuthUser(authNewEmail, authNewPassword);
+                      const result = await adminCreateAuthUser(authNewLogin, authNewPassword, authNewLinkedUser || null);
                       if (result.success) {
-                        setAuthMessage({ type: 'success', text: `Hesap başarıyla oluşturuldu: ${authNewEmail}` });
-                        setAuthNewEmail('');
+                        setAuthMessage({ type: 'success', text: `Hesap başarıyla oluşturuldu: ${authNewLogin}` });
+                        setAuthNewLogin('');
                         setAuthNewPassword('');
+                        setAuthNewLinkedUser('');
                       } else {
                         setAuthMessage({ type: 'error', text: `Hata: ${result.error}` });
                       }
@@ -727,110 +852,43 @@ export default function SettingsModal({ isOpen, onClose }) {
                 </div>
               </div>
 
-              {/* Change Password */}
+              {/* Password Reset Email */}
               <div style={{background:'var(--bg-card)', padding:'1.5rem', borderRadius:'8px', border:'1px solid var(--border)'}}>
                 <h4 style={{fontSize:'0.95rem', marginBottom:'1rem', color:'var(--text-main)', display:'flex', alignItems:'center', gap:'0.5rem'}}>
-                  <KeyRound size={16}/> Şifre Değiştir
+                  Şifre Sıfırlama E-postası Gönder
                 </h4>
                 <p style={{fontSize:'0.75rem', color:'var(--text-muted)', marginBottom:'1rem', lineHeight:'1.5'}}>
-                  Mevcut bir kullanıcının şifresini değiştirir. İşlem için kullanıcının mevcut şifresini bilmeniz gerekir.
+                  Kullanıcıya şifre sıfırlama bağlantısı içeren bir e-posta gönderir. Sadece gerçek e-posta adresi olan hesaplar için çalışır (telefon numarası ile oluşturulan hesaplar için kullanılamaz).
                 </p>
                 <div style={{display:'flex', flexDirection:'column', gap:'0.5rem'}}>
                   <div>
-                    <label style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)', display:'block', marginBottom:'0.15rem'}}>Kullanıcı E-Posta Adresi</label>
-                    <select value={authChangeEmail} onChange={e => setAuthChangeEmail(e.target.value)} style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem', background:'var(--bg-main)'}}>
+                    <label style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)', display:'block', marginBottom:'0.15rem'}}>Kullanıcı</label>
+                    <select value={authResetEmail} onChange={e => setAuthResetEmail(e.target.value)} style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem', background:'var(--bg-main)'}}>
                       <option value="">Kullanıcı seçin...</option>
-                      {usersList.filter(u => u.email).map(u => (
+                      {usersList.filter(u => u.email && u.email.includes('@') && !u.email.includes('@istakip.com')).map(u => (
                         <option key={u.id} value={u.email}>{u.name} ({u.email})</option>
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)', display:'block', marginBottom:'0.15rem'}}>Mevcut Şifre</label>
-                    <input type="password" value={authChangeCurrentPw} onChange={e => setAuthChangeCurrentPw(e.target.value)} placeholder="••••••" style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem'}} />
-                  </div>
-                  <div>
-                    <label style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)', display:'block', marginBottom:'0.15rem'}}>Yeni Şifre (en az 6 karakter)</label>
-                    <input type="password" value={authChangeNewPw} onChange={e => setAuthChangeNewPw(e.target.value)} placeholder="••••••" style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem'}} />
-                  </div>
                   <button
-                    className="btn btn-primary btn-small"
-                    disabled={authLoading || !authChangeEmail || !authChangeCurrentPw || !authChangeNewPw}
+                    className="btn btn-secondary btn-small"
+                    disabled={authLoading || !authResetEmail}
                     onClick={async () => {
                       setAuthLoading(true);
                       setAuthMessage(null);
-                      const result = await adminChangePassword(authChangeEmail, authChangeCurrentPw, authChangeNewPw);
+                      const result = await adminSendPasswordReset(authResetEmail);
                       if (result.success) {
-                        setAuthMessage({ type: 'success', text: `Şifre başarıyla değiştirildi: ${authChangeEmail}` });
-                        setAuthChangeCurrentPw('');
-                        setAuthChangeNewPw('');
+                        setAuthMessage({ type: 'success', text: `Şifre sıfırlama e-postası gönderildi: ${authResetEmail}` });
                       } else {
                         setAuthMessage({ type: 'error', text: `Hata: ${result.error}` });
                       }
                       setAuthLoading(false);
                     }}
-                    style={{marginTop:'0.5rem'}}
+                    style={{background:'#f59e0b', color:'#fff', borderColor:'#f59e0b', marginTop:'0.5rem'}}
                   >
-                    {authLoading ? 'İşleniyor...' : 'Şifreyi Değiştir'}
+                    {authLoading ? 'Gönderiliyor...' : 'Sıfırlama E-postası Gönder'}
                   </button>
                 </div>
-              </div>
-            </div>
-
-            {/* Password Reset Email */}
-            <div style={{background:'var(--bg-card)', padding:'1.5rem', borderRadius:'8px', border:'1px solid var(--border)', marginTop:'1.5rem'}}>
-              <h4 style={{fontSize:'0.95rem', marginBottom:'1rem', color:'var(--text-main)', display:'flex', alignItems:'center', gap:'0.5rem'}}>
-                Şifre Sıfırlama E-postası Gönder
-              </h4>
-              <p style={{fontSize:'0.75rem', color:'var(--text-muted)', marginBottom:'1rem', lineHeight:'1.5'}}>
-                Kullanıcıya şifre sıfırlama bağlantısı içeren bir e-posta gönderir. Kullanıcı bu bağlantıyı tıklayarak yeni şifresini belirleyebilir. Mevcut şifreyi bilmiyorsanız bu yöntemi kullanabilirsiniz.
-              </p>
-              <div style={{display:'flex', gap:'0.5rem', alignItems:'flex-end'}}>
-                <div style={{flex:1}}>
-                  <label style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)', display:'block', marginBottom:'0.15rem'}}>E-Posta Adresi</label>
-                  <select value={authResetEmail} onChange={e => setAuthResetEmail(e.target.value)} style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem', background:'var(--bg-main)'}}>
-                    <option value="">Kullanıcı seçin...</option>
-                    {usersList.filter(u => u.email).map(u => (
-                      <option key={u.id} value={u.email}>{u.name} ({u.email})</option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  className="btn btn-secondary btn-small"
-                  disabled={authLoading || !authResetEmail}
-                  onClick={async () => {
-                    setAuthLoading(true);
-                    setAuthMessage(null);
-                    const result = await adminSendPasswordReset(authResetEmail);
-                    if (result.success) {
-                      setAuthMessage({ type: 'success', text: `Şifre sıfırlama e-postası gönderildi: ${authResetEmail}` });
-                    } else {
-                      setAuthMessage({ type: 'error', text: `Hata: ${result.error}` });
-                    }
-                    setAuthLoading(false);
-                  }}
-                  style={{background:'#f59e0b', color:'#fff', borderColor:'#f59e0b', whiteSpace:'nowrap'}}
-                >
-                  {authLoading ? 'Gönderiliyor...' : 'Sıfırlama E-postası Gönder'}
-                </button>
-              </div>
-            </div>
-
-            {/* Registered Users Info */}
-            <div style={{marginTop:'1.5rem'}}>
-              <h4 style={{fontSize:'0.9rem', marginBottom:'0.75rem', color:'var(--text-main)'}}>Kayıtlı Personel E-posta Bilgileri</h4>
-              <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
-                {usersList.map(u => (
-                  <div key={u.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0.5rem 0.75rem', background:'var(--bg-main)', border:'1px solid var(--border)', borderRadius:'6px', fontSize:'0.85rem'}}>
-                    <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
-                      <span style={{fontWeight:600}}>{u.name}</span>
-                      <span style={{fontSize:'0.7rem', color: u.role === 'admin' ? '#ef4444' : 'var(--text-muted)'}}>{u.role === 'admin' ? 'Admin' : 'Kullanıcı'}</span>
-                    </div>
-                    <span style={{color: u.email ? 'var(--text-main)' : '#ef4444', fontSize:'0.8rem'}}>
-                      {u.email || 'E-posta tanımlı değil'}
-                    </span>
-                  </div>
-                ))}
               </div>
             </div>
           </div>

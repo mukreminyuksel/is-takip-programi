@@ -443,24 +443,43 @@ export const TaskProvider = ({ children }) => {
     } catch (e) {}
   };
 
+  // Helper: convert phone/email input to Firebase auth email
+  const toAuthEmail = (input) => {
+    const trimmed = (input || '').trim();
+    if (/^0?\d{10,11}$/.test(trimmed)) return trimmed + '@istakip.com';
+    if (!trimmed.includes('@')) return trimmed + '@istakip.com';
+    return trimmed;
+  };
+
   // Admin: Create a new Firebase Auth user without signing out the current admin
-  const adminCreateAuthUser = async (email, password) => {
+  const adminCreateAuthUser = async (loginInput, password, linkedUserId) => {
     if (!isAdmin) {
       addNotification('HATA: Bu işlem için Admin yetkisi gereklidir!');
       return { success: false, error: 'Yetki yok' };
     }
     try {
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+      const authEmail = toAuthEmail(loginInput);
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, authEmail, password);
       await signOut(secondaryAuth);
-      addNotification(`Yeni hesap oluşturuldu: ${email}`);
-      logAppEvent(`Yeni Firebase hesabı oluşturuldu: ${email}`);
+
+      // Store auth credentials in linked usersList document
+      if (linkedUserId) {
+        await updateDoc(doc(db, 'usersList', linkedUserId), {
+          authEmail: authEmail,
+          authLogin: loginInput.trim(),
+          authPassword: password
+        });
+      }
+
+      addNotification(`Yeni hesap oluşturuldu: ${loginInput}`);
+      logAppEvent(`Yeni Firebase hesabı oluşturuldu: ${loginInput}`);
       return { success: true, uid: userCredential.user.uid };
     } catch (err) {
       console.error('Admin user creation error:', err);
       let msg = err.message;
-      if (err.code === 'auth/email-already-in-use') msg = 'Bu e-posta adresi zaten kullanımda.';
+      if (err.code === 'auth/email-already-in-use') msg = 'Bu kullanıcı adı zaten kullanımda.';
       else if (err.code === 'auth/weak-password') msg = 'Şifre en az 6 karakter olmalıdır.';
-      else if (err.code === 'auth/invalid-email') msg = 'Geçersiz e-posta adresi.';
+      else if (err.code === 'auth/invalid-email') msg = 'Geçersiz kullanıcı adı formatı.';
       return { success: false, error: msg };
     }
   };
@@ -486,24 +505,31 @@ export const TaskProvider = ({ children }) => {
   };
 
   // Admin: Change password by re-authenticating the target user on secondary app
-  const adminChangePassword = async (email, currentPassword, newPassword) => {
+  const adminChangePassword = async (authEmail, currentPassword, newPassword) => {
     if (!isAdmin) {
       addNotification('HATA: Bu işlem için Admin yetkisi gereklidir!');
       return { success: false, error: 'Yetki yok' };
     }
     try {
-      const cred = await signInWithEmailAndPassword(secondaryAuth, email, currentPassword);
+      const cred = await signInWithEmailAndPassword(secondaryAuth, authEmail, currentPassword);
       await updatePassword(cred.user, newPassword);
       await signOut(secondaryAuth);
-      addNotification(`Şifre başarıyla değiştirildi: ${email}`);
-      logAppEvent(`Şifre değiştirildi: ${email}`);
+
+      // Update stored password in Firestore
+      const linkedUser = usersList.find(u => u.authEmail === authEmail || u.email === authEmail);
+      if (linkedUser) {
+        await updateDoc(doc(db, 'usersList', linkedUser.id), { authPassword: newPassword });
+      }
+
+      addNotification(`Şifre başarıyla değiştirildi: ${authEmail}`);
+      logAppEvent(`Şifre değiştirildi: ${authEmail}`);
       return { success: true };
     } catch (err) {
       console.error('Password change error:', err);
       try { await signOut(secondaryAuth); } catch(e) {}
       let msg = err.message;
       if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') msg = 'Mevcut şifre yanlış.';
-      else if (err.code === 'auth/user-not-found') msg = 'Bu e-posta adresine ait hesap bulunamadı.';
+      else if (err.code === 'auth/user-not-found') msg = 'Bu kullanıcı adına ait hesap bulunamadı.';
       else if (err.code === 'auth/weak-password') msg = 'Yeni şifre en az 6 karakter olmalıdır.';
       return { success: false, error: msg };
     }
