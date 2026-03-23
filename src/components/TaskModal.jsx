@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTasks } from '../context/TaskContext';
 import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar, History, Paperclip, Download, Loader, ListTodo, Tag } from 'lucide-react';
 
-const DRIVE_FOLDER_ID = '1nCPx7LbZU15OirK0IC_QCBgc7e7PCdzE';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxncRte5tnhqc68DIlTzdOpDkEYEywiLwwWtuUq9WJ-VR8gbdJBSc9xSUcWi0NjNyYdmw/exec';
 
 export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) {
-  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor, googleAccessToken } = useTasks();
+  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor } = useTasks();
   const [title, setTitle] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -299,54 +299,41 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
        return;
     }
 
-    if (!googleAccessToken) {
-      alert("Dosya yüklemek için Google ile giriş yapmış olmanız gerekmektedir.\nLütfen çıkış yapıp Google ile tekrar giriş yapınız.");
-      e.target.value = '';
-      return;
-    }
-
     setIsUploading(true);
     const abortController = new AbortController();
     uploadAbortRef.current = abortController;
 
     try {
-      const metadata = {
-        name: `${Date.now()}_${file.name}`,
-        parents: [DRIVE_FOLDER_ID]
-      };
+      // Read file as base64
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
-      const formData = new FormData();
-      formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      formData.append('file', file);
+      // Send to Google Apps Script
+      const params = new URLSearchParams();
+      params.append('fileName', `${Date.now()}_${file.name}`);
+      params.append('mimeType', file.type || 'application/octet-stream');
+      params.append('data', base64);
 
-      const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+      const response = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${googleAccessToken}` },
-        body: formData,
+        body: params,
         signal: abortController.signal
       });
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `Yükleme hatası (${response.status})`);
-      }
-
       const data = await response.json();
 
-      // Make file viewable by anyone with link
-      await fetch(`https://www.googleapis.com/drive/v3/files/${data.id}/permissions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${googleAccessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ role: 'reader', type: 'anyone' })
-      }).catch(() => {});
+      if (!data.success) {
+        throw new Error(data.error || 'Yükleme başarısız');
+      }
 
       const newAttachment = {
-        id: data.id,
+        id: data.fileId,
         name: file.name,
-        url: data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`,
+        url: data.url,
         size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
         date: new Date().toISOString(),
         user: currentUser
