@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db, auth, googleProvider } from '../firebase';
+import { db, auth, googleProvider, secondaryAuth } from '../firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword, signInWithEmailAndPassword as secondarySignIn } from 'firebase/auth';
 
 const TaskContext = createContext();
 
@@ -443,15 +443,82 @@ export const TaskProvider = ({ children }) => {
     } catch (e) {}
   };
 
+  // Admin: Create a new Firebase Auth user without signing out the current admin
+  const adminCreateAuthUser = async (email, password) => {
+    if (!isAdmin) {
+      addNotification('HATA: Bu işlem için Admin yetkisi gereklidir!');
+      return { success: false, error: 'Yetki yok' };
+    }
+    try {
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+      await signOut(secondaryAuth);
+      addNotification(`Yeni hesap oluşturuldu: ${email}`);
+      logAppEvent(`Yeni Firebase hesabı oluşturuldu: ${email}`);
+      return { success: true, uid: userCredential.user.uid };
+    } catch (err) {
+      console.error('Admin user creation error:', err);
+      let msg = err.message;
+      if (err.code === 'auth/email-already-in-use') msg = 'Bu e-posta adresi zaten kullanımda.';
+      else if (err.code === 'auth/weak-password') msg = 'Şifre en az 6 karakter olmalıdır.';
+      else if (err.code === 'auth/invalid-email') msg = 'Geçersiz e-posta adresi.';
+      return { success: false, error: msg };
+    }
+  };
+
+  // Admin: Send password reset email
+  const adminSendPasswordReset = async (email) => {
+    if (!isAdmin) {
+      addNotification('HATA: Bu işlem için Admin yetkisi gereklidir!');
+      return { success: false, error: 'Yetki yok' };
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      addNotification(`Şifre sıfırlama e-postası gönderildi: ${email}`);
+      logAppEvent(`Şifre sıfırlama e-postası gönderildi: ${email}`);
+      return { success: true };
+    } catch (err) {
+      console.error('Password reset error:', err);
+      let msg = err.message;
+      if (err.code === 'auth/user-not-found') msg = 'Bu e-posta adresine ait hesap bulunamadı.';
+      else if (err.code === 'auth/invalid-email') msg = 'Geçersiz e-posta adresi.';
+      return { success: false, error: msg };
+    }
+  };
+
+  // Admin: Change password by re-authenticating the target user on secondary app
+  const adminChangePassword = async (email, currentPassword, newPassword) => {
+    if (!isAdmin) {
+      addNotification('HATA: Bu işlem için Admin yetkisi gereklidir!');
+      return { success: false, error: 'Yetki yok' };
+    }
+    try {
+      const cred = await signInWithEmailAndPassword(secondaryAuth, email, currentPassword);
+      await updatePassword(cred.user, newPassword);
+      await signOut(secondaryAuth);
+      addNotification(`Şifre başarıyla değiştirildi: ${email}`);
+      logAppEvent(`Şifre değiştirildi: ${email}`);
+      return { success: true };
+    } catch (err) {
+      console.error('Password change error:', err);
+      try { await signOut(secondaryAuth); } catch(e) {}
+      let msg = err.message;
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') msg = 'Mevcut şifre yanlış.';
+      else if (err.code === 'auth/user-not-found') msg = 'Bu e-posta adresine ait hesap bulunamadı.';
+      else if (err.code === 'auth/weak-password') msg = 'Yeni şifre en az 6 karakter olmalıdır.';
+      return { success: false, error: msg };
+    }
+  };
+
   return (
-    <TaskContext.Provider value={{ 
+    <TaskContext.Provider value={{
       tasks, addTask, updateTaskStatus, updateTask, deleteTask, permanentDeleteTask, restoreTask,
       notifications, appNotifications, markAppNotificationAsRead, currentUser, setCurrentUser, usersList,
       addUser, editUser, deleteUser, isAdmin,
       tagsList, addTag, editTag, deleteTag,
       getUserColor, updateUserColor,
       hideAllTasksForUsers, toggleHideAllTasks,
-      loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading
+      loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading,
+      adminCreateAuthUser, adminSendPasswordReset, adminChangePassword
     }}>
       {children}
     </TaskContext.Provider>
