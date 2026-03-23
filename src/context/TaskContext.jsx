@@ -268,6 +268,74 @@ export const TaskProvider = ({ children }) => {
     } catch (e) { addNotification("Kayıt başarısız."); }
   };
 
+  const createNextRecurringTask = async (completedTask) => {
+    try {
+      const now = new Date();
+      let nextStart = completedTask.startDate ? new Date(completedTask.startDate) : now;
+      let nextDeadline = completedTask.deadline ? new Date(completedTask.deadline) : null;
+      const duration = (nextDeadline && completedTask.startDate) ? (nextDeadline - new Date(completedTask.startDate)) : 7 * 24 * 60 * 60 * 1000;
+
+      switch (completedTask.recurrence) {
+        case 'daily':
+          nextStart = new Date(Math.max(now.getTime(), nextStart.getTime()));
+          nextStart.setDate(nextStart.getDate() + 1);
+          break;
+        case 'weekly':
+          nextStart = new Date(Math.max(now.getTime(), nextStart.getTime()));
+          nextStart.setDate(nextStart.getDate() + 7);
+          break;
+        case 'monthly':
+          nextStart = new Date(Math.max(now.getTime(), nextStart.getTime()));
+          nextStart.setMonth(nextStart.getMonth() + 1);
+          if (completedTask.recurrenceDay) {
+            nextStart.setDate(Math.min(completedTask.recurrenceDay, new Date(nextStart.getFullYear(), nextStart.getMonth() + 1, 0).getDate()));
+          }
+          break;
+        case 'yearly':
+          nextStart = new Date(Math.max(now.getTime(), nextStart.getTime()));
+          nextStart.setFullYear(nextStart.getFullYear() + 1);
+          break;
+        default: return;
+      }
+
+      nextDeadline = new Date(nextStart.getTime() + duration);
+
+      const newTask = {
+        title: completedTask.title,
+        customerName: completedTask.customerName || '',
+        customerPhone: completedTask.customerPhone || '',
+        customerEmail: completedTask.customerEmail || '',
+        customerAddress: completedTask.customerAddress || '',
+        customerTaxNo: completedTask.customerTaxNo || '',
+        customerTaxOffice: completedTask.customerTaxOffice || '',
+        customerTradeRegNo: completedTask.customerTradeRegNo || '',
+        customerPhone2: completedTask.customerPhone2 || '',
+        description: completedTask.description || '',
+        priority: completedTask.priority || 'medium',
+        assignee: completedTask.assignee || '',
+        startDate: nextStart.toISOString(),
+        deadline: nextDeadline.toISOString(),
+        notes: [],
+        attachments: [],
+        subtasks: (completedTask.subtasks || []).map(s => ({ ...s, isCompleted: false })),
+        tags: completedTask.tags || [],
+        recurrence: completedTask.recurrence,
+        recurrenceDay: completedTask.recurrenceDay || null,
+        status: 'todo',
+        date: new Date().toISOString(),
+        isDeleted: false,
+        isNewForAssignee: true,
+        logs: [{ id: Date.now().toString(), text: 'Tekrarlayan görev otomatik oluşturuldu.', user: 'Sistem', date: new Date().toISOString() }]
+      };
+
+      await addDoc(collection(db, 'tasks'), newTask);
+      addNotification(`Tekrarlayan görev oluşturuldu: "${completedTask.title}"`);
+      logAppEvent(`Tekrarlayan görev otomatik oluşturuldu: '${completedTask.title}'`, completedTask.assignee);
+    } catch (e) {
+      console.error('Tekrarlayan görev oluşturulamadı:', e);
+    }
+  };
+
   const updateTaskStatus = async (id, newStatus) => {
     const oldTask = tasks.find(t => t.id === id);
     if (!oldTask) return;
@@ -278,7 +346,12 @@ export const TaskProvider = ({ children }) => {
          logs.push({ id: Date.now().toString()+Math.random(), text: `Durum değiştirildi: '${sm[oldTask.status]||oldTask.status}' -> '${sm[newStatus]||newStatus}'`, user: currentUser, date: new Date().toISOString() });
          logAppEvent(`'${oldTask.title}' görevinin durumunu '${sm[newStatus]||newStatus}' yaptı.`, oldTask.assignee);
       }
-      await updateDoc(doc(db, 'tasks', id), { status: newStatus, logs }); 
+      await updateDoc(doc(db, 'tasks', id), { status: newStatus, logs });
+
+      // Auto-create next recurring task when completed
+      if (newStatus === 'done' && oldTask.recurrence && oldTask.recurrence !== 'none') {
+        await createNextRecurringTask(oldTask);
+      }
     } catch (e) {}
   };
   
@@ -313,6 +386,11 @@ export const TaskProvider = ({ children }) => {
         logAppEvent(`'${updatedData.title || oldTask.title}' görevinin hedefini güncelledi.`, oldTask.assignee);
       }
       await updateDoc(doc(db, 'tasks', id), finalData);
+
+      // Auto-create next recurring task when completed
+      if (updatedData.status === 'done' && oldTask.status !== 'done' && oldTask.recurrence && oldTask.recurrence !== 'none') {
+        await createNextRecurringTask({ ...oldTask, ...updatedData });
+      }
     } catch (e) {}
   };
 

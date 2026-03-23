@@ -29,6 +29,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [tags, setTags] = useState([]);
+  const [recurrence, setRecurrence] = useState('none');
+  const [recurrenceDay, setRecurrenceDay] = useState(1);
 
   const uploadAbortRef = useRef(null);
 
@@ -59,6 +61,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
         setAttachments(editTask.attachments || []);
         setSubtasks(editTask.subtasks || []);
         setTags(editTask.tags || []);
+        setRecurrence(editTask.recurrence || 'none');
+        setRecurrenceDay(editTask.recurrenceDay || 1);
       } else {
         setTitle('');
         setCustomerName('');
@@ -82,6 +86,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
         setAttachments([]);
         setSubtasks([]);
         setTags([]);
+        setRecurrence('none');
+        setRecurrenceDay(1);
       }
       setNewNote('');
       setNewSubtask('');
@@ -416,7 +422,9 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
       notes,
       attachments,
       subtasks,
-      tags
+      tags,
+      recurrence,
+      recurrenceDay: recurrence === 'monthly' ? recurrenceDay : null
     };
 
     if (editTask) {
@@ -599,6 +607,26 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          <div className="form-group" style={{marginBottom:'0.5rem'}}>
+            <label style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>🔄 Tekrarlama</label>
+            <div style={{display:'flex', gap:'0.5rem', alignItems:'center'}}>
+              <select value={recurrence} onChange={e => setRecurrence(e.target.value)} style={{flex:1}}>
+                <option value="none">Yok</option>
+                <option value="daily">Her Gün</option>
+                <option value="weekly">Her Hafta</option>
+                <option value="monthly">Her Ay</option>
+                <option value="yearly">Her Yıl</option>
+              </select>
+              {recurrence === 'monthly' && (
+                <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+                  <span style={{fontSize:'0.8rem', color:'var(--text-muted)', whiteSpace:'nowrap'}}>Ayın</span>
+                  <input type="number" min={1} max={31} value={recurrenceDay} onChange={e => setRecurrenceDay(parseInt(e.target.value) || 1)} style={{width:'60px'}} />
+                  <span style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>günü</span>
+                </div>
+              )}
             </div>
           </div>
 

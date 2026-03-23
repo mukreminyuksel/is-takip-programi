@@ -82,6 +82,9 @@ const TaskTitleCell = ({ task, onEdit }) => {
     >
       <div style={{display:'inline-flex', alignItems: 'center', flexWrap:'wrap', gap:'6px'}}>
         <span>{task.title}</span>
+        {task.recurrence && task.recurrence !== 'none' && (
+          <span title={{'daily':'Her Gün','weekly':'Her Hafta','monthly':'Her Ay','yearly':'Her Yıl'}[task.recurrence]} style={{fontSize:'0.75rem', cursor:'default'}}>🔄</span>
+        )}
         {task.isNewForAssignee && (
           <span className="new-badge" style={{margin:0}}>⭐️ Yeni Görev</span>
         )}
@@ -594,7 +597,7 @@ export default function BoardView() {
     <>
       <div className="table-header-actions" style={{display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem'}}>
         <div style={{display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap'}}>
-          <h2 style={{margin:0}}>Görev Paneli (v8.3.3)</h2>
+          <h2 style={{margin:0}}>Görev Paneli (v8.4.0)</h2>
           <div style={{fontSize:'0.85rem', display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--bg-main)', padding:'0.4rem 0.8rem', borderRadius:'20px', border:'1px solid var(--border)'}}>
             <span style={{color:'var(--text-muted)'}}>Üzerinizde:</span>
             <span style={{color:'#ef4444', fontWeight:600}}>{myTodoCount} Yapılacak</span>
