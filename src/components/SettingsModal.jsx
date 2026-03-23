@@ -1065,42 +1065,108 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
     setForm(emptyForm);
   };
 
+  const handleExportCustomersExcel = () => {
+    if (customersList.length === 0) { alert('Dışa aktarılacak müşteri kaydı bulunmuyor.'); return; }
+    const data = customersList.map(c => ({
+      'Müşteri Adı/Ünvanı': c.customerName || '',
+      'İletişim Tel/GSM': c.customerPhone || '',
+      'E-mail': c.customerEmail || '',
+      'Telefon 2': c.customerPhone2 || '',
+      'Adres Bilgisi': c.customerAddress || '',
+      'Vergi No': c.customerTaxNo || '',
+      'Vergi Dairesi': c.customerTaxOffice || '',
+      'Ticaret Sicil No': c.customerTradeRegNo || ''
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, "Müşteri Listesi");
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `musteri_listesi_${dateStr}.xlsx`);
+  };
+
+  const handleImportCustomersExcel = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!window.confirm("Excel dosyasındaki müşteri bilgileri sisteme eklenecek. Aynı isimli müşteriler güncellenir, yenileri eklenir. Onaylıyor musunuz?")) { e.target.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        if (!ws) throw new Error("Excel dosyasında sayfa bulunamadı.");
+        const rows = XLSX.utils.sheet_to_json(ws);
+        let addCount = 0, updateCount = 0;
+        for (const row of rows) {
+          const name = (row['Müşteri Adı/Ünvanı'] || row['Müşteri Adı'] || row['Ad Soyad'] || row['Ünvan'] || '').toString().trim();
+          if (!name) continue;
+          const custData = {
+            customerName: name,
+            customerPhone: (row['İletişim Tel/GSM'] || row['Telefon'] || row['Tel'] || '').toString().trim(),
+            customerEmail: (row['E-mail'] || row['Email'] || row['E-posta'] || '').toString().trim(),
+            customerPhone2: (row['Telefon 2'] || row['Tel 2'] || '').toString().trim(),
+            customerAddress: (row['Adres Bilgisi'] || row['Adres'] || '').toString().trim(),
+            customerTaxNo: (row['Vergi No'] || row['VKN'] || '').toString().trim(),
+            customerTaxOffice: (row['Vergi Dairesi'] || '').toString().trim(),
+            customerTradeRegNo: (row['Ticaret Sicil No'] || '').toString().trim()
+          };
+          const existing = customersList.find(c => c.customerName && c.customerName.trim().toLowerCase() === name.toLowerCase());
+          if (existing) {
+            await editCustomer(existing.id, custData);
+            updateCount++;
+          } else {
+            await addCustomer(custData);
+            addCount++;
+          }
+        }
+        alert(`Excel İçe Aktarma Başarılı!\n${addCount} yeni müşteri eklendi, ${updateCount} mevcut müşteri güncellendi.`);
+      } catch (err) {
+        alert("Excel içe aktarma hatası: " + err.message);
+      }
+      e.target.value = '';
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const inputStyle = { width: '100%', padding: '0.4rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--bg-main)' };
   const labelStyle = { fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.15rem' };
 
-  const CustomerForm = () => (
-    <div style={{ background: 'var(--bg-alt)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '1rem' }}>
-      <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--text-main)' }}>{editingId ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}</h4>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-        <div><label style={labelStyle}>Müşteri Adı Soyadı/Ünvanı *</label><input style={inputStyle} value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} placeholder="Ahmet Yılmaz / ABC Ltd." /></div>
-        <div><label style={labelStyle}>İletişim Numarası Tel/GSM</label><input style={inputStyle} value={form.customerPhone} onChange={e => setForm({ ...form, customerPhone: e.target.value })} placeholder="0555..." /></div>
-        <div><label style={labelStyle}>E-mail</label><input style={inputStyle} value={form.customerEmail} onChange={e => setForm({ ...form, customerEmail: e.target.value })} placeholder="ornek@firma.com" /></div>
-        <div><label style={labelStyle}>Telefon 2</label><input style={inputStyle} value={form.customerPhone2} onChange={e => setForm({ ...form, customerPhone2: e.target.value })} placeholder="0212..." /></div>
-        <div style={{ gridColumn: '1 / -1' }}><label style={labelStyle}>Adres Bilgisi</label><input style={inputStyle} value={form.customerAddress} onChange={e => setForm({ ...form, customerAddress: e.target.value })} placeholder="Atatürk Cad. No:1 İstanbul" /></div>
-        <div><label style={labelStyle}>Vergi No</label><input style={inputStyle} value={form.customerTaxNo} onChange={e => setForm({ ...form, customerTaxNo: e.target.value })} placeholder="1234567890" /></div>
-        <div><label style={labelStyle}>Vergi Dairesi</label><input style={inputStyle} value={form.customerTaxOffice} onChange={e => setForm({ ...form, customerTaxOffice: e.target.value })} placeholder="Kadıköy V.D." /></div>
-        <div><label style={labelStyle}>Ticaret Sicil No</label><input style={inputStyle} value={form.customerTradeRegNo} onChange={e => setForm({ ...form, customerTradeRegNo: e.target.value })} placeholder="123456" /></div>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
-        <button className="btn btn-secondary btn-small" onClick={cancelEdit}>İptal</button>
-        <button className="btn btn-primary btn-small" onClick={handleSave}>{editingId ? 'Güncelle' : 'Ekle'}</button>
-      </div>
-    </div>
-  );
-
   return (
     <div className="settings-body" style={{ padding: '1.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <h3 style={{ fontSize: '1rem', margin: 0 }}>Kayıtlı Müşteriler ({customersList.length})</h3>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Müşteri ara..." style={{ padding: '0.35rem 0.6rem', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.8rem', width: '200px' }} />
+          <button className="btn btn-secondary btn-small" onClick={handleExportCustomersExcel} style={{ color: '#10b981', fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: 'transparent', border: '1px solid #10b981' }}>Excel Çıktısı</button>
+          <label className="btn btn-secondary btn-small" style={{ color: '#10b981', background: 'transparent', border: '1px dotted #10b981', cursor: 'pointer', margin: 0, display: 'flex', alignItems: 'center', fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}>
+            Excel'den Yükle
+            <input type="file" accept=".xlsx, .xls" style={{ display: 'none' }} onChange={handleImportCustomersExcel} />
+          </label>
           {!showAddForm && !editingId && (
             <button className="btn btn-primary btn-small" onClick={() => { setShowAddForm(true); setForm(emptyForm); }}><Plus size={14} style={{ marginRight: '4px' }} /> Yeni Müşteri</button>
           )}
         </div>
       </div>
 
-      {(showAddForm || editingId) && <CustomerForm />}
+      {(showAddForm || editingId) && (
+        <div style={{ background: 'var(--bg-alt)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '1rem' }}>
+          <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--text-main)' }}>{editingId ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+            <div><label style={labelStyle}>Müşteri Adı Soyadı/Ünvanı *</label><input style={inputStyle} value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} placeholder="Ahmet Yılmaz / ABC Ltd." /></div>
+            <div><label style={labelStyle}>İletişim Numarası Tel/GSM</label><input style={inputStyle} value={form.customerPhone} onChange={e => setForm({ ...form, customerPhone: e.target.value })} placeholder="0555..." /></div>
+            <div><label style={labelStyle}>E-mail</label><input style={inputStyle} value={form.customerEmail} onChange={e => setForm({ ...form, customerEmail: e.target.value })} placeholder="ornek@firma.com" /></div>
+            <div><label style={labelStyle}>Telefon 2</label><input style={inputStyle} value={form.customerPhone2} onChange={e => setForm({ ...form, customerPhone2: e.target.value })} placeholder="0212..." /></div>
+            <div style={{ gridColumn: '1 / -1' }}><label style={labelStyle}>Adres Bilgisi</label><input style={inputStyle} value={form.customerAddress} onChange={e => setForm({ ...form, customerAddress: e.target.value })} placeholder="Atatürk Cad. No:1 İstanbul" /></div>
+            <div><label style={labelStyle}>Vergi No</label><input style={inputStyle} value={form.customerTaxNo} onChange={e => setForm({ ...form, customerTaxNo: e.target.value })} placeholder="1234567890" /></div>
+            <div><label style={labelStyle}>Vergi Dairesi</label><input style={inputStyle} value={form.customerTaxOffice} onChange={e => setForm({ ...form, customerTaxOffice: e.target.value })} placeholder="Kadıköy V.D." /></div>
+            <div><label style={labelStyle}>Ticaret Sicil No</label><input style={inputStyle} value={form.customerTradeRegNo} onChange={e => setForm({ ...form, customerTradeRegNo: e.target.value })} placeholder="123456" /></div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
+            <button className="btn btn-secondary btn-small" onClick={cancelEdit}>İptal</button>
+            <button className="btn btn-primary btn-small" onClick={handleSave}>{editingId ? 'Güncelle' : 'Ekle'}</button>
+          </div>
+        </div>
+      )}
 
       <div className="table-container" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
         <table className="compact-table">
