@@ -345,8 +345,8 @@ export const TaskProvider = ({ children }) => {
 
   return (
     <TaskContext.Provider value={{ 
-      tasks, addTask, updateTaskStatus, updateTask, deleteTask, permanentDeleteTask, restoreTask, 
-      notifications, appNotifications, markAppNotificationAsRead, currentUser, setCurrentUser, usersList, 
+      tasks, addTask, updateTaskStatus, updateTask, deleteTask, permanentDeleteTask, restoreTask,
+      notifications, appNotifications, markAppNotificationAsRead, currentUser, setCurrentUser, usersList,
       addUser, editUser, deleteUser, isAdmin,
       tagsList, addTag, editTag, deleteTag,
       getUserColor, updateUserColor,

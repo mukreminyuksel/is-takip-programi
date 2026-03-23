@@ -80,11 +80,15 @@ const KanbanCard = ({ task, onEdit, onDragStart }) => {
 
       {task.tags && task.tags.length > 0 && (
         <div style={{ display:'flex', flexWrap:'wrap', gap:'0.25rem', marginTop:'0.3rem' }}>
-          {task.tags.map(tag => (
-            <span key={tag} style={{ fontSize:'0.6rem', padding:'0.1rem 0.35rem', borderRadius:'8px', background:'rgba(37,99,235,0.12)', color:'var(--primary)', fontWeight:500 }}>
-              {tag}
-            </span>
-          ))}
+          {task.tags.map(tagId => {
+            const tagObj = tagsList.find(t => t.id === tagId);
+            if (!tagObj) return null;
+            return (
+              <span key={tagId} style={{ fontSize:'0.6rem', padding:'0.1rem 0.35rem', borderRadius:'8px', background:`${tagObj.color}18`, color: tagObj.color, fontWeight:500, border:`1px solid ${tagObj.color}40` }}>
+                {tagObj.label}
+              </span>
+            );
+          })}
         </div>
       )}
     </div>

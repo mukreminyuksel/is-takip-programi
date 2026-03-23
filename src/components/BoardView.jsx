@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
-import { Plus, Edit2, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter, Calendar, MessageCircle } from 'lucide-react';
 import TaskModal from './TaskModal';
 
 const STATUSES = [
@@ -28,7 +28,7 @@ const TaskTitleCell = ({ task, onEdit }) => {
     showTimerRef.current = setTimeout(() => {
       setTooltipPos({ x, y });
       setShowTooltip(true);
-    }, 1500);
+    }, 1000);
   };
 
   const handleMouseLeave = () => {
@@ -156,13 +156,29 @@ const TaskTitleCell = ({ task, onEdit }) => {
           ) : (
             <div style={{color:'var(--text-muted)', fontStyle:'italic'}}>Henüz not eklenmemiş.</div>
           )}
+
+          {task.subtasks && task.subtasks.length > 0 && (
+            <>
+              <h4 style={{marginTop:'0.75rem', marginBottom:'0.4rem', fontSize:'0.85rem', color:'var(--primary)', borderBottom:'1px solid var(--border)', paddingBottom:'4px'}}>
+                Alt Görevler ({task.subtasks.filter(s=>s.isCompleted).length}/{task.subtasks.length})
+              </h4>
+              <div style={{display:'flex', flexDirection:'column', gap:'0.3rem'}}>
+                {task.subtasks.map(st => (
+                  <div key={st.id} style={{display:'flex', alignItems:'center', gap:'0.4rem', fontSize:'0.8rem'}}>
+                    <span style={{color: st.isCompleted ? '#10b981' : '#ef4444'}}>{st.isCompleted ? '✓' : '○'}</span>
+                    <span style={{color: st.isCompleted ? 'var(--text-muted)' : 'var(--text-main)', textDecoration: st.isCompleted ? 'line-through' : 'none'}}>{st.text}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
     </td>
   );
 };
 
-function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersList, isAdmin, currentUser, updateTask, getUserColor }) {
+function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersList, isAdmin, currentUser, updateTask, getUserColor, headerExtra, showCheckboxes }) {
   const [sortCol, setSortCol] = useState('deadline');
   const [sortDir, setSortDir] = useState('asc');
   const [searchTerm, setSearchTerm] = useState('');
@@ -170,14 +186,43 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
   const [filters, setFilters] = useState({ status: [], priority: [], assignee: [], dateStart: '', dateEnd: '' });
   const [selectedIds, setSelectedIds] = useState(new Set());
 
-  const handleBulkUpdate = async (field, value) => {
-    if (!value) return;
-    const finalVal = value === 'UNASSIGN' ? '' : value;
-    if (!window.confirm(`${selectedIds.size} görev için Toplu İşlem (${field}) gerçekleşecek. Onaylıyor musunuz?`)) return;
-    for (const tid of selectedIds) {
-      await updateTask(tid, { [field]: finalVal });
-    }
-    setSelectedIds(new Set());
+  const handleBulkCalendar = () => {
+    const selected = filteredAndSorted.filter(t => selectedIds.has(t.id));
+    if (selected.length === 0) { alert('Lütfen gönderilmesini istediğiniz görevleri seçiniz.'); return; }
+    selected.forEach(task => {
+      const baseUrl = 'https://calendar.google.com/calendar/u/0/r/eventedit';
+      const params = new URLSearchParams();
+      params.append('text', task.title);
+      let details = '';
+      if (task.assignee) details += `Atanan Kişi: ${task.assignee}\n`;
+      const prioMap = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' };
+      details += `Öncelik: ${prioMap[task.priority] || 'Orta'}\n`;
+      if (task.description) details += `\nAçıklama:\n${task.description}\n`;
+      params.append('details', details);
+      if (task.startDate) {
+        const startStr = task.startDate.split('T')[0].replace(/-/g, '');
+        params.append('dates', `${startStr}T100000/${startStr}T120000`);
+      }
+      window.open(`${baseUrl}?${params.toString()}`, '_blank');
+    });
+  };
+
+  const handleBulkWhatsApp = () => {
+    const selected = filteredAndSorted.filter(t => selectedIds.has(t.id));
+    if (selected.length === 0) { alert('Lütfen gönderilmesini istediğiniz görevleri seçiniz.'); return; }
+    const statusMap = { 'todo': 'Yapılacak', 'in-progress': 'Devam Eden', 'done': 'Tamamlandı' };
+    const prioMap = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' };
+    let text = `📋 *İş Takip - ${selected.length} Görev*\n${'='.repeat(30)}\n\n`;
+    selected.forEach((task, i) => {
+      text += `*${i+1}. ${task.title}*\n`;
+      text += `Durum: ${statusMap[task.status] || task.status}\n`;
+      text += `Öncelik: ${prioMap[task.priority] || 'Orta'}\n`;
+      if (task.assignee) text += `Kişi: ${task.assignee}\n`;
+      if (task.deadline) text += `Bitiş: ${new Date(task.deadline).toLocaleDateString('tr-TR')}\n`;
+      text += '\n';
+    });
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
   };
 
   const toggleSelectAll = () => {
@@ -249,32 +294,24 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
   return (
     <div className="table-container-wrapper">
       <div className="table-toolbar">
-        <h3>{title} ({filteredAndSorted.length})</h3>
+        <div style={{display:'flex', alignItems:'center', flexShrink:0, whiteSpace:'nowrap'}}>
+          <h3 style={{whiteSpace:'nowrap'}}>{title} ({filteredAndSorted.length})</h3>
+          {headerExtra}
+        </div>
         <div style={{position: 'relative', display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
-          {isAdmin && selectedIds.size > 0 && (
-            <div style={{display:'flex', gap:'0.4rem', borderRight:'1px solid var(--border)', paddingRight:'0.5rem'}}>
-              <span style={{fontSize:'0.75rem', fontWeight:600, color:'var(--primary)', display:'flex', alignItems:'center'}}>
+          <div style={{display:'flex', gap:'0.4rem', borderRight:'1px solid var(--border)', paddingRight:'0.5rem', alignItems:'center'}}>
+            {selectedIds.size > 0 && (
+              <span style={{fontSize:'0.75rem', fontWeight:600, color:'var(--primary)', display:'flex', alignItems:'center', whiteSpace:'nowrap'}}>
                 {selectedIds.size} Seçili:
               </span>
-              <select onChange={(e) => { handleBulkUpdate('status', e.target.value); e.target.value=''; }} className="status-select" style={{width:'auto'}}>
-                <option value="">Durum...</option>
-                <option value="todo">Yapılacak</option>
-                <option value="in-progress">Devam Eden</option>
-                <option value="done">Tamamlandı</option>
-              </select>
-              <select onChange={(e) => { handleBulkUpdate('priority', e.target.value); e.target.value=''; }} className="status-select" style={{width:'auto'}}>
-                <option value="">Öncelik...</option>
-                <option value="low">Düşük</option>
-                <option value="medium">Orta</option>
-                <option value="high">Yüksek</option>
-              </select>
-              <select onChange={(e) => { handleBulkUpdate('assignee', e.target.value); e.target.value=''; }} className="status-select" style={{width:'auto'}}>
-                <option value="">Kişi...</option>
-                {usersList?.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
-                <option value="UNASSIGN">Atamayı Kaldır</option>
-              </select>
-            </div>
-          )}
+            )}
+            <button onClick={handleBulkCalendar} className="btn btn-secondary btn-small" style={{display:'flex', alignItems:'center', gap:'0.2rem', color:'#2563eb', borderColor:'#bfdbfe', background:'#eff6ff', fontSize:'0.7rem', whiteSpace:'nowrap'}}>
+              <Calendar size={13}/> Google Takvime Ekle
+            </button>
+            <button onClick={handleBulkWhatsApp} className="btn btn-secondary btn-small" style={{display:'flex', alignItems:'center', gap:'0.2rem', color:'#16a34a', borderColor:'#bbf7d0', background:'#f0fdf4', fontSize:'0.7rem', whiteSpace:'nowrap'}}>
+              <MessageCircle size={13}/> WhatsApp Gönder
+            </button>
+          </div>
           <input 
             type="text" 
             placeholder="Ara: Başlık veya Kişi..." 
@@ -384,11 +421,11 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
         <table className="compact-table">
           <thead>
             <tr>
-              {isAdmin && (
+              {(isAdmin || showCheckboxes) && (
                 <th style={{width: '30px', textAlign:'center'}}>
-                  <input type="checkbox" 
+                  <input type="checkbox"
                     checked={selectedIds.size > 0 && selectedIds.size === filteredAndSorted.length}
-                    onChange={toggleSelectAll} 
+                    onChange={toggleSelectAll}
                   />
                 </th>
               )}
@@ -429,7 +466,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
 
               return (
                 <tr key={task.id} className={trClass}>
-                  {isAdmin && (
+                  {(isAdmin || showCheckboxes) && (
                     <td style={{textAlign:'center'}} onClick={e => e.stopPropagation()}>
                       <input type="checkbox" checked={selectedIds.has(task.id)} onChange={() => toggleSelectRow(task.id)} />
                     </td>
@@ -552,7 +589,7 @@ export default function BoardView() {
     <>
       <div className="table-header-actions" style={{display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem'}}>
         <div style={{display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap'}}>
-          <h2 style={{margin:0}}>Görev Paneli (v8.1)</h2>
+          <h2 style={{margin:0}}>Görev Paneli (v8.2)</h2>
           <div style={{fontSize:'0.85rem', display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--bg-main)', padding:'0.4rem 0.8rem', borderRadius:'20px', border:'1px solid var(--border)'}}>
             <span style={{color:'var(--text-muted)'}}>Üzerinizde:</span>
             <span style={{color:'#ef4444', fontWeight:600}}>{myTodoCount} Yapılacak</span>
@@ -567,11 +604,11 @@ export default function BoardView() {
       </div>
 
       <div className="split-view">
-        <div className={hideAllTasksForUsers && !isAdmin ? '' : 'split-pane'}  style={hideAllTasksForUsers && !isAdmin ? {width: '100%'} : {}}>
-          <TaskTable 
-            title={`Benim İşlerim (${currentUser})`} 
-            tasksList={myTasks} 
-            onEdit={openEditModal} 
+        <div className={hideAllTasksForUsers && !isAdmin ? '' : 'split-pane'} style={hideAllTasksForUsers && !isAdmin ? {width: '100%'} : {}}>
+          <TaskTable
+            title={`Benim İşlerim (${currentUser})`}
+            tasksList={myTasks}
+            onEdit={openEditModal}
             onDelete={deleteTask}
             onStatusChange={updateTaskStatus}
             usersList={usersList}
@@ -579,24 +616,15 @@ export default function BoardView() {
             currentUser={currentUser}
             updateTask={updateTask}
             getUserColor={getUserColor}
+            showCheckboxes={true}
           />
         </div>
         {!(hideAllTasksForUsers && !isAdmin) && (
           <div className="split-pane">
-            <TaskTable 
-              title={
-                <span style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
-                  Tüm İşler Listesi
-                  {isAdmin && (
-                    <label style={{display:'flex', alignItems:'center', gap:'0.3rem', fontSize:'0.7rem', fontWeight:500, color: hideAllTasksForUsers ? '#ef4444' : 'var(--text-muted)', cursor:'pointer', background: hideAllTasksForUsers ? '#fef2f2' : 'var(--bg-alt)', padding:'0.15rem 0.5rem', borderRadius:'12px', border: `1px solid ${hideAllTasksForUsers ? '#fecaca' : 'var(--border)'}`, whiteSpace:'nowrap'}}>
-                      <input type="checkbox" checked={hideAllTasksForUsers} onChange={(e) => toggleHideAllTasks(e.target.checked)} style={{cursor:'pointer', width:'13px', height:'13px'}} />
-                      Diğer kullanıcılar için gizle
-                    </label>
-                  )}
-                </span>
-              }
-              tasksList={activeTasks} 
-              onEdit={openEditModal} 
+            <TaskTable
+              title="Tüm İşler Listesi"
+              tasksList={activeTasks}
+              onEdit={openEditModal}
               onDelete={deleteTask}
               onStatusChange={updateTaskStatus}
               usersList={usersList}
@@ -604,6 +632,12 @@ export default function BoardView() {
               currentUser={currentUser}
               updateTask={updateTask}
               getUserColor={getUserColor}
+              headerExtra={isAdmin && (
+                <label style={{display:'flex', alignItems:'center', gap:'0.3rem', fontSize:'0.7rem', fontWeight:500, color: hideAllTasksForUsers ? '#ef4444' : 'var(--text-muted)', cursor:'pointer', background: hideAllTasksForUsers ? '#fef2f2' : 'var(--bg-alt)', padding:'0.15rem 0.5rem', borderRadius:'12px', border: `1px solid ${hideAllTasksForUsers ? '#fecaca' : 'var(--border)'}`, whiteSpace:'nowrap', flexShrink:0}}>
+                  <input type="checkbox" checked={hideAllTasksForUsers} onChange={(e) => toggleHideAllTasks(e.target.checked)} style={{cursor:'pointer', width:'13px', height:'13px'}} />
+                  Diğer kullanıcılar için gizle
+                </label>
+              )}
             />
           </div>
         )}

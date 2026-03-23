@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useTasks } from '../context/TaskContext';
 import TaskModal from './TaskModal';
+import { ArrowUpDown, ArrowUp, ArrowDown, Filter } from 'lucide-react';
 
 const SCALE_OPTIONS = [
   { id: 'day', label: 'Gün', days: 1 },
@@ -10,6 +11,9 @@ const SCALE_OPTIONS = [
 
 const statusColors = { 'todo': '#ef4444', 'in-progress': '#10b981', 'done': '#9ca3af' };
 const statusLabels = { 'todo': 'Yapılacak', 'in-progress': 'Devam Eden', 'done': 'Tamamlandı' };
+const priorityColors = { 'low': '#10b981', 'medium': '#f59e0b', 'high': '#ef4444' };
+const priorityLabels = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' };
+const priorityValue = { 'low': 1, 'medium': 2, 'high': 3 };
 
 export default function GanttView() {
   const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers } = useTasks();
@@ -21,6 +25,10 @@ export default function GanttView() {
   const leftPanelRef = useRef(null);
   const [isPanning, setIsPanning] = useState(false);
   const panStart = useRef({ x: 0, scrollLeft: 0 });
+  const [sortCol, setSortCol] = useState('startDate');
+  const [sortDir, setSortDir] = useState('asc');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({ status: [], priority: [] });
 
   const activeTasks = tasks.filter(t => {
     if (t.isDeleted || !t.startDate || !t.deadline) return false;
@@ -115,10 +123,46 @@ export default function GanttView() {
     return (offset / totalDays) * totalWidth;
   })();
 
-  const sortedTasks = [...activeTasks].sort((a, b) => {
-    if (a.assignee !== b.assignee) return (a.assignee || '').localeCompare(b.assignee || '');
-    return new Date(a.startDate) - new Date(b.startDate);
-  });
+  const sortedTasks = useMemo(() => {
+    let result = activeTasks.filter(t => {
+      const matchStatus = filters.status.length === 0 || filters.status.includes(t.status);
+      const matchPriority = filters.priority.length === 0 || filters.priority.includes(t.priority);
+      return matchStatus && matchPriority;
+    });
+
+    result.sort((a, b) => {
+      let aVal, bVal;
+      if (sortCol === 'priority') {
+        aVal = priorityValue[a.priority] || 0;
+        bVal = priorityValue[b.priority] || 0;
+      } else if (sortCol === 'status') {
+        const sOrder = { 'todo': 0, 'in-progress': 1, 'done': 2 };
+        aVal = sOrder[a.status] ?? 0;
+        bVal = sOrder[b.status] ?? 0;
+      } else if (sortCol === 'startDate' || sortCol === 'deadline') {
+        aVal = a[sortCol] ? new Date(a[sortCol]).getTime() : 9999999999999;
+        bVal = b[sortCol] ? new Date(b[sortCol]).getTime() : 9999999999999;
+      } else {
+        aVal = (a[sortCol] || '').toString().toLowerCase();
+        bVal = (b[sortCol] || '').toString().toLowerCase();
+      }
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [activeTasks, sortCol, sortDir, filters]);
+
+  const handleSort = (col) => {
+    if (sortCol === col) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+  };
+
+  const SortIcon = ({ col }) => {
+    if (sortCol !== col) return <ArrowUpDown size={10} style={{marginLeft:'2px', opacity:0.3}}/>;
+    return sortDir === 'asc' ? <ArrowUp size={10} style={{marginLeft:'2px'}}/> : <ArrowDown size={10} style={{marginLeft:'2px'}}/>;
+  };
 
   const ROW_HEIGHT = 32;
 
@@ -207,37 +251,93 @@ export default function GanttView() {
           <h2 style={{ margin:0, fontSize:'0.9rem', fontWeight:600, color:'var(--text-main)', textTransform:'uppercase' }}>Gantt Grafiği</h2>
           <span style={{fontSize:'0.75rem', color:'var(--text-muted)'}}>{activeTasks.length} Görev (tarihli)</span>
         </div>
-        <div style={{display:'flex', gap:'0', border:'1px solid var(--border)', borderRadius:'6px', overflow:'hidden'}}>
-          {SCALE_OPTIONS.map(s => (
+        <div style={{display:'flex', gap:'0.5rem', alignItems:'center'}}>
+          <div style={{position:'relative'}}>
             <button
-              key={s.id}
-              onClick={() => setScale(s.id)}
+              onClick={() => setShowFilters(!showFilters)}
               style={{
-                padding:'0.3rem 0.7rem', fontSize:'0.75rem', cursor:'pointer', fontWeight: scale === s.id ? 600 : 400,
-                background: scale === s.id ? 'var(--primary)' : 'var(--bg-main)',
-                color: scale === s.id ? 'white' : 'var(--text-muted)',
-                border:'none', borderRight: '1px solid var(--border)',
+                padding:'0.3rem 0.7rem', fontSize:'0.75rem', cursor:'pointer', fontWeight:500,
+                background: (filters.status.length > 0 || filters.priority.length > 0) ? '#e0f2fe' : 'var(--bg-main)',
+                color: (filters.status.length > 0 || filters.priority.length > 0) ? '#0369a1' : 'var(--text-muted)',
+                border: `1px solid ${(filters.status.length > 0 || filters.priority.length > 0) ? '#38bdf8' : 'var(--border)'}`,
+                borderRadius:'6px', display:'flex', alignItems:'center', gap:'0.3rem'
               }}
             >
-              {s.label}
+              <Filter size={13}/> Filtre
             </button>
-          ))}
+            {showFilters && (
+              <div style={{
+                position:'absolute', top:'100%', right:0, marginTop:'5px',
+                background:'var(--bg-main)', border:'1px solid var(--border)',
+                borderRadius:'6px', padding:'1rem', width:'220px',
+                boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)', zIndex:100
+              }}>
+                <h4 style={{fontSize:'0.8rem', marginBottom:'0.4rem', color:'var(--text-main)', borderBottom:'1px solid var(--border)', paddingBottom:'4px'}}>Durum</h4>
+                <div style={{display:'flex', flexDirection:'column', gap:'0.3rem', marginBottom:'0.8rem'}}>
+                  {Object.entries(statusLabels).map(([id, label]) => (
+                    <label key={id} style={{fontSize:'0.75rem', display:'flex', alignItems:'center', gap:'0.3rem', cursor:'pointer', color:'var(--text-main)'}}>
+                      <input type="checkbox" checked={filters.status.includes(id)}
+                        onChange={(e) => setFilters({...filters, status: e.target.checked ? [...filters.status, id] : filters.status.filter(x => x !== id)})}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <h4 style={{fontSize:'0.8rem', marginBottom:'0.4rem', color:'var(--text-main)', borderBottom:'1px solid var(--border)', paddingBottom:'4px'}}>Öncelik</h4>
+                <div style={{display:'flex', flexDirection:'column', gap:'0.3rem'}}>
+                  {Object.entries(priorityLabels).map(([id, label]) => (
+                    <label key={id} style={{fontSize:'0.75rem', display:'flex', alignItems:'center', gap:'0.3rem', cursor:'pointer', color:'var(--text-main)'}}>
+                      <input type="checkbox" checked={filters.priority.includes(id)}
+                        onChange={(e) => setFilters({...filters, priority: e.target.checked ? [...filters.priority, id] : filters.priority.filter(x => x !== id)})}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                {(filters.status.length > 0 || filters.priority.length > 0) && (
+                  <button
+                    style={{marginTop:'0.8rem', width:'100%', padding:'0.4rem', fontSize:'0.7rem', background:'#fef2f2', color:'#ef4444', border:'1px solid #fecaca', borderRadius:'4px', cursor:'pointer', fontWeight:600}}
+                    onClick={() => setFilters({status: [], priority: []})}
+                  >
+                    Filtreleri Temizle
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <div style={{display:'flex', gap:'0', border:'1px solid var(--border)', borderRadius:'6px', overflow:'hidden'}}>
+            {SCALE_OPTIONS.map(s => (
+              <button
+                key={s.id}
+                onClick={() => setScale(s.id)}
+                style={{
+                  padding:'0.3rem 0.7rem', fontSize:'0.75rem', cursor:'pointer', fontWeight: scale === s.id ? 600 : 400,
+                  background: scale === s.id ? 'var(--primary)' : 'var(--bg-main)',
+                  color: scale === s.id ? 'white' : 'var(--text-muted)',
+                  border:'none', borderRight: '1px solid var(--border)',
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="gantt-container" style={{ display:'flex', border:'1px solid var(--border)', borderRadius:'6px', overflow:'hidden', background:'var(--bg-main)', maxHeight: 'calc(100vh - 200px)' }}>
         {/* Left: Task info columns */}
-        <div 
+        <div
           ref={leftPanelRef}
           onScroll={handleLeftPanelScroll}
-          style={{ minWidth:'380px', maxWidth:'420px', borderRight:'2px solid var(--border)', flexShrink:0, overflowY:'auto', overflowX:'hidden', scrollbarWidth:'none' }}
+          style={{ minWidth:'460px', maxWidth:'520px', borderRight:'2px solid var(--border)', flexShrink:0, overflowY:'auto', overflowX:'hidden', scrollbarWidth:'none' }}
         >
           {/* Header */}
           <div style={{ height:'40px', display:'flex', alignItems:'center', background:'var(--bg-alt)', borderBottom:'1px solid var(--border)', position:'sticky', top:0, zIndex:2, fontSize:'0.7rem', fontWeight:600, color:'var(--text-main)' }}>
             <div style={{flex:1, padding:'0 0.5rem', minWidth:'150px'}}>Görev Adı</div>
-            <div style={{width:'65px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>Başlangıç</div>
-            <div style={{width:'65px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>Bitiş</div>
-            <div style={{width:'75px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>Durum</div>
+            <div onClick={() => handleSort('startDate')} style={{width:'65px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'}}>Başlangıç <SortIcon col="startDate"/></div>
+            <div onClick={() => handleSort('deadline')} style={{width:'65px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'}}>Bitiş <SortIcon col="deadline"/></div>
+            <div onClick={() => handleSort('status')} style={{width:'75px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'}}>Durum <SortIcon col="status"/></div>
+            <div onClick={() => handleSort('priority')} style={{width:'70px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'}}>Öncelik <SortIcon col="priority"/></div>
           </div>
           {/* Rows */}
           {sortedTasks.map((task, i) => (
@@ -275,6 +375,14 @@ export default function GanttView() {
                   background: `${statusColors[task.status]}18`, color: statusColors[task.status], fontWeight:600
                 }}>
                   {statusLabels[task.status]}
+                </span>
+              </div>
+              <div style={{width:'70px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>
+                <span style={{
+                  fontSize:'0.55rem', padding:'0.1rem 0.3rem', borderRadius:'8px',
+                  background: `${priorityColors[task.priority]}18`, color: priorityColors[task.priority], fontWeight:600
+                }}>
+                  {priorityLabels[task.priority] || 'Orta'}
                 </span>
               </div>
             </div>

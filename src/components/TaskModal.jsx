@@ -231,19 +231,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
     params.append('details', detailsText);
 
     if (startDate) {
-      let startStr = startDate.replace(/-/g, '');
-      let endStr = startStr;
-      
-      if (deadline) {
-        const d = new Date(deadline);
-        d.setDate(d.getDate() + 1);
-        endStr = d.toISOString().split('T')[0].replace(/-/g, '');
-      } else {
-        const d = new Date(startDate);
-        d.setDate(d.getDate() + 1);
-        endStr = d.toISOString().split('T')[0].replace(/-/g, '');
-      }
-      params.append('dates', `${startStr}/${endStr}`);
+      const startStr = startDate.replace(/-/g, '');
+      params.append('dates', `${startStr}T100000/${startStr}T120000`);
     }
 
     const url = `${baseUrl}?${params.toString()}`;
@@ -593,7 +582,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
 
           <div className="modal-actions" style={{ marginTop: '0.5rem', marginBottom: editTask ? '0.75rem' : '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
             <div style={{display:'flex', gap:'0.5rem'}}>
-              <button type="submit" className="btn btn-primary">{editTask ? 'Güncelle' : 'Kaydet'}</button>
+              <button type="submit" className="btn btn-primary" style={editTask ? {background:'#ef4444', borderColor:'#ef4444'} : {}}>{editTask ? 'Güncelle' : 'Kaydet'}</button>
               <button type="button" className="btn btn-secondary" onClick={onClose}>İptal</button>
             </div>
             
@@ -609,7 +598,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
                 title="Google Takvime Ekle"
               >
                 <Calendar size={15}/>
-                Takvim
+                Google Takvime Ekle
               </button>
 
               {editTask && (
@@ -709,7 +698,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
                       <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
                         <span className="note-date">{new Date(note.date).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                         {note.isRead === false && editTask && editTask.assignee === currentUser && (
-                          <button type="button" onClick={() => markNoteAsRead(note.id)} style={{background:'#ef4444', color:'white', border:'none', borderRadius:'4px', padding:'2px 8px', fontSize:'0.7rem', cursor:'pointer', fontWeight:600}} title="Notu okundu olarak onayla">
+                          <button type="button" className="blink-btn" onClick={() => markNoteAsRead(note.id)} style={{background:'#ef4444', color:'white', border:'none', borderRadius:'4px', padding:'2px 8px', fontSize:'0.7rem', cursor:'pointer', fontWeight:600}} title="Notu okundu olarak onayla">
                             Okundu Onayı Gerekiyor
                           </button>
                         )}

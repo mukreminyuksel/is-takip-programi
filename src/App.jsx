@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { TaskProvider, useTasks } from './context/TaskContext'
 import BoardView from './components/BoardView'
 import KanbanView from './components/KanbanView'
@@ -61,7 +61,19 @@ const NotificationDropdown = ({ isOpen, onClose }) => {
 const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
   const { currentUser, logout, isAdmin, appNotifications } = useTasks();
   const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'light');
+
+  useEffect(() => {
+    if (!notifOpen) return;
+    const handleClickOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [notifOpen]);
 
   const toggleTheme = () => {
     const next = theme === 'light' ? 'dark' : 'light';
@@ -112,7 +124,7 @@ const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
           
           <div style={{ width: '1px', height: '24px', background: 'var(--border)', margin: '0 0.5rem' }}></div>
 
-          <div style={{position:'relative'}}>
+          <div style={{position:'relative'}} ref={notifRef}>
             <button className="icon-btn" onClick={() => setNotifOpen(!notifOpen)} title="Bildirimler" style={{position:'relative'}}>
               <Bell size={20} />
               {unreadCount > 0 && (
