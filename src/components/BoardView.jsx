@@ -189,22 +189,27 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
   const handleBulkCalendar = () => {
     const selected = filteredAndSorted.filter(t => selectedIds.has(t.id));
     if (selected.length === 0) { alert('Lütfen gönderilmesini istediğiniz görevleri seçiniz.'); return; }
-    selected.forEach(task => {
-      const baseUrl = 'https://calendar.google.com/calendar/u/0/r/eventedit';
-      const params = new URLSearchParams();
-      params.append('text', task.title);
-      let details = '';
-      if (task.assignee) details += `Atanan Kişi: ${task.assignee}\n`;
-      const prioMap = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' };
-      details += `Öncelik: ${prioMap[task.priority] || 'Orta'}\n`;
-      if (task.description) details += `\nAçıklama:\n${task.description}\n`;
-      params.append('details', details);
-      if (task.startDate) {
-        const startStr = task.startDate.split('T')[0].replace(/-/g, '');
-        params.append('dates', `${startStr}T100000/${startStr}T120000`);
-      }
-      window.open(`${baseUrl}?${params.toString()}`, '_blank');
+    const statusMap = { 'todo': 'Yapılacak', 'in-progress': 'Devam Eden', 'done': 'Tamamlandı' };
+    const prioMap = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' };
+    const baseUrl = 'https://calendar.google.com/calendar/u/0/r/eventedit';
+    const params = new URLSearchParams();
+    params.append('text', `İş Takip - ${selected.length} Görev`);
+    let details = '';
+    selected.forEach((task, i) => {
+      details += `${i+1}. ${task.title}\n`;
+      details += `   Durum: ${statusMap[task.status] || task.status}\n`;
+      details += `   Öncelik: ${prioMap[task.priority] || 'Orta'}\n`;
+      if (task.assignee) details += `   Kişi: ${task.assignee}\n`;
+      if (task.deadline) details += `   Bitiş: ${new Date(task.deadline).toLocaleDateString('tr-TR')}\n`;
+      details += '\n';
     });
+    params.append('details', details);
+    const earliest = selected.filter(t => t.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+    if (earliest) {
+      const startStr = earliest.startDate.split('T')[0].replace(/-/g, '');
+      params.append('dates', `${startStr}T100000/${startStr}T120000`);
+    }
+    window.open(`${baseUrl}?${params.toString()}`, '_blank');
   };
 
   const handleBulkWhatsApp = () => {
@@ -589,7 +594,7 @@ export default function BoardView() {
     <>
       <div className="table-header-actions" style={{display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem'}}>
         <div style={{display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap'}}>
-          <h2 style={{margin:0}}>Görev Paneli (v8.2)</h2>
+          <h2 style={{margin:0}}>Görev Paneli (v8.2.1)</h2>
           <div style={{fontSize:'0.85rem', display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--bg-main)', padding:'0.4rem 0.8rem', borderRadius:'20px', border:'1px solid var(--border)'}}>
             <span style={{color:'var(--text-muted)'}}>Üzerinizde:</span>
             <span style={{color:'#ef4444', fontWeight:600}}>{myTodoCount} Yapılacak</span>
