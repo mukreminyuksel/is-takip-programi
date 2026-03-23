@@ -207,11 +207,9 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
       details += '\n';
     });
     params.append('details', details);
-    const earliest = selected.filter(t => t.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
-    if (earliest) {
-      const startStr = earliest.startDate.split('T')[0].replace(/-/g, '');
-      params.append('dates', `${startStr}T100000/${startStr}T120000`);
-    }
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    params.append('dates', `${todayStr}T100000/${todayStr}T120000`);
     window.open(`${baseUrl}?${params.toString()}`, '_blank');
   };
 
@@ -597,7 +595,7 @@ export default function BoardView() {
     <>
       <div className="table-header-actions" style={{display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem'}}>
         <div style={{display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap'}}>
-          <h2 style={{margin:0}}>GÖREV PANELİ (V9.1.3)</h2>
+          <h2 style={{margin:0}}>GÖREV PANELİ (V9.1.4)</h2>
           <div style={{fontSize:'0.85rem', display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--bg-main)', padding:'0.4rem 0.8rem', borderRadius:'20px', border:'1px solid var(--border)'}}>
             <span style={{color:'var(--text-muted)'}}>Üzerinizde:</span>
             <span style={{color:'#ef4444', fontWeight:600}}>{myTodoCount} Yapılacak</span>
