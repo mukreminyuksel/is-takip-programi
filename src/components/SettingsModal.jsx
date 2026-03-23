@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
 import { useCompany } from '../context/CompanyContext';
-import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server, Users } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { doc, setDoc } from 'firebase/firestore';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
@@ -10,7 +10,7 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 export default function SettingsModal({ isOpen, onClose }) {
-  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin, companyDb: db } = useTasks();
+  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin, customersList, addCustomer, editCustomer, deleteCustomer, companyDb: db } = useTasks();
   const { companies, addCompany, updateCompany, deleteCompany } = useCompany();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('personnel');
@@ -360,6 +360,9 @@ export default function SettingsModal({ isOpen, onClose }) {
             </h2>
             <h2 onClick={() => {setActiveTab('accounts'); setIsEditing(false); setAuthMessage(null);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'accounts' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'accounts' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
               <KeyRound size={16}/> Hesap Yönetimi
+            </h2>
+            <h2 onClick={() => {setActiveTab('customers'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'customers' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'customers' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
+              <Users size={16}/> Müşteri Listesi
             </h2>
             <h2 onClick={() => {setActiveTab('system'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'system' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'system' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
               <Server size={16}/> Sistem Ayarları
@@ -969,6 +972,10 @@ export default function SettingsModal({ isOpen, onClose }) {
           </div>
         )}
 
+        {!isEditing && activeTab === 'customers' && (
+          <CustomersTab customersList={customersList} addCustomer={addCustomer} editCustomer={editCustomer} deleteCustomer={deleteCustomer} />
+        )}
+
         {!isEditing && activeTab === 'system' && (
           <SystemSettingsTab companies={companies} addCompany={addCompany} updateCompany={updateCompany} deleteCompany={deleteCompany} />
         )}
@@ -1017,6 +1024,125 @@ export default function SettingsModal({ isOpen, onClose }) {
             </div>
           </form>
         )}
+      </div>
+    </div>
+  );
+}
+
+function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer }) {
+  const [search, setSearch] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const emptyForm = { customerName: '', customerPhone: '', customerEmail: '', customerPhone2: '', customerAddress: '', customerTaxNo: '', customerTaxOffice: '', customerTradeRegNo: '' };
+  const [form, setForm] = useState(emptyForm);
+
+  const filtered = customersList.filter(c => {
+    if (!search.trim()) return true;
+    const s = search.toLowerCase();
+    return (c.customerName || '').toLowerCase().includes(s) ||
+           (c.customerPhone || '').includes(s) ||
+           (c.customerEmail || '').toLowerCase().includes(s) ||
+           (c.customerTaxNo || '').includes(s);
+  });
+
+  const startEdit = (c) => {
+    setEditingId(c.id);
+    setForm({ customerName: c.customerName || '', customerPhone: c.customerPhone || '', customerEmail: c.customerEmail || '', customerPhone2: c.customerPhone2 || '', customerAddress: c.customerAddress || '', customerTaxNo: c.customerTaxNo || '', customerTaxOffice: c.customerTaxOffice || '', customerTradeRegNo: c.customerTradeRegNo || '' });
+    setShowAddForm(false);
+  };
+
+  const cancelEdit = () => { setEditingId(null); setShowAddForm(false); setForm(emptyForm); };
+
+  const handleSave = async () => {
+    if (!form.customerName.trim()) { alert('Müşteri adı zorunludur.'); return; }
+    if (editingId) {
+      await editCustomer(editingId, form);
+      setEditingId(null);
+    } else {
+      await addCustomer(form);
+      setShowAddForm(false);
+    }
+    setForm(emptyForm);
+  };
+
+  const inputStyle = { width: '100%', padding: '0.4rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--bg-main)' };
+  const labelStyle = { fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.15rem' };
+
+  const CustomerForm = () => (
+    <div style={{ background: 'var(--bg-alt)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '1rem' }}>
+      <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--text-main)' }}>{editingId ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}</h4>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+        <div><label style={labelStyle}>Müşteri Adı Soyadı/Ünvanı *</label><input style={inputStyle} value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} placeholder="Ahmet Yılmaz / ABC Ltd." /></div>
+        <div><label style={labelStyle}>İletişim Numarası Tel/GSM</label><input style={inputStyle} value={form.customerPhone} onChange={e => setForm({ ...form, customerPhone: e.target.value })} placeholder="0555..." /></div>
+        <div><label style={labelStyle}>E-mail</label><input style={inputStyle} value={form.customerEmail} onChange={e => setForm({ ...form, customerEmail: e.target.value })} placeholder="ornek@firma.com" /></div>
+        <div><label style={labelStyle}>Telefon 2</label><input style={inputStyle} value={form.customerPhone2} onChange={e => setForm({ ...form, customerPhone2: e.target.value })} placeholder="0212..." /></div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={labelStyle}>Adres Bilgisi</label><input style={inputStyle} value={form.customerAddress} onChange={e => setForm({ ...form, customerAddress: e.target.value })} placeholder="Atatürk Cad. No:1 İstanbul" /></div>
+        <div><label style={labelStyle}>Vergi No</label><input style={inputStyle} value={form.customerTaxNo} onChange={e => setForm({ ...form, customerTaxNo: e.target.value })} placeholder="1234567890" /></div>
+        <div><label style={labelStyle}>Vergi Dairesi</label><input style={inputStyle} value={form.customerTaxOffice} onChange={e => setForm({ ...form, customerTaxOffice: e.target.value })} placeholder="Kadıköy V.D." /></div>
+        <div><label style={labelStyle}>Ticaret Sicil No</label><input style={inputStyle} value={form.customerTradeRegNo} onChange={e => setForm({ ...form, customerTradeRegNo: e.target.value })} placeholder="123456" /></div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
+        <button className="btn btn-secondary btn-small" onClick={cancelEdit}>İptal</button>
+        <button className="btn btn-primary btn-small" onClick={handleSave}>{editingId ? 'Güncelle' : 'Ekle'}</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="settings-body" style={{ padding: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h3 style={{ fontSize: '1rem', margin: 0 }}>Kayıtlı Müşteriler ({customersList.length})</h3>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Müşteri ara..." style={{ padding: '0.35rem 0.6rem', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.8rem', width: '200px' }} />
+          {!showAddForm && !editingId && (
+            <button className="btn btn-primary btn-small" onClick={() => { setShowAddForm(true); setForm(emptyForm); }}><Plus size={14} style={{ marginRight: '4px' }} /> Yeni Müşteri</button>
+          )}
+        </div>
+      </div>
+
+      {(showAddForm || editingId) && <CustomerForm />}
+
+      <div className="table-container" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+        <table className="compact-table">
+          <thead>
+            <tr>
+              <th>Müşteri Adı/Ünvanı</th>
+              <th>Telefon</th>
+              <th>E-mail</th>
+              <th>Adres</th>
+              <th>Vergi No / Dairesi</th>
+              <th style={{ width: '60px' }}>İşlem</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(c => (
+              <tr key={c.id} style={editingId === c.id ? { background: 'var(--bg-alt)' } : {}}>
+                <td style={{ fontWeight: 600 }}>{c.customerName}</td>
+                <td style={{ fontSize: '0.8rem' }}>
+                  {c.customerPhone && <div>{c.customerPhone}</div>}
+                  {c.customerPhone2 && <div style={{ color: 'var(--text-muted)' }}>{c.customerPhone2}</div>}
+                  {!c.customerPhone && !c.customerPhone2 && '-'}
+                </td>
+                <td style={{ fontSize: '0.8rem' }}>{c.customerEmail || '-'}</td>
+                <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.customerAddress}>{c.customerAddress || '-'}</td>
+                <td style={{ fontSize: '0.75rem' }}>
+                  {c.customerTaxNo && <div>{c.customerTaxNo}</div>}
+                  {c.customerTaxOffice && <div style={{ color: 'var(--text-muted)' }}>{c.customerTaxOffice}</div>}
+                  {!c.customerTaxNo && !c.customerTaxOffice && '-'}
+                </td>
+                <td>
+                  <button className="icon-btn" onClick={() => startEdit(c)}><Edit2 size={14} /></button>
+                  <button className="icon-btn delete-btn" onClick={() => deleteCustomer(c.id)}><Trash2 size={14} /></button>
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                {search ? 'Aramanızla eşleşen müşteri bulunamadı.' : 'Henüz müşteri kaydı bulunmuyor. Görev oluştururken girilen müşteri bilgileri otomatik olarak buraya kaydedilir.'}
+              </td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

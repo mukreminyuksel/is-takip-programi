@@ -5,7 +5,7 @@ import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar, Hist
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxncRte5tnhqc68DIlTzdOpDkEYEywiLwwWtuUq9WJ-VR8gbdJBSc9xSUcWi0NjNyYdmw/exec';
 
 export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) {
-  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor } = useTasks();
+  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor, customersList } = useTasks();
   const [title, setTitle] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -34,6 +34,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
   const [recurrenceCount, setRecurrenceCount] = useState(3);
   const [recurrenceRemaining, setRecurrenceRemaining] = useState(null);
 
+  const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
   const uploadAbortRef = useRef(null);
 
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -511,7 +513,14 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
 
           <div style={{display:'flex', gap:'0.75rem', marginBottom:'0.5rem', flexWrap:'wrap'}}>
             <div className="form-group" style={{flex: 1, minWidth:'150px', marginBottom: 0}}>
-              <label>Müşteri Adı Soyadı/Ünvanı</label>
+              <label style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+                <span>Müşteri Adı Soyadı/Ünvanı</span>
+                {customersList.length > 0 && (
+                  <span onClick={() => { setShowCustomerPicker(true); setCustomerSearch(''); }} style={{fontSize:'0.7rem', color:'var(--primary)', cursor:'pointer', fontWeight:600, textDecoration:'underline'}}>
+                    Kayıtlı Müşteri Bilgilerinden Getir
+                  </span>
+                )}
+              </label>
               <input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Örn: Ahmet Yılmaz..." />
             </div>
             <div className="form-group" style={{flex: 1, minWidth:'150px', marginBottom: 0}}>
@@ -764,6 +773,57 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
               <div style={{fontSize:'0.8rem', color:'var(--text-muted)', fontStyle:'italic'}}>Bu göreve henüz dosya eklenmemiş.</div>
             )}
           </div>
+
+          {showCustomerPicker && (() => {
+            const filteredCustomers = customersList.filter(c => {
+              if (!customerSearch.trim()) return true;
+              const s = customerSearch.toLowerCase();
+              return (c.customerName || '').toLowerCase().includes(s) || (c.customerPhone || '').includes(s) || (c.customerEmail || '').toLowerCase().includes(s) || (c.customerTaxNo || '').includes(s);
+            });
+            return (
+              <div style={{position:'absolute', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: isFullScreen ? 0 : '8px'}} onClick={() => setShowCustomerPicker(false)}>
+                <div style={{background:'var(--bg-main)', borderRadius:'10px', width:'90%', maxWidth:'700px', maxHeight:'80%', display:'flex', flexDirection:'column', boxShadow:'0 20px 40px rgba(0,0,0,0.2)'}} onClick={e => e.stopPropagation()}>
+                  <div style={{padding:'1rem 1.2rem', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <h3 style={{margin:0, fontSize:'1rem', color:'var(--text-main)'}}>Kayıtlı Müşteri Seç</h3>
+                    <button type="button" className="icon-btn" onClick={() => setShowCustomerPicker(false)}><X size={18}/></button>
+                  </div>
+                  <div style={{padding:'0.75rem 1.2rem', borderBottom:'1px solid var(--border)'}}>
+                    <input type="text" value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} placeholder="Müşteri adı, telefon, e-mail veya vergi no ile ara..." autoFocus style={{width:'100%', padding:'0.5rem 0.75rem', borderRadius:'6px', border:'1px solid var(--border)', fontSize:'0.85rem'}} />
+                  </div>
+                  <div style={{flex:1, overflowY:'auto', padding:'0.5rem'}}>
+                    {filteredCustomers.length === 0 ? (
+                      <div style={{textAlign:'center', padding:'2rem', color:'var(--text-muted)', fontSize:'0.85rem'}}>{customerSearch ? 'Eşleşen müşteri bulunamadı.' : 'Henüz kayıtlı müşteri yok.'}</div>
+                    ) : filteredCustomers.map(c => (
+                      <div key={c.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0.7rem 0.8rem', borderBottom:'1px solid var(--border)', cursor:'pointer', borderRadius:'6px', transition:'background 0.15s'}}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #f1f5f9)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style={{flex:1}}>
+                          <div style={{fontWeight:600, fontSize:'0.9rem', color:'var(--text-main)'}}>{c.customerName}</div>
+                          <div style={{fontSize:'0.75rem', color:'var(--text-muted)', display:'flex', gap:'1rem', flexWrap:'wrap', marginTop:'0.2rem'}}>
+                            {c.customerPhone && <span>Tel: {c.customerPhone}</span>}
+                            {c.customerEmail && <span>E-mail: {c.customerEmail}</span>}
+                            {c.customerTaxNo && <span>VN: {c.customerTaxNo}</span>}
+                          </div>
+                        </div>
+                        <button type="button" className="btn btn-primary btn-small" onClick={() => {
+                          setCustomerName(c.customerName || '');
+                          setCustomerPhone(c.customerPhone || '');
+                          setCustomerEmail(c.customerEmail || '');
+                          setCustomerPhone2(c.customerPhone2 || '');
+                          setCustomerAddress(c.customerAddress || '');
+                          setCustomerTaxNo(c.customerTaxNo || '');
+                          setCustomerTaxOffice(c.customerTaxOffice || '');
+                          setCustomerTradeRegNo(c.customerTradeRegNo || '');
+                          setShowCustomerPicker(false);
+                        }} style={{flexShrink:0}}>SEÇ</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {editTask && (
             <div className="notes-section" style={{ flex: isFullScreen ? 1 : 'unset', display: 'flex', flexDirection: 'column' }}>

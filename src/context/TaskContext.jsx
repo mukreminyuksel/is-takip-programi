@@ -20,6 +20,7 @@ export const TaskProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [appNotifications, setAppNotifications] = useState([]);
   const [hideAllTasksForUsers, setHideAllTasksForUsers] = useState(false);
+  const [customersList, setCustomersList] = useState([]);
 
   const [authUser, setAuthUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -33,6 +34,7 @@ export const TaskProvider = ({ children }) => {
     setUsersList([]);
     setTagsList([]);
     setAppNotifications([]);
+    setCustomersList([]);
     setHideAllTasksForUsers(false);
     setAuthUser(null);
     setCurrentUser(null);
@@ -100,16 +102,17 @@ export const TaskProvider = ({ children }) => {
           await addDoc(collection(db, 'usersList'), newAdmin);
         } catch (e) { console.error("Could not create initial admin:", e); }
       } else {
-        setUsersList(dbUsers);
+        const activeUsers = dbUsers.filter(u => !u.isDeleted);
+        setUsersList(activeUsers);
 
         if (authUser) {
-           let match = dbUsers.find(u => u.email && authUser.email && u.email.trim().toLowerCase() === authUser.email.trim().toLowerCase());
+           let match = activeUsers.find(u => u.email && authUser.email && u.email.trim().toLowerCase() === authUser.email.trim().toLowerCase());
 
            if (!match && authUser.email && authUser.email.includes('@tasktrack.net')) {
                const phonePrefix = authUser.email.split('@')[0];
                if (phonePrefix.length >= 10) {
                  const purePhone = phonePrefix.slice(-10);
-                 match = dbUsers.find(u => {
+                 match = activeUsers.find(u => {
                     const dbPhone = (u.phone || '').replace(/\D/g, '');
                     const dbWp = (u.whatsapp || '').replace(/\D/g, '');
                     return (dbPhone && dbPhone.endsWith(purePhone)) || (dbWp && dbWp.endsWith(purePhone));
@@ -118,7 +121,7 @@ export const TaskProvider = ({ children }) => {
            }
 
            if (!match && authUser.displayName) {
-               match = dbUsers.find(u => u.name.trim().toLowerCase() === authUser.displayName.trim().toLowerCase());
+               match = activeUsers.find(u => u.name.trim().toLowerCase() === authUser.displayName.trim().toLowerCase());
            }
 
            if (match) {
@@ -144,11 +147,16 @@ export const TaskProvider = ({ children }) => {
       }
     });
 
+    const unsubCustomers = onSnapshot(collection(db, 'customers'), (snapshot) => {
+      setCustomersList(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
     return () => {
       unsubTasks();
       unsubUsers();
       unsubTags();
       unsubSettings();
+      unsubCustomers();
     };
   }, [authUser, companyId]);
 
@@ -236,7 +244,27 @@ export const TaskProvider = ({ children }) => {
   };
   const deleteUser = async (id) => {
     if (!db) return;
-    try { await deleteDoc(doc(db, 'usersList', id)); } catch (e) { addNotification("Hata"); }
+    const user = usersList.find(u => u.id === id);
+    if (!user) return;
+
+    const activeTasks = tasks.filter(t => t.assignee === user.name && !t.isDeleted && t.status !== 'done');
+    if (activeTasks.length > 0) {
+      alert(`"${user.name}" üzerinde ${activeTasks.length} adet aktif görev bulunmaktadır!\n\nBu kullanıcıyı silmeden önce üzerindeki görevleri başka bir kullanıcıya atamalısınız.\n\nAktif görevler:\n${activeTasks.map(t => `- ${t.title}`).join('\n')}`);
+      return;
+    }
+
+    const allUserTasks = tasks.filter(t => t.assignee === user.name && !t.isDeleted);
+    let confirmMsg = `"${user.name}" adlı kullanıcıyı silmek istediğinize emin misiniz?`;
+    if (allUserTasks.length > 0) {
+      confirmMsg += `\n\n(${allUserTasks.length} adet tamamlanmış görevi bulunmaktadır. Görev geçmişindeki notlar ve loglar korunacaktır.)`;
+    }
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await updateDoc(doc(db, 'usersList', id), { isDeleted: true, deletedAt: new Date().toISOString() });
+      addNotification(`"${user.name}" kullanıcısı silindi.`);
+      logAppEvent(`"${user.name}" kullanıcısı silindi.`);
+    } catch (e) { addNotification("Hata"); }
   };
 
   const addTag = async (tagData) => {
@@ -250,6 +278,39 @@ export const TaskProvider = ({ children }) => {
   const deleteTag = async (id) => {
     if (!db) return;
     try { await deleteDoc(doc(db, 'tagsList', id)); } catch (e) { addNotification("Hata"); }
+  };
+
+  const addCustomer = async (customerData) => {
+    if (!db) return;
+    try { await addDoc(collection(db, 'customers'), { ...customerData, createdAt: new Date().toISOString() }); } catch (e) { addNotification("Müşteri eklenemedi."); }
+  };
+  const editCustomer = async (id, updatedData) => {
+    if (!db) return;
+    try { await updateDoc(doc(db, 'customers', id), { ...updatedData, updatedAt: new Date().toISOString() }); } catch (e) { addNotification("Müşteri güncellenemedi."); }
+  };
+  const deleteCustomer = async (id) => {
+    if (!db) return;
+    if (!window.confirm('Bu müşteri kaydını silmek istediğinize emin misiniz?')) return;
+    try { await deleteDoc(doc(db, 'customers', id)); } catch (e) { addNotification("Hata"); }
+  };
+  const saveCustomerFromTask = async (taskData) => {
+    if (!db || !taskData.customerName) return;
+    const existing = customersList.find(c => c.customerName && c.customerName.trim().toLowerCase() === taskData.customerName.trim().toLowerCase());
+    const custFields = {
+      customerName: taskData.customerName || '',
+      customerPhone: taskData.customerPhone || '',
+      customerEmail: taskData.customerEmail || '',
+      customerPhone2: taskData.customerPhone2 || '',
+      customerAddress: taskData.customerAddress || '',
+      customerTaxNo: taskData.customerTaxNo || '',
+      customerTaxOffice: taskData.customerTaxOffice || '',
+      customerTradeRegNo: taskData.customerTradeRegNo || ''
+    };
+    if (existing) {
+      await updateDoc(doc(db, 'customers', existing.id), { ...custFields, updatedAt: new Date().toISOString() });
+    } else {
+      await addDoc(collection(db, 'customers'), { ...custFields, createdAt: new Date().toISOString() });
+    }
   };
 
   const triggerCommunicationSimulations = (assigneeName, taskTitle) => {
@@ -287,6 +348,7 @@ export const TaskProvider = ({ children }) => {
       await addDoc(collection(db, 'tasks'), {
         ...task, date: new Date().toISOString(), isDeleted: false, isNewForAssignee: true, logs
       });
+      if (task.customerName) saveCustomerFromTask(task);
       if (task.assignee) {
         addNotification(`${task.assignee} adlı kullanıcıya yeni iş atandı.`);
         triggerCommunicationSimulations(task.assignee, task.title);
@@ -437,6 +499,7 @@ export const TaskProvider = ({ children }) => {
         logAppEvent(`'${updatedData.title || oldTask.title}' görevinin hedefini güncelledi.`, oldTask.assignee);
       }
       await updateDoc(doc(db, 'tasks', id), finalData);
+      if (updatedData.customerName) saveCustomerFromTask({ ...oldTask, ...updatedData });
 
       if (updatedData.status === 'done' && oldTask.status !== 'done' && oldTask.recurrence && oldTask.recurrence !== 'none') {
         await createNextRecurringTask({ ...oldTask, ...updatedData });
@@ -611,6 +674,7 @@ export const TaskProvider = ({ children }) => {
       hideAllTasksForUsers, toggleHideAllTasks,
       loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading,
       adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin,
+      customersList, addCustomer, editCustomer, deleteCustomer,
       companyDb: db
     }}>
       {children}
