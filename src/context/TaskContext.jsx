@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db, auth, googleProvider, secondaryAuth } from '../firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword, signInWithEmailAndPassword as secondarySignIn } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword, updateEmail } from 'firebase/auth';
 
 const TaskContext = createContext();
 
@@ -86,8 +86,8 @@ export const TaskProvider = ({ children }) => {
         if (authUser) {
            let match = dbUsers.find(u => u.email && authUser.email && u.email.trim().toLowerCase() === authUser.email.trim().toLowerCase());
            
-           // If logged in via phone number system (@istakip.com attached to authUser email)
-           if (!match && authUser.email && authUser.email.includes('@istakip.com')) {
+           // If logged in via phone number system (@tasktrack.net attached to authUser email)
+           if (!match && authUser.email && authUser.email.includes('@tasktrack.net')) {
                const phonePrefix = authUser.email.split('@')[0];
                if (phonePrefix.length >= 10) {
                  const purePhone = phonePrefix.slice(-10);
@@ -446,8 +446,8 @@ export const TaskProvider = ({ children }) => {
   // Helper: convert phone/email input to Firebase auth email
   const toAuthEmail = (input) => {
     const trimmed = (input || '').trim();
-    if (/^0?\d{10,11}$/.test(trimmed)) return trimmed + '@istakip.com';
-    if (!trimmed.includes('@')) return trimmed + '@istakip.com';
+    if (/^0?\d{10,11}$/.test(trimmed)) return trimmed + '@tasktrack.net';
+    if (!trimmed.includes('@')) return trimmed + '@tasktrack.net';
     return trimmed;
   };
 
@@ -535,6 +535,42 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
+  // Admin: Change login credential (email) for a user
+  const adminUpdateAuthLogin = async (oldAuthEmail, password, newLoginInput) => {
+    if (!isAdmin) {
+      addNotification('HATA: Bu işlem için Admin yetkisi gereklidir!');
+      return { success: false, error: 'Yetki yok' };
+    }
+    try {
+      const newAuthEmail = toAuthEmail(newLoginInput);
+      const cred = await signInWithEmailAndPassword(secondaryAuth, oldAuthEmail, password);
+      await updateEmail(cred.user, newAuthEmail);
+      await signOut(secondaryAuth);
+
+      // Update Firestore record
+      const linkedUser = usersList.find(u => u.authEmail === oldAuthEmail);
+      if (linkedUser) {
+        await updateDoc(doc(db, 'usersList', linkedUser.id), {
+          authEmail: newAuthEmail,
+          authLogin: newLoginInput.trim()
+        });
+      }
+
+      addNotification(`Giriş bilgisi değiştirildi: ${newLoginInput}`);
+      logAppEvent(`Giriş bilgisi değiştirildi: ${oldAuthEmail} → ${newLoginInput}`);
+      return { success: true };
+    } catch (err) {
+      console.error('Update auth login error:', err);
+      try { await signOut(secondaryAuth); } catch(e) {}
+      let msg = err.message;
+      if (err.code === 'auth/email-already-in-use') msg = 'Bu kullanıcı adı zaten başka bir hesapta kullanımda.';
+      else if (err.code === 'auth/invalid-email') msg = 'Geçersiz kullanıcı adı formatı.';
+      else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') msg = 'Şifre yanlış, giriş bilgisi değiştirilemedi.';
+      else if (err.code === 'auth/requires-recent-login') msg = 'İşlem için yeniden giriş gerekli. Lütfen tekrar deneyin.';
+      return { success: false, error: msg };
+    }
+  };
+
   return (
     <TaskContext.Provider value={{
       tasks, addTask, updateTaskStatus, updateTask, deleteTask, permanentDeleteTask, restoreTask,
@@ -544,7 +580,7 @@ export const TaskProvider = ({ children }) => {
       getUserColor, updateUserColor,
       hideAllTasksForUsers, toggleHideAllTasks,
       loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading,
-      adminCreateAuthUser, adminSendPasswordReset, adminChangePassword
+      adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin
     }}>
       {children}
     </TaskContext.Provider>

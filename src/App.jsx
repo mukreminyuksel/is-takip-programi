@@ -204,9 +204,9 @@ const AppContent = () => {
       
       // If user types a phone number like 05351234567 or 5351234567, map it to a fake email for Firebase
       if (/^0?\d{10}$/.test(processedEmail)) {
-        processedEmail = processedEmail + '@istakip.com';
+        processedEmail = processedEmail + '@tasktrack.net';
       } else if (!processedEmail.includes('@')) {
-        processedEmail = processedEmail + '@istakip.com';
+        processedEmail = processedEmail + '@tasktrack.net';
       }
       
       if (isLoginMode) loginWithEmail(processedEmail, passwordInput);

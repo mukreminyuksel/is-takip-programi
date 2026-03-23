@@ -10,7 +10,7 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 export default function SettingsModal({ isOpen, onClose }) {
-  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword } = useTasks();
+  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin } = useTasks();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('personnel');
   const [tagForm, setTagForm] = useState({ id: null, label: '', color: '#3b82f6' });
@@ -23,6 +23,8 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [authNewLinkedUser, setAuthNewLinkedUser] = useState('');
   const [authChangeUserId, setAuthChangeUserId] = useState('');
   const [authChangeNewPw, setAuthChangeNewPw] = useState('');
+  const [authEditLoginUserId, setAuthEditLoginUserId] = useState('');
+  const [authEditLoginNew, setAuthEditLoginNew] = useState('');
   const [authResetEmail, setAuthResetEmail] = useState('');
   const [authMessage, setAuthMessage] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
@@ -697,7 +699,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                       <th>Yetki</th>
                       <th>Giriş Bilgisi (Telefon/E-posta)</th>
                       <th>Şifre</th>
-                      <th style={{width:'60px'}}>İşlem</th>
+                      <th style={{width:'80px'}}>İşlem</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -719,15 +721,26 @@ export default function SettingsModal({ isOpen, onClose }) {
                             <span style={{color:'var(--text-muted)', fontSize:'0.75rem'}}>-</span>
                           )}
                         </td>
-                        <td>
-                          {(u.authEmail || u.email) && (
-                            <button className="icon-btn" title="Şifre Değiştir" onClick={() => {
-                              setAuthChangeUserId(u.id);
-                              setAuthChangeNewPw('');
-                              setAuthMessage(null);
-                            }}>
-                              <KeyRound size={14}/>
-                            </button>
+                        <td style={{display:'flex', gap:'0.2rem'}}>
+                          {(u.authEmail) && (
+                            <>
+                              <button className="icon-btn" title="Giriş Bilgisi Değiştir" onClick={() => {
+                                setAuthEditLoginUserId(u.id);
+                                setAuthEditLoginNew(u.authLogin || '');
+                                setAuthChangeUserId('');
+                                setAuthMessage(null);
+                              }}>
+                                <Edit2 size={14}/>
+                              </button>
+                              <button className="icon-btn" title="Şifre Değiştir" onClick={() => {
+                                setAuthChangeUserId(u.id);
+                                setAuthChangeNewPw('');
+                                setAuthEditLoginUserId('');
+                                setAuthMessage(null);
+                              }}>
+                                <KeyRound size={14}/>
+                              </button>
+                            </>
                           )}
                         </td>
                       </tr>
@@ -796,6 +809,64 @@ export default function SettingsModal({ isOpen, onClose }) {
               );
             })()}
 
+            {/* Inline Login Credential Change */}
+            {authEditLoginUserId && (() => {
+              const selectedUser = usersList.find(u => u.id === authEditLoginUserId);
+              if (!selectedUser) return null;
+              const oldAuthEmail = selectedUser.authEmail;
+              const currentPw = selectedUser.authPassword || '';
+              return (
+                <div style={{background:'#ede9fe', padding:'1rem', borderRadius:'8px', border:'1px solid #c4b5fd', marginBottom:'1.5rem'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.75rem'}}>
+                    <h4 style={{fontSize:'0.9rem', margin:0, color:'#5b21b6'}}>
+                      {selectedUser.name} - Giriş Bilgisi Değiştir
+                    </h4>
+                    <button className="icon-btn" onClick={() => setAuthEditLoginUserId('')} style={{color:'#5b21b6'}}><X size={16}/></button>
+                  </div>
+                  <div style={{display:'flex', gap:'0.75rem', alignItems:'flex-end', flexWrap:'wrap'}}>
+                    <div style={{flex:1, minWidth:'150px'}}>
+                      <label style={{fontSize:'0.7rem', fontWeight:600, color:'#5b21b6', display:'block', marginBottom:'0.15rem'}}>Mevcut Giriş Bilgisi</label>
+                      <input type="text" value={selectedUser.authLogin || oldAuthEmail || ''} disabled style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid #c4b5fd', borderRadius:'4px', fontSize:'0.85rem', background:'#f5f3ff', color:'#4c1d95'}} />
+                    </div>
+                    <div style={{flex:1, minWidth:'150px'}}>
+                      <label style={{fontSize:'0.7rem', fontWeight:600, color:'#5b21b6', display:'block', marginBottom:'0.15rem'}}>Yeni Giriş Bilgisi (Telefon veya E-posta)</label>
+                      <input type="text" value={authEditLoginNew} onChange={e => setAuthEditLoginNew(e.target.value)} placeholder="05351234567 veya ornek@sirket.com" style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid #c4b5fd', borderRadius:'4px', fontSize:'0.85rem', background:'#fff'}} />
+                      {authEditLoginNew && !/\S+@\S+/.test(authEditLoginNew) && (
+                        <span style={{fontSize:'0.65rem', color:'#7c3aed', marginTop:'0.15rem', display:'block'}}>
+                          Giriş adresi: {authEditLoginNew.trim()}@tasktrack.net
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      className="btn btn-primary btn-small"
+                      disabled={authLoading || !authEditLoginNew || !currentPw || !oldAuthEmail}
+                      onClick={async () => {
+                        setAuthLoading(true);
+                        setAuthMessage(null);
+                        const result = await adminUpdateAuthLogin(oldAuthEmail, currentPw, authEditLoginNew);
+                        if (result.success) {
+                          setAuthMessage({ type: 'success', text: `${selectedUser.name} kullanıcısının giriş bilgisi değiştirildi: ${authEditLoginNew}` });
+                          setAuthEditLoginUserId('');
+                          setAuthEditLoginNew('');
+                        } else {
+                          setAuthMessage({ type: 'error', text: `Hata: ${result.error}` });
+                        }
+                        setAuthLoading(false);
+                      }}
+                      style={{background:'#7c3aed', borderColor:'#7c3aed'}}
+                    >
+                      {authLoading ? 'İşleniyor...' : 'Giriş Bilgisini Değiştir'}
+                    </button>
+                  </div>
+                  {!currentPw && (
+                    <p style={{fontSize:'0.75rem', color:'#dc2626', marginTop:'0.5rem', marginBottom:0}}>
+                      Bu kullanıcının mevcut şifresi kayıtlı değil. Giriş bilgisi değiştirmek için şifre bilinmelidir.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem'}}>
               {/* Create New User */}
               <div style={{background:'var(--bg-card)', padding:'1.5rem', borderRadius:'8px', border:'1px solid var(--border)'}}>
@@ -820,7 +891,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                     <input type="text" value={authNewLogin} onChange={e => setAuthNewLogin(e.target.value)} placeholder="05351234567 veya ornek@sirket.com" style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem'}} />
                     {authNewLogin && !/\S+@\S+/.test(authNewLogin) && (
                       <span style={{fontSize:'0.65rem', color:'var(--text-muted)', marginTop:'0.15rem', display:'block'}}>
-                        Giriş adresi: {authNewLogin.trim()}@istakip.com
+                        Giriş adresi: {authNewLogin.trim()}@tasktrack.net
                       </span>
                     )}
                   </div>
@@ -865,7 +936,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                     <label style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)', display:'block', marginBottom:'0.15rem'}}>Kullanıcı</label>
                     <select value={authResetEmail} onChange={e => setAuthResetEmail(e.target.value)} style={{width:'100%', padding:'0.4rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem', background:'var(--bg-main)'}}>
                       <option value="">Kullanıcı seçin...</option>
-                      {usersList.filter(u => u.email && u.email.includes('@') && !u.email.includes('@istakip.com')).map(u => (
+                      {usersList.filter(u => u.email && u.email.includes('@') && !u.email.includes('@tasktrack.net')).map(u => (
                         <option key={u.id} value={u.email}>{u.name} ({u.email})</option>
                       ))}
                     </select>
