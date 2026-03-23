@@ -246,8 +246,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
     if (description) detailsText += `Açıklama:\n${description}\n`;
     params.append('details', detailsText);
 
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0].replace(/-/g, '');
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
     params.append('dates', `${todayStr}T100000/${todayStr}T120000`);
 
     const url = `${baseUrl}?${params.toString()}`;
