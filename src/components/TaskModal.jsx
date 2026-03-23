@@ -334,14 +334,12 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
         data = { success: true, fileId: Date.now().toString(), url: `https://drive.google.com/drive/folders/1nCPx7LbZU15OirK0IC_QCBgc7e7PCdzE` };
       }
 
-      if (data && !data.success && data.error) {
-        throw new Error(data.error);
-      }
+      const driveFolder = 'https://drive.google.com/drive/folders/1nCPx7LbZU15OirK0IC_QCBgc7e7PCdzE';
 
       const newAttachment = {
-        id: data.fileId || Date.now().toString(),
+        id: data?.fileId || Date.now().toString(),
         name: file.name,
-        url: data.url || `https://drive.google.com/drive/folders/1nCPx7LbZU15OirK0IC_QCBgc7e7PCdzE`,
+        url: data?.url || driveFolder,
         size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
         date: new Date().toISOString(),
         user: currentUser
