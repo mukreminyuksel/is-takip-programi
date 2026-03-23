@@ -25,6 +25,8 @@ export const TaskProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  const companyId = selectedCompany?.id || null;
+
   // Reset state when company changes
   useEffect(() => {
     setTasks([]);
@@ -34,8 +36,8 @@ export const TaskProvider = ({ children }) => {
     setHideAllTasksForUsers(false);
     setAuthUser(null);
     setCurrentUser(null);
-    setAuthLoading(!!auth);
-  }, [db]);
+    setAuthLoading(!!companyId);
+  }, [companyId]);
 
   // Authentication Listener
   useEffect(() => {
@@ -48,7 +50,7 @@ export const TaskProvider = ({ children }) => {
       setAuthLoading(false);
     });
     return unsub;
-  }, [auth]);
+  }, [companyId]);
 
   // Database Listeners
   useEffect(() => {
@@ -148,7 +150,7 @@ export const TaskProvider = ({ children }) => {
       unsubTags();
       unsubSettings();
     };
-  }, [authUser, db]);
+  }, [authUser, companyId]);
 
   const currentUserObj = usersList.find(u => u.name === currentUser) || { role: 'user' };
   const isAdmin = currentUserObj.role === 'admin';

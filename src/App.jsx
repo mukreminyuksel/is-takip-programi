@@ -84,9 +84,9 @@ const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
     document.documentElement.setAttribute('data-theme', next);
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-  }, []);
+  }, [theme]);
 
   const safeAppNotifications = appNotifications || [];
   const unreadCount = safeAppNotifications.filter(n => !(n.readBy || []).includes(currentUser)).length;
@@ -286,8 +286,8 @@ const AppContent = () => {
     return (
       <div className="login-screen" style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <Building2 size={28} style={{ color: selectedCompany.color || '#3b82f6' }} />
-          <span style={{ fontSize: '1.1rem', fontWeight: 700, color: selectedCompany.color || '#3b82f6' }}>{selectedCompany.displayName || selectedCompany.name}</span>
+          <Building2 size={28} style={{ color: selectedCompany?.color || '#3b82f6' }} />
+          <span style={{ fontSize: '1.1rem', fontWeight: 700, color: selectedCompany?.color || '#3b82f6' }}>{selectedCompany?.displayName || selectedCompany?.name}</span>
         </div>
         <Layout size={64} style={{ color: 'var(--primary)', marginBottom: '1rem' }} />
         <h1 style={{ marginBottom: '2rem', fontSize: '2rem', color: 'var(--text-main)', textAlign: 'center' }}>İş Takip Programı</h1>
