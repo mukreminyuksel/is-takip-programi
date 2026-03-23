@@ -31,6 +31,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
   const [tags, setTags] = useState([]);
   const [recurrence, setRecurrence] = useState('none');
   const [recurrenceDay, setRecurrenceDay] = useState(1);
+  const [recurrenceCount, setRecurrenceCount] = useState(3);
+  const [recurrenceRemaining, setRecurrenceRemaining] = useState(null);
 
   const uploadAbortRef = useRef(null);
 
@@ -63,6 +65,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
         setTags(editTask.tags || []);
         setRecurrence(editTask.recurrence || 'none');
         setRecurrenceDay(editTask.recurrenceDay || 1);
+        setRecurrenceCount(editTask.recurrenceCount || 3);
+        setRecurrenceRemaining(editTask.recurrenceRemaining != null ? editTask.recurrenceRemaining : null);
       } else {
         setTitle('');
         setCustomerName('');
@@ -88,6 +92,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
         setTags([]);
         setRecurrence('none');
         setRecurrenceDay(1);
+        setRecurrenceCount(3);
+        setRecurrenceRemaining(null);
       }
       setNewNote('');
       setNewSubtask('');
@@ -424,7 +430,9 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
       subtasks,
       tags,
       recurrence,
-      recurrenceDay: recurrence === 'monthly' ? recurrenceDay : null
+      recurrenceDay: recurrence === 'monthly' ? recurrenceDay : null,
+      recurrenceCount: recurrence !== 'none' ? recurrenceCount : null,
+      recurrenceRemaining: recurrence !== 'none' ? (recurrenceRemaining != null ? recurrenceRemaining : recurrenceCount) : null
     };
 
     if (editTask) {
@@ -565,7 +573,38 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
               <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
             </div>
           </div>
-          
+
+          <div className="form-group" style={{marginBottom:'0.5rem'}}>
+            <label style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>🔄 Tekrarlama</label>
+            <div style={{display:'flex', gap:'0.5rem', alignItems:'center', flexWrap:'wrap'}}>
+              <select value={recurrence} onChange={e => { setRecurrence(e.target.value); if (e.target.value === 'none') { setRecurrenceRemaining(null); } }} style={{flex:'1 1 120px', minWidth:'120px'}}>
+                <option value="none">Yok</option>
+                <option value="daily">Her Gün</option>
+                <option value="weekly">Her Hafta</option>
+                <option value="monthly">Her Ay</option>
+                <option value="yearly">Her Yıl</option>
+              </select>
+              {recurrence === 'monthly' && (
+                <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+                  <span style={{fontSize:'0.8rem', color:'var(--text-muted)', whiteSpace:'nowrap'}}>Ayın</span>
+                  <input type="number" min={1} max={31} value={recurrenceDay} onChange={e => setRecurrenceDay(parseInt(e.target.value) || 1)} style={{width:'55px'}} />
+                  <span style={{fontSize:'0.8rem', color:'var(--text-muted)', whiteSpace:'nowrap'}}>. günü</span>
+                </div>
+              )}
+              {recurrence !== 'none' && (
+                <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+                  <input type="number" min={1} max={999} value={recurrenceCount} onChange={e => setRecurrenceCount(parseInt(e.target.value) || 1)} style={{width:'55px'}} />
+                  <span style={{fontSize:'0.8rem', color:'var(--text-muted)', whiteSpace:'nowrap'}}>kez tekrarla</span>
+                  {recurrenceRemaining != null && editTask && (
+                    <span style={{fontSize:'0.75rem', color:'var(--primary)', fontWeight:600, whiteSpace:'nowrap'}}>
+                      (Kalan: {recurrenceRemaining})
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="form-group">
             <label>Öncelik (Önem Derecesi)</label>
             <div className="priority-options">
@@ -607,26 +646,6 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
                   </button>
                 );
               })}
-            </div>
-          </div>
-
-          <div className="form-group" style={{marginBottom:'0.5rem'}}>
-            <label style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>🔄 Tekrarlama</label>
-            <div style={{display:'flex', gap:'0.5rem', alignItems:'center'}}>
-              <select value={recurrence} onChange={e => setRecurrence(e.target.value)} style={{flex:1}}>
-                <option value="none">Yok</option>
-                <option value="daily">Her Gün</option>
-                <option value="weekly">Her Hafta</option>
-                <option value="monthly">Her Ay</option>
-                <option value="yearly">Her Yıl</option>
-              </select>
-              {recurrence === 'monthly' && (
-                <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
-                  <span style={{fontSize:'0.8rem', color:'var(--text-muted)', whiteSpace:'nowrap'}}>Ayın</span>
-                  <input type="number" min={1} max={31} value={recurrenceDay} onChange={e => setRecurrenceDay(parseInt(e.target.value) || 1)} style={{width:'60px'}} />
-                  <span style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>günü</span>
-                </div>
-              )}
             </div>
           </div>
 

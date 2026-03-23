@@ -270,6 +270,26 @@ export const TaskProvider = ({ children }) => {
 
   const createNextRecurringTask = async (completedTask) => {
     try {
+      const remaining = completedTask.recurrenceRemaining;
+
+      // If remaining is 0, the recurrence has ended - show renewal prompt
+      if (remaining != null && remaining <= 0) {
+        const recLabels = {'daily':'Günlük','weekly':'Haftalık','monthly':'Aylık','yearly':'Yıllık'};
+        const shouldRenew = window.confirm(
+          `"${completedTask.title}" görevinin ${recLabels[completedTask.recurrence] || ''} tekrar süresi doldu.\n\nGörev tekrarını yeniden başlatmak ister misiniz?`
+        );
+        if (shouldRenew) {
+          // Reset remaining to original count and continue
+          completedTask.recurrenceRemaining = completedTask.recurrenceCount || 3;
+        } else {
+          addNotification(`"${completedTask.title}" tekrarlayan görevi sona erdi.`);
+          logAppEvent(`Tekrarlayan görev sona erdi: '${completedTask.title}'`, completedTask.assignee);
+          return;
+        }
+      }
+
+      const newRemaining = (completedTask.recurrenceRemaining != null) ? completedTask.recurrenceRemaining - 1 : null;
+
       const now = new Date();
       let nextStart = completedTask.startDate ? new Date(completedTask.startDate) : now;
       let nextDeadline = completedTask.deadline ? new Date(completedTask.deadline) : null;
@@ -321,16 +341,18 @@ export const TaskProvider = ({ children }) => {
         tags: completedTask.tags || [],
         recurrence: completedTask.recurrence,
         recurrenceDay: completedTask.recurrenceDay || null,
+        recurrenceCount: completedTask.recurrenceCount || null,
+        recurrenceRemaining: newRemaining,
         status: 'todo',
         date: new Date().toISOString(),
         isDeleted: false,
         isNewForAssignee: true,
-        logs: [{ id: Date.now().toString(), text: 'Tekrarlayan görev otomatik oluşturuldu.', user: 'Sistem', date: new Date().toISOString() }]
+        logs: [{ id: Date.now().toString(), text: `Tekrarlayan görev otomatik oluşturuldu. (Kalan: ${newRemaining != null ? newRemaining : '∞'})`, user: 'Sistem', date: new Date().toISOString() }]
       };
 
       await addDoc(collection(db, 'tasks'), newTask);
-      addNotification(`Tekrarlayan görev oluşturuldu: "${completedTask.title}"`);
-      logAppEvent(`Tekrarlayan görev otomatik oluşturuldu: '${completedTask.title}'`, completedTask.assignee);
+      addNotification(`Tekrarlayan görev oluşturuldu: "${completedTask.title}" (Kalan: ${newRemaining != null ? newRemaining : '∞'})`);
+      logAppEvent(`Tekrarlayan görev otomatik oluşturuldu: '${completedTask.title}' (Kalan: ${newRemaining != null ? newRemaining : '∞'})`, completedTask.assignee);
     } catch (e) {
       console.error('Tekrarlayan görev oluşturulamadı:', e);
     }
