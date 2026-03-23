@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { CompanyProvider, useCompany } from './context/CompanyContext'
 import { TaskProvider, useTasks } from './context/TaskContext'
 import BoardView from './components/BoardView'
 import KanbanView from './components/KanbanView'
 import GanttView from './components/GanttView'
 import SettingsModal from './components/SettingsModal'
 import DeletedTasksModal from './components/DeletedTasksModal'
-import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart } from 'lucide-react'
+import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart, Building2, ArrowLeftRight } from 'lucide-react'
 
 const NotificationContainer = () => {
   const { notifications } = useTasks();
   if (notifications.length === 0) return null;
-  
+
   return (
     <div className="notification-container">
       {notifications.map(n => (
@@ -60,6 +61,7 @@ const NotificationDropdown = ({ isOpen, onClose }) => {
 
 const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
   const { currentUser, logout, isAdmin, appNotifications } = useTasks();
+  const { selectedCompany, selectCompany } = useCompany();
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'light');
@@ -82,7 +84,6 @@ const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
     document.documentElement.setAttribute('data-theme', next);
   };
 
-  // Apply theme on mount
   React.useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, []);
@@ -90,12 +91,17 @@ const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
   const safeAppNotifications = appNotifications || [];
   const unreadCount = safeAppNotifications.filter(n => !(n.readBy || []).includes(currentUser)).length;
 
+  const handleSwitchCompany = async () => {
+    await logout();
+    selectCompany(null);
+  };
+
   return (
     <header className="app-header">
       <div className="header-content">
         <div className="logo-title">
           <Layout className="logo-icon" size={24} />
-          <h1>İş Takip Programı</h1>
+          <h1>{selectedCompany?.displayName || 'İş Takip Programı'}</h1>
           <div className="view-toggle" style={{marginLeft:'0.5rem'}}>
             <button className={viewMode === 'table' ? 'active' : ''} onClick={() => onViewChange('table')}>
               <LayoutGrid size={14}/> Tablo
@@ -109,6 +115,12 @@ const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {selectedCompany && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: selectedCompany.color || '#3b82f6', color: '#fff', padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
+              <Building2 size={13} />
+              {selectedCompany.name}
+            </div>
+          )}
           <div className="user-profile" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <UserCircle size={18} style={{ color: "var(--text-muted)" }}/>
             <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{currentUser}</span>
@@ -117,11 +129,14 @@ const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
           <button className="icon-btn" onClick={logout} title="Çıkış Yap">
             <LogOut size={18} />
           </button>
-          
+          <button className="icon-btn" onClick={handleSwitchCompany} title="Şirket Değiştir">
+            <ArrowLeftRight size={18} />
+          </button>
+
           <button className="icon-btn" onClick={toggleTheme} title={theme === 'light' ? 'Karanlık Tema' : 'Aydınlık Tema'} style={{display:'flex', alignItems:'center'}}>
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} color="#fbbf24" />}
           </button>
-          
+
           <div style={{ width: '1px', height: '24px', background: 'var(--border)', margin: '0 0.5rem' }}></div>
 
           <div style={{position:'relative'}} ref={notifRef}>
@@ -146,12 +161,67 @@ const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
   );
 };
 
+const CompanySelector = () => {
+  const { companies, companiesLoading, selectCompany } = useCompany();
+
+  if (companiesLoading) {
+    return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', background: 'var(--bg-main)'}}>Yükleniyor...</div>;
+  }
+
+  return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
+      <Building2 size={64} style={{ color: 'var(--primary, #3b82f6)', marginBottom: '1rem' }} />
+      <h1 style={{ marginBottom: '0.5rem', fontSize: '2rem', color: 'var(--text-main)', textAlign: 'center' }}>İş Takip Programı</h1>
+      <p style={{ marginBottom: '2rem', fontSize: '1rem', color: 'var(--text-muted)', textAlign: 'center' }}>Giriş yapmak istediğiniz şirketi seçin</p>
+
+      <div style={{display:'flex', flexDirection:'column', gap:'1rem', width:'320px'}}>
+        {companies.map(c => (
+          <button
+            key={c.id}
+            onClick={() => selectCompany(c.id)}
+            style={{
+              padding:'1.2rem 1.5rem',
+              borderRadius:'12px',
+              border: `2px solid ${c.color || '#3b82f6'}`,
+              background:'var(--bg-main, #fff)',
+              cursor:'pointer',
+              fontSize:'1.1rem',
+              fontWeight: 700,
+              color: c.color || '#3b82f6',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.8rem',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}
+            onMouseEnter={e => { e.target.style.background = c.color || '#3b82f6'; e.target.style.color = '#fff'; }}
+            onMouseLeave={e => { e.target.style.background = 'var(--bg-main, #fff)'; e.target.style.color = c.color || '#3b82f6'; }}
+          >
+            <Building2 size={22} />
+            {c.displayName || c.name}
+          </button>
+        ))}
+      </div>
+
+      {companies.length === 0 && (
+        <p style={{color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '1rem'}}>
+          Henüz şirket tanımlanmamış. Sayfa yenileniyor...
+        </p>
+      )}
+    </div>
+  );
+};
+
 const AppContent = () => {
+  const { selectedCompany, companyFirebase } = useCompany();
   const { currentUser, loginWithGoogle, loginWithEmail, registerWithEmail, authLoading, tasks } = useTasks();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDeletedOpen, setIsDeletedOpen] = useState(false);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('app-view') || 'table');
-  
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [isLoginMode, setIsLoginMode] = useState(true);
+
   const handleViewChange = (mode) => {
     setViewMode(mode);
     localStorage.setItem('app-view', mode);
@@ -160,7 +230,7 @@ const AppContent = () => {
   // Push notification for overdue tasks
   useEffect(() => {
     if (!currentUser || !tasks || tasks.length === 0) return;
-    
+
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
@@ -188,10 +258,11 @@ const AppContent = () => {
       }
     }
   }, [currentUser, tasks]);
-  
-  const [emailInput, setEmailInput] = useState('');
-  const [passwordInput, setPasswordInput] = useState('');
-  const [isLoginMode, setIsLoginMode] = useState(true);
+
+  // Show company selector if no company selected
+  if (!selectedCompany || !companyFirebase) {
+    return <CompanySelector />;
+  }
 
   if (authLoading) {
     return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)'}}>Uygulama Yükleniyor...</div>;
@@ -201,48 +272,51 @@ const AppContent = () => {
     const handleAuth = () => {
       if (!emailInput.trim() || !passwordInput) return;
       let processedEmail = emailInput.trim();
-      
-      // If user types a phone number like 05351234567 or 5351234567, map it to a fake email for Firebase
+
       if (/^0?\d{10}$/.test(processedEmail)) {
         processedEmail = processedEmail + '@tasktrack.net';
       } else if (!processedEmail.includes('@')) {
         processedEmail = processedEmail + '@tasktrack.net';
       }
-      
+
       if (isLoginMode) loginWithEmail(processedEmail, passwordInput);
       else registerWithEmail(processedEmail, passwordInput);
     };
 
     return (
       <div className="login-screen" style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <Building2 size={28} style={{ color: selectedCompany.color || '#3b82f6' }} />
+          <span style={{ fontSize: '1.1rem', fontWeight: 700, color: selectedCompany.color || '#3b82f6' }}>{selectedCompany.displayName || selectedCompany.name}</span>
+        </div>
         <Layout size={64} style={{ color: 'var(--primary)', marginBottom: '1rem' }} />
         <h1 style={{ marginBottom: '2rem', fontSize: '2rem', color: 'var(--text-main)', textAlign: 'center' }}>İş Takip Programı</h1>
-        
+
         <div style={{display:'flex', flexDirection:'column', gap:'0.8rem', width:'300px', marginBottom: '1.5rem'}}>
-          <input 
-            type="text" 
-            placeholder="E-posta veya Telefon Numarası" 
-            value={emailInput} 
-            onChange={e => setEmailInput(e.target.value)} 
+          <input
+            type="text"
+            placeholder="E-posta veya Telefon Numarası"
+            value={emailInput}
+            onChange={e => setEmailInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAuth()}
-            style={{padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', fontSize:'0.9rem', outline:'none'}} 
+            style={{padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', fontSize:'0.9rem', outline:'none'}}
           />
-          <input 
-            type="password" 
-            placeholder="Şifre" 
-            value={passwordInput} 
-            onChange={e => setPasswordInput(e.target.value)} 
+          <input
+            type="password"
+            placeholder="Şifre"
+            value={passwordInput}
+            onChange={e => setPasswordInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAuth()}
-            style={{padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', fontSize:'0.9rem', outline:'none'}} 
+            style={{padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', fontSize:'0.9rem', outline:'none'}}
           />
-          
-          <button 
+
+          <button
             onClick={handleAuth}
             style={{ padding: '0.8rem', borderRadius:'8px', background:'var(--primary)', color:'#fff', cursor:'pointer', fontWeight:600, border:'none', fontSize:'0.95rem', marginTop: '0.4rem' }}
           >
             {isLoginMode ? 'Giriş Yap' : 'Kayıt Ol'}
           </button>
-          
+
           <div style={{textAlign:'center', fontSize:'0.8rem', color:'var(--text-muted)', marginTop: '0.5rem'}}>
             {isLoginMode ? 'Hesabınız yok mu? ' : 'Zaten hesabınız var mı? '}
             <span style={{color:'var(--primary)', cursor:'pointer', fontWeight:600}} onClick={() => setIsLoginMode(!isLoginMode)}>
@@ -257,13 +331,15 @@ const AppContent = () => {
           <div style={{flex:1, height:'1px', background:'var(--border)'}}></div>
         </div>
 
-        <button 
+        <button
           onClick={loginWithGoogle}
-          style={{ width: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#fff', border: '1px solid #ccc', padding: '0.8rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 600, color: '#333', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}
+          style={{ width: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#fff', border: '1px solid #ccc', padding: '0.8rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 600, color: '#333', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', marginBottom: '1rem' }}
         >
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo" style={{ width: '20px', height: '20px' }} />
           Google ile Giriş Yap
         </button>
+
+        <BackToCompanySelector />
       </div>
     );
   }
@@ -281,11 +357,25 @@ const AppContent = () => {
   );
 };
 
+const BackToCompanySelector = () => {
+  const { selectCompany } = useCompany();
+  return (
+    <button
+      onClick={() => selectCompany(null)}
+      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline', marginTop: '0.5rem' }}
+    >
+      ← Şirket Seçimine Geri Dön
+    </button>
+  );
+};
+
 function App() {
   return (
-    <TaskProvider>
-      <AppContent />
-    </TaskProvider>
+    <CompanyProvider>
+      <TaskProvider>
+        <AppContent />
+      </TaskProvider>
+    </CompanyProvider>
   )
 }
 

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
-import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound } from 'lucide-react';
+import { useCompany } from '../context/CompanyContext';
+import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
@@ -10,7 +10,8 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 export default function SettingsModal({ isOpen, onClose }) {
-  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin } = useTasks();
+  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin, companyDb: db } = useTasks();
+  const { companies, addCompany, updateCompany, deleteCompany } = useCompany();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('personnel');
   const [tagForm, setTagForm] = useState({ id: null, label: '', color: '#3b82f6' });
@@ -359,6 +360,9 @@ export default function SettingsModal({ isOpen, onClose }) {
             </h2>
             <h2 onClick={() => {setActiveTab('accounts'); setIsEditing(false); setAuthMessage(null);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'accounts' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'accounts' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
               <KeyRound size={16}/> Hesap Yönetimi
+            </h2>
+            <h2 onClick={() => {setActiveTab('system'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'system' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'system' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
+              <Server size={16}/> Sistem Ayarları
             </h2>
           </div>
           <div onMouseDown={e => e.stopPropagation()} style={{paddingBottom:'0.8rem'}}>
@@ -965,6 +969,10 @@ export default function SettingsModal({ isOpen, onClose }) {
           </div>
         )}
 
+        {!isEditing && activeTab === 'system' && (
+          <SystemSettingsTab companies={companies} addCompany={addCompany} updateCompany={updateCompany} deleteCompany={deleteCompany} />
+        )}
+
         {isEditing && (
           <form className="modal-form" onSubmit={handleSave} style={{padding:'1.5rem'}}>
             <h3 style={{marginBottom:'1.5rem', fontSize:'1.1rem', color: 'var(--primary)'}}>{formData.id ? 'Kurumsal Çalışan Düzenle' : 'Yeni Kurumsal Çalışan Kaydı'}</h3>
@@ -1009,6 +1017,190 @@ export default function SettingsModal({ isOpen, onClose }) {
             </div>
           </form>
         )}
+      </div>
+    </div>
+  );
+}
+
+function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany }) {
+  const [editingId, setEditingId] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const emptyForm = {
+    name: '', displayName: '', color: '#3b82f6',
+    firebaseConfig: { apiKey: '', authDomain: '', projectId: '', storageBucket: '', messagingSenderId: '', appId: '' },
+    githubRepo: '', gasDeploymentUrl: ''
+  };
+  const [form, setForm] = useState(emptyForm);
+
+  const startEdit = (company) => {
+    setEditingId(company.id);
+    setForm({
+      name: company.name || '',
+      displayName: company.displayName || '',
+      color: company.color || '#3b82f6',
+      firebaseConfig: company.firebaseConfig || emptyForm.firebaseConfig,
+      githubRepo: company.githubRepo || '',
+      gasDeploymentUrl: company.gasDeploymentUrl || ''
+    });
+    setShowAddForm(false);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setShowAddForm(false);
+    setForm(emptyForm);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!form.name || !form.firebaseConfig.apiKey) {
+      alert('Şirket adı ve Firebase API Key zorunludur.');
+      return;
+    }
+    await updateCompany(editingId, form);
+    setEditingId(null);
+    setForm(emptyForm);
+  };
+
+  const handleAdd = async () => {
+    if (!form.name || !form.firebaseConfig.apiKey) {
+      alert('Şirket adı ve Firebase API Key zorunludur.');
+      return;
+    }
+    await addCompany(form);
+    setShowAddForm(false);
+    setForm(emptyForm);
+  };
+
+  const handleDelete = async (id, name) => {
+    if (!window.confirm(`"${name}" şirketini silmek istediğinize emin misiniz? Bu işlem geri alınamaz!`)) return;
+    await deleteCompany(id);
+  };
+
+  const updateFirebaseField = (field, value) => {
+    setForm(prev => ({ ...prev, firebaseConfig: { ...prev.firebaseConfig, [field]: value } }));
+  };
+
+  const inputStyle = { width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--bg-main)', color: 'var(--text-main)' };
+  const labelStyle = { fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' };
+  const sectionStyle = { background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.2rem', marginBottom: '1rem' };
+
+  const CompanyForm = ({ onSave, saveLabel }) => (
+    <div style={sectionStyle}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px', gap: '0.8rem', marginBottom: '1rem' }}>
+        <div>
+          <label style={labelStyle}>Şirket Kodu *</label>
+          <input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="PRCD" />
+        </div>
+        <div>
+          <label style={labelStyle}>Görünen Ad</label>
+          <input style={inputStyle} value={form.displayName} onChange={e => setForm({ ...form, displayName: e.target.value })} placeholder="PRCD Şirketi" />
+        </div>
+        <div>
+          <label style={labelStyle}>Renk</label>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} style={{ width: '36px', height: '36px', border: 'none', cursor: 'pointer' }} />
+            <input style={{ ...inputStyle, flex: 1 }} value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} />
+          </div>
+        </div>
+      </div>
+
+      <h4 style={{ fontSize: '0.9rem', margin: '1rem 0 0.6rem', color: 'var(--text-main)' }}>Firebase Yapılandırması *</h4>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+        <div>
+          <label style={labelStyle}>API Key *</label>
+          <input style={inputStyle} value={form.firebaseConfig.apiKey} onChange={e => updateFirebaseField('apiKey', e.target.value)} placeholder="AIzaSy..." />
+        </div>
+        <div>
+          <label style={labelStyle}>Auth Domain</label>
+          <input style={inputStyle} value={form.firebaseConfig.authDomain} onChange={e => updateFirebaseField('authDomain', e.target.value)} placeholder="proje-adi.firebaseapp.com" />
+        </div>
+        <div>
+          <label style={labelStyle}>Project ID</label>
+          <input style={inputStyle} value={form.firebaseConfig.projectId} onChange={e => updateFirebaseField('projectId', e.target.value)} placeholder="proje-adi" />
+        </div>
+        <div>
+          <label style={labelStyle}>Storage Bucket</label>
+          <input style={inputStyle} value={form.firebaseConfig.storageBucket} onChange={e => updateFirebaseField('storageBucket', e.target.value)} placeholder="proje-adi.firebasestorage.app" />
+        </div>
+        <div>
+          <label style={labelStyle}>Messaging Sender ID</label>
+          <input style={inputStyle} value={form.firebaseConfig.messagingSenderId} onChange={e => updateFirebaseField('messagingSenderId', e.target.value)} placeholder="123456789" />
+        </div>
+        <div>
+          <label style={labelStyle}>App ID</label>
+          <input style={inputStyle} value={form.firebaseConfig.appId} onChange={e => updateFirebaseField('appId', e.target.value)} placeholder="1:123:web:abc123" />
+        </div>
+      </div>
+
+      <h4 style={{ fontSize: '0.9rem', margin: '1rem 0 0.6rem', color: 'var(--text-main)' }}>Harici Servisler (Opsiyonel)</h4>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+        <div>
+          <label style={labelStyle}>GitHub Repo</label>
+          <input style={inputStyle} value={form.githubRepo} onChange={e => setForm({ ...form, githubRepo: e.target.value })} placeholder="kullanici/repo-adi" />
+        </div>
+        <div>
+          <label style={labelStyle}>Google Apps Script URL</label>
+          <input style={inputStyle} value={form.gasDeploymentUrl} onChange={e => setForm({ ...form, gasDeploymentUrl: e.target.value })} placeholder="https://script.google.com/..." />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.2rem' }}>
+        <button className="btn btn-secondary" onClick={cancelEdit} style={{ fontSize: '0.85rem' }}>İptal</button>
+        <button className="btn btn-primary" onClick={onSave} style={{ fontSize: '0.85rem' }}>{saveLabel}</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="settings-body" style={{ padding: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+        <h3 style={{ fontSize: '1rem', margin: 0 }}>Kayıtlı Şirketler ({companies.length})</h3>
+        {!showAddForm && !editingId && (
+          <button className="btn btn-primary btn-small" onClick={() => { setShowAddForm(true); setForm(emptyForm); }} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}>
+            <Plus size={15} /> Yeni Şirket Ekle
+          </button>
+        )}
+      </div>
+
+      {showAddForm && <CompanyForm onSave={handleAdd} saveLabel="Şirket Ekle" />}
+
+      {companies.map(c => (
+        <div key={c.id}>
+          {editingId === c.id ? (
+            <CompanyForm onSave={handleSaveEdit} saveLabel="Güncelle" />
+          ) : (
+            <div style={{ ...sectionStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: c.color || '#3b82f6' }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-main)' }}>{c.displayName || c.name}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {c.name} | {c.firebaseConfig?.projectId || 'Yapılandırılmamış'}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="icon-btn" onClick={() => startEdit(c)} title="Düzenle"><Edit2 size={16} /></button>
+                <button className="icon-btn" onClick={() => handleDelete(c.id, c.name)} title="Sil" style={{ color: '#ef4444' }}><Trash2 size={16} /></button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {companies.length === 0 && !showAddForm && (
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+          Henüz şirket kaydı bulunmuyor. Otomatik oluşturulacak...
+        </div>
+      )}
+
+      <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', fontSize: '0.82rem', color: '#92400e', lineHeight: '1.5' }}>
+        <strong>Yeni Şirket Ekleme Rehberi:</strong><br />
+        1. Firebase Console'dan yeni bir proje oluşturun<br />
+        2. Authentication &gt; Sign-in method'dan Email/Password ve Google'ı aktifleştirin<br />
+        3. Firestore Database oluşturun (production mode)<br />
+        4. Proje ayarlarından Firebase config bilgilerini kopyalayın<br />
+        5. Yukarıdaki "Yeni Şirket Ekle" butonuna tıklayarak bilgileri girin
       </div>
     </div>
   );

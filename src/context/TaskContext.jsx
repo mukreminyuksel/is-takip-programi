@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db, auth, googleProvider, secondaryAuth } from '../firebase';
+import { useCompany } from './CompanyContext';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword, deleteUser as deleteAuthUser } from 'firebase/auth';
 
@@ -8,19 +8,38 @@ const TaskContext = createContext();
 export const useTasks = () => useContext(TaskContext);
 
 export const TaskProvider = ({ children }) => {
+  const { companyFirebase, selectedCompany } = useCompany();
+  const db = companyFirebase?.db || null;
+  const auth = companyFirebase?.auth || null;
+  const googleProvider = companyFirebase?.googleProvider || null;
+  const secondaryAuth = companyFirebase?.secondaryAuth || null;
+
   const [tasks, setTasks] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [tagsList, setTagsList] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [appNotifications, setAppNotifications] = useState([]);
   const [hideAllTasksForUsers, setHideAllTasksForUsers] = useState(false);
-  
+
   const [authUser, setAuthUser] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null); // String name for backwards compatibility
+  const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Reset state when company changes
+  useEffect(() => {
+    setTasks([]);
+    setUsersList([]);
+    setTagsList([]);
+    setAppNotifications([]);
+    setHideAllTasksForUsers(false);
+    setAuthUser(null);
+    setCurrentUser(null);
+    setAuthLoading(!!auth);
+  }, [db]);
 
   // Authentication Listener
   useEffect(() => {
+    if (!auth) { setAuthLoading(false); return; }
     const unsub = onAuthStateChanged(auth, (user) => {
       setAuthUser(user);
       if (!user) {
@@ -29,11 +48,11 @@ export const TaskProvider = ({ children }) => {
       setAuthLoading(false);
     });
     return unsub;
-  }, []);
+  }, [auth]);
 
   // Database Listeners
   useEffect(() => {
-    if (!authUser) {
+    if (!authUser || !db) {
       setTasks([]);
       setUsersList([]);
       return;
@@ -46,7 +65,6 @@ export const TaskProvider = ({ children }) => {
     const unsubTags = onSnapshot(collection(db, 'tagsList'), async (snapshot) => {
       const dbTags = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       if (dbTags.length === 0) {
-        // Seed default tags
         const defaults = [
           { label: 'Web', color: '#3b82f6', order: 0 },
           { label: 'Tasar\u0131m', color: '#8b5cf6', order: 1 },
@@ -67,12 +85,12 @@ export const TaskProvider = ({ children }) => {
 
     const unsubUsers = onSnapshot(collection(db, 'usersList'), async (snapshot) => {
       const dbUsers = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-      
+
       if (dbUsers.length === 0 && authUser) {
-        const newAdmin = { 
-          name: authUser.displayName || authUser.email, 
-          role: 'admin', 
-          email: authUser.email || '', 
+        const newAdmin = {
+          name: authUser.displayName || authUser.email,
+          role: 'admin',
+          email: authUser.email || '',
           phone: '', whatsapp: '', finance: '',
           isOnline: true, lastLogin: new Date().toISOString()
         };
@@ -81,12 +99,10 @@ export const TaskProvider = ({ children }) => {
         } catch (e) { console.error("Could not create initial admin:", e); }
       } else {
         setUsersList(dbUsers);
-        
-        // Resolve strong identity mapping
+
         if (authUser) {
            let match = dbUsers.find(u => u.email && authUser.email && u.email.trim().toLowerCase() === authUser.email.trim().toLowerCase());
-           
-           // If logged in via phone number system (@tasktrack.net attached to authUser email)
+
            if (!match && authUser.email && authUser.email.includes('@tasktrack.net')) {
                const phonePrefix = authUser.email.split('@')[0];
                if (phonePrefix.length >= 10) {
@@ -102,7 +118,7 @@ export const TaskProvider = ({ children }) => {
            if (!match && authUser.displayName) {
                match = dbUsers.find(u => u.name.trim().toLowerCase() === authUser.displayName.trim().toLowerCase());
            }
-           
+
            if (match) {
              setCurrentUser(match.name);
              if (!match.isOnline) {
@@ -120,7 +136,6 @@ export const TaskProvider = ({ children }) => {
       }
     });
 
-    // Settings listener
     const unsubSettings = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
       if (docSnap.exists()) {
         setHideAllTasksForUsers(docSnap.data().hideAllTasksForUsers || false);
@@ -133,7 +148,7 @@ export const TaskProvider = ({ children }) => {
       unsubTags();
       unsubSettings();
     };
-  }, [authUser]);
+  }, [authUser, db]);
 
   const currentUserObj = usersList.find(u => u.name === currentUser) || { role: 'user' };
   const isAdmin = currentUserObj.role === 'admin';
@@ -145,6 +160,7 @@ export const TaskProvider = ({ children }) => {
   };
 
   const updateUserColor = async (userId, color) => {
+    if (!db) return;
     try {
       await updateDoc(doc(db, 'usersList', userId), { color });
     } catch (e) {
@@ -153,6 +169,7 @@ export const TaskProvider = ({ children }) => {
   };
 
   const toggleHideAllTasks = async (value) => {
+    if (!db) return;
     try {
       await setDoc(doc(db, 'settings', 'general'), { hideAllTasksForUsers: value }, { merge: true });
     } catch (e) {
@@ -161,6 +178,7 @@ export const TaskProvider = ({ children }) => {
   };
 
   const loginWithGoogle = async () => {
+    if (!auth || !googleProvider) return;
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err) {
@@ -170,6 +188,7 @@ export const TaskProvider = ({ children }) => {
   };
 
   const loginWithEmail = async (email, password) => {
+    if (!auth) return;
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err) {
@@ -179,6 +198,7 @@ export const TaskProvider = ({ children }) => {
   };
 
   const registerWithEmail = async (email, password) => {
+    if (!auth) return;
     try {
       await createUserWithEmailAndPassword(auth, email, password);
     } catch (err) {
@@ -188,10 +208,11 @@ export const TaskProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    try { 
+    if (!auth || !db) return;
+    try {
       const me = usersList.find(u => u.name === currentUser);
       if (me && me.id) await updateDoc(doc(db, 'usersList', me.id), { isOnline: false }).catch(()=>{});
-      await signOut(auth); 
+      await signOut(auth);
     } catch (e) {}
   };
 
@@ -203,28 +224,33 @@ export const TaskProvider = ({ children }) => {
     }, 4500);
   };
 
-  const addUser = async (userData) => { 
+  const addUser = async (userData) => {
+    if (!db) return;
     try { await addDoc(collection(db, 'usersList'), userData); } catch (e) { addNotification("Hata"); }
   };
-  const editUser = async (id, updatedData) => { 
+  const editUser = async (id, updatedData) => {
+    if (!db) return;
     try { await updateDoc(doc(db, 'usersList', id), updatedData); } catch (e) { addNotification("Hata"); }
   };
-  const deleteUser = async (id) => { 
+  const deleteUser = async (id) => {
+    if (!db) return;
     try { await deleteDoc(doc(db, 'usersList', id)); } catch (e) { addNotification("Hata"); }
   };
 
   const addTag = async (tagData) => {
+    if (!db) return;
     try { await addDoc(collection(db, 'tagsList'), { ...tagData, order: tagsList.length }); } catch (e) { addNotification("Etiket eklenemedi."); }
   };
   const editTag = async (id, data) => {
+    if (!db) return;
     try { await updateDoc(doc(db, 'tagsList', id), data); } catch (e) { addNotification("Hata"); }
   };
   const deleteTag = async (id) => {
+    if (!db) return;
     try { await deleteDoc(doc(db, 'tagsList', id)); } catch (e) { addNotification("Hata"); }
   };
 
   const triggerCommunicationSimulations = (assigneeName, taskTitle) => {
-    // Kullanıcı talebi üzerine iletişim simülasyonu şimdilik inaktif edildi
     return;
   };
 
@@ -253,9 +279,10 @@ export const TaskProvider = ({ children }) => {
   };
 
   const addTask = async (task) => {
+    if (!db) return;
     try {
       const logs = [{ id: Date.now().toString(), text: `Görev oluşturuldu.`, user: currentUser, date: new Date().toISOString() }];
-      await addDoc(collection(db, 'tasks'), { 
+      await addDoc(collection(db, 'tasks'), {
         ...task, date: new Date().toISOString(), isDeleted: false, isNewForAssignee: true, logs
       });
       if (task.assignee) {
@@ -269,17 +296,16 @@ export const TaskProvider = ({ children }) => {
   };
 
   const createNextRecurringTask = async (completedTask) => {
+    if (!db) return;
     try {
       const remaining = completedTask.recurrenceRemaining;
 
-      // If remaining is 0, the recurrence has ended - show renewal prompt
       if (remaining != null && remaining <= 0) {
         const recLabels = {'daily':'Günlük','weekly':'Haftalık','monthly':'Aylık','yearly':'Yıllık'};
         const shouldRenew = window.confirm(
           `"${completedTask.title}" görevinin ${recLabels[completedTask.recurrence] || ''} tekrar süresi doldu.\n\nGörev tekrarını yeniden başlatmak ister misiniz?`
         );
         if (shouldRenew) {
-          // Reset remaining to original count and continue
           completedTask.recurrenceRemaining = completedTask.recurrenceCount || 3;
         } else {
           addNotification(`"${completedTask.title}" tekrarlayan görevi sona erdi.`);
@@ -359,6 +385,7 @@ export const TaskProvider = ({ children }) => {
   };
 
   const updateTaskStatus = async (id, newStatus) => {
+    if (!db) return;
     const oldTask = tasks.find(t => t.id === id);
     if (!oldTask) return;
     try {
@@ -370,30 +397,30 @@ export const TaskProvider = ({ children }) => {
       }
       await updateDoc(doc(db, 'tasks', id), { status: newStatus, logs });
 
-      // Auto-create next recurring task when completed
       if (newStatus === 'done' && oldTask.recurrence && oldTask.recurrence !== 'none') {
         await createNextRecurringTask(oldTask);
       }
     } catch (e) {}
   };
-  
+
   const updateTask = async (id, updatedData) => {
+    if (!db) return;
     const oldTask = tasks.find(t => t.id === id);
     if (!oldTask) return;
     try {
       let finalData = { ...updatedData };
       let logs = oldTask.logs || [];
-      
+
       const pMap = {'low':'Düşük','medium':'Orta','high':'Yüksek'};
       const sMap = {'todo':'Yapılacak','in-progress':'Devam Eden','done':'Tamamlandı'};
-      
+
       if (updatedData.title && oldTask.title !== updatedData.title) logs.push({ id: Date.now()+Math.random(), text: `Başlık değiştirildi: '${oldTask.title}' -> '${updatedData.title}'`, user: currentUser, date: new Date().toISOString() });
       if (updatedData.assignee !== undefined && oldTask.assignee !== updatedData.assignee) logs.push({ id: Date.now()+Math.random(), text: `Kişi değiştirildi: '${oldTask.assignee || 'Atanmamış'}' -> '${updatedData.assignee || 'Atanmamış'}'`, user: currentUser, date: new Date().toISOString() });
       if (updatedData.priority && oldTask.priority !== updatedData.priority) logs.push({ id: Date.now()+Math.random(), text: `Öncelik değiştirildi: '${pMap[oldTask.priority]}' -> '${pMap[updatedData.priority]}'`, user: currentUser, date: new Date().toISOString() });
       if (updatedData.startDate !== undefined && oldTask.startDate !== updatedData.startDate) logs.push({ id: Date.now()+Math.random(), text: `Başlangıç Tarihi değiştirildi: '${oldTask.startDate ? oldTask.startDate.split('T')[0] : '-'}' -> '${updatedData.startDate ? updatedData.startDate.split('T')[0] : '-'}'`, user: currentUser, date: new Date().toISOString() });
       if (updatedData.deadline !== undefined && oldTask.deadline !== updatedData.deadline) logs.push({ id: Date.now()+Math.random(), text: `Bitiş Tarihi değiştirildi: '${oldTask.deadline ? oldTask.deadline.split('T')[0] : '-'}' -> '${updatedData.deadline ? updatedData.deadline.split('T')[0] : '-'}'`, user: currentUser, date: new Date().toISOString() });
       if (updatedData.status && oldTask.status !== updatedData.status) logs.push({ id: Date.now()+Math.random(), text: `Durum güncellendi: '${sMap[oldTask.status]}' -> '${sMap[updatedData.status]}'`, user: currentUser, date: new Date().toISOString() });
-      
+
       finalData.logs = logs;
 
       if (updatedData.assignee && oldTask.assignee !== updatedData.assignee) {
@@ -409,7 +436,6 @@ export const TaskProvider = ({ children }) => {
       }
       await updateDoc(doc(db, 'tasks', id), finalData);
 
-      // Auto-create next recurring task when completed
       if (updatedData.status === 'done' && oldTask.status !== 'done' && oldTask.recurrence && oldTask.recurrence !== 'none') {
         await createNextRecurringTask({ ...oldTask, ...updatedData });
       }
@@ -417,6 +443,7 @@ export const TaskProvider = ({ children }) => {
   };
 
   const deleteTask = async (id) => {
+    if (!db) return;
     if (!window.confirm('Bu görevi silmek istediğinize emin misiniz? (Görev çöp kutusuna taşınacaktır.)')) return;
     try {
       await updateDoc(doc(db, 'tasks', id), { isDeleted: true });
@@ -425,6 +452,7 @@ export const TaskProvider = ({ children }) => {
   };
 
   const permanentDeleteTask = async (id) => {
+    if (!db) return;
     if (!isAdmin) {
       addNotification('HATA: Kalıcı silme işlemi için Admin yetkisi gereklidir!');
       return;
@@ -437,13 +465,13 @@ export const TaskProvider = ({ children }) => {
   };
 
   const restoreTask = async (id) => {
+    if (!db) return;
     try {
       await updateDoc(doc(db, 'tasks', id), { isDeleted: false });
       addNotification('Görev başarıyla geri yüklendi.');
     } catch (e) {}
   };
 
-  // Helper: convert phone/email input to Firebase auth email
   const toAuthEmail = (input) => {
     const trimmed = (input || '').trim();
     if (/^0?\d{10,11}$/.test(trimmed)) return trimmed + '@tasktrack.net';
@@ -451,8 +479,8 @@ export const TaskProvider = ({ children }) => {
     return trimmed;
   };
 
-  // Admin: Create a new Firebase Auth user without signing out the current admin
   const adminCreateAuthUser = async (loginInput, password, linkedUserId) => {
+    if (!secondaryAuth || !db) return { success: false, error: 'Firebase bağlantısı yok' };
     if (!isAdmin) {
       addNotification('HATA: Bu işlem için Admin yetkisi gereklidir!');
       return { success: false, error: 'Yetki yok' };
@@ -462,7 +490,6 @@ export const TaskProvider = ({ children }) => {
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, authEmail, password);
       await signOut(secondaryAuth);
 
-      // Store auth credentials in linked usersList document
       if (linkedUserId) {
         await updateDoc(doc(db, 'usersList', linkedUserId), {
           authEmail: authEmail,
@@ -484,8 +511,8 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  // Admin: Send password reset email
   const adminSendPasswordReset = async (email) => {
+    if (!auth) return { success: false, error: 'Firebase bağlantısı yok' };
     if (!isAdmin) {
       addNotification('HATA: Bu işlem için Admin yetkisi gereklidir!');
       return { success: false, error: 'Yetki yok' };
@@ -504,8 +531,8 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  // Admin: Change password by re-authenticating the target user on secondary app
   const adminChangePassword = async (authEmail, currentPassword, newPassword) => {
+    if (!secondaryAuth || !db) return { success: false, error: 'Firebase bağlantısı yok' };
     if (!isAdmin) {
       addNotification('HATA: Bu işlem için Admin yetkisi gereklidir!');
       return { success: false, error: 'Yetki yok' };
@@ -515,7 +542,6 @@ export const TaskProvider = ({ children }) => {
       await updatePassword(cred.user, newPassword);
       await signOut(secondaryAuth);
 
-      // Update stored password in Firestore
       const linkedUser = usersList.find(u => u.authEmail === authEmail || u.email === authEmail);
       if (linkedUser) {
         await updateDoc(doc(db, 'usersList', linkedUser.id), { authPassword: newPassword });
@@ -535,8 +561,8 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  // Admin: Change login credential by deleting old auth account and creating new one
   const adminUpdateAuthLogin = async (oldAuthEmail, password, newLoginInput) => {
+    if (!secondaryAuth || !db) return { success: false, error: 'Firebase bağlantısı yok' };
     if (!isAdmin) {
       addNotification('HATA: Bu işlem için Admin yetkisi gereklidir!');
       return { success: false, error: 'Yetki yok' };
@@ -544,15 +570,12 @@ export const TaskProvider = ({ children }) => {
     try {
       const newAuthEmail = toAuthEmail(newLoginInput);
 
-      // Step 1: Sign in as old user and delete the old auth account
       const oldCred = await signInWithEmailAndPassword(secondaryAuth, oldAuthEmail, password);
       await deleteAuthUser(oldCred.user);
 
-      // Step 2: Create new auth account with new email and same password
       await createUserWithEmailAndPassword(secondaryAuth, newAuthEmail, password);
       await signOut(secondaryAuth);
 
-      // Step 3: Update Firestore record
       const linkedUser = usersList.find(u => u.authEmail === oldAuthEmail);
       if (linkedUser) {
         await updateDoc(doc(db, 'usersList', linkedUser.id), {
@@ -585,7 +608,8 @@ export const TaskProvider = ({ children }) => {
       getUserColor, updateUserColor,
       hideAllTasksForUsers, toggleHideAllTasks,
       loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading,
-      adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin
+      adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin,
+      companyDb: db
     }}>
       {children}
     </TaskContext.Provider>
