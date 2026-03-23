@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db, auth, googleProvider, secondaryAuth } from '../firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword, updateEmail } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword, deleteUser as deleteAuthUser } from 'firebase/auth';
 
 const TaskContext = createContext();
 
@@ -535,7 +535,7 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  // Admin: Change login credential (email) for a user
+  // Admin: Change login credential by deleting old auth account and creating new one
   const adminUpdateAuthLogin = async (oldAuthEmail, password, newLoginInput) => {
     if (!isAdmin) {
       addNotification('HATA: Bu işlem için Admin yetkisi gereklidir!');
@@ -543,11 +543,16 @@ export const TaskProvider = ({ children }) => {
     }
     try {
       const newAuthEmail = toAuthEmail(newLoginInput);
-      const cred = await signInWithEmailAndPassword(secondaryAuth, oldAuthEmail, password);
-      await updateEmail(cred.user, newAuthEmail);
+
+      // Step 1: Sign in as old user and delete the old auth account
+      const oldCred = await signInWithEmailAndPassword(secondaryAuth, oldAuthEmail, password);
+      await deleteAuthUser(oldCred.user);
+
+      // Step 2: Create new auth account with new email and same password
+      await createUserWithEmailAndPassword(secondaryAuth, newAuthEmail, password);
       await signOut(secondaryAuth);
 
-      // Update Firestore record
+      // Step 3: Update Firestore record
       const linkedUser = usersList.find(u => u.authEmail === oldAuthEmail);
       if (linkedUser) {
         await updateDoc(doc(db, 'usersList', linkedUser.id), {
