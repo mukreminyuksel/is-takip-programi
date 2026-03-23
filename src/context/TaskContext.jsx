@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db, auth, googleProvider } from '../firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider } from 'firebase/auth';
 
 const TaskContext = createContext();
 
@@ -18,6 +18,7 @@ export const TaskProvider = ({ children }) => {
   const [authUser, setAuthUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null); // String name for backwards compatibility
   const [authLoading, setAuthLoading] = useState(true);
+  const [googleAccessToken, setGoogleAccessToken] = useState(null);
 
   // Authentication Listener
   useEffect(() => {
@@ -162,7 +163,11 @@ export const TaskProvider = ({ children }) => {
 
   const loginWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setGoogleAccessToken(credential.accessToken);
+      }
     } catch (err) {
       console.error(err);
       alert("HATA: " + err.message + "\n\nOlası Neden: Firebase konsolundan 'Authentication > Sign-in method' bölümünde 'Google' provider'ını aktifleştirmemiş olabilirsiniz.");
@@ -351,6 +356,7 @@ export const TaskProvider = ({ children }) => {
       tagsList, addTag, editTag, deleteTag,
       getUserColor, updateUserColor,
       hideAllTasksForUsers, toggleHideAllTasks,
+      googleAccessToken,
       loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading
     }}>
       {children}

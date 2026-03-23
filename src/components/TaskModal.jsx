@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTasks } from '../context/TaskContext';
 import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar, History, Paperclip, Download, Loader, ListTodo, Tag } from 'lucide-react';
-import { storage } from '../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+const DRIVE_FOLDER_ID = '1nCPx7LbZU15OirK0IC_QCBgc7e7PCdzE';
 
 export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) {
-  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor } = useTasks();
+  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor, googleAccessToken } = useTasks();
   const [title, setTitle] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -29,6 +29,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [tags, setTags] = useState([]);
+
+  const uploadAbortRef = useRef(null);
 
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -292,22 +294,59 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 15 * 1024 * 1024) { // 15MB limit
+    if (file.size > 15 * 1024 * 1024) {
        alert("Dosya boyutu 15MB'dan büyük olamaz!");
        return;
     }
 
+    if (!googleAccessToken) {
+      alert("Dosya yüklemek için Google ile giriş yapmış olmanız gerekmektedir.\nLütfen çıkış yapıp Google ile tekrar giriş yapınız.");
+      e.target.value = '';
+      return;
+    }
+
     setIsUploading(true);
+    const abortController = new AbortController();
+    uploadAbortRef.current = abortController;
+
     try {
-      const fileId = Date.now() + '_' + file.name;
-      const storageRef = ref(storage, `attachments/${fileId}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const metadata = {
+        name: `${Date.now()}_${file.name}`,
+        parents: [DRIVE_FOLDER_ID]
+      };
+
+      const formData = new FormData();
+      formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      formData.append('file', file);
+
+      const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${googleAccessToken}` },
+        body: formData,
+        signal: abortController.signal
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error?.message || `Yükleme hatası (${response.status})`);
+      }
+
+      const data = await response.json();
+
+      // Make file viewable by anyone with link
+      await fetch(`https://www.googleapis.com/drive/v3/files/${data.id}/permissions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${googleAccessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ role: 'reader', type: 'anyone' })
+      }).catch(() => {});
 
       const newAttachment = {
-        id: fileId,
+        id: data.id,
         name: file.name,
-        url,
+        url: data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`,
         size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
         date: new Date().toISOString(),
         user: currentUser
@@ -320,11 +359,22 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
         updateTask(editTask.id, { attachments: newAttachments });
       }
     } catch (err) {
-      console.error(err);
-      alert("Dosya yüklenirken bir hata oluştu.");
+      if (err.name === 'AbortError') {
+        // Upload cancelled by user
+      } else {
+        console.error(err);
+        alert("Dosya yüklenirken bir hata oluştu: " + err.message);
+      }
     } finally {
       setIsUploading(false);
+      uploadAbortRef.current = null;
       e.target.value = '';
+    }
+  };
+
+  const cancelUpload = () => {
+    if (uploadAbortRef.current) {
+      uploadAbortRef.current.abort();
     }
   };
 
@@ -638,11 +688,16 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
           <div className="attachments-section" style={{ marginBottom: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.4rem'}}>
               <h3 style={{margin:0, display:'flex', alignItems:'center', gap:'0.4rem', fontSize:'0.85rem'}}><Paperclip size={14}/> Dosya Ekleri ({attachments.length})</h3>
-              <div style={{position:'relative'}}>
-                <input type="file" id="file-upload" onChange={handleFileUpload} style={{display:'none'}} />
+              <div style={{display:'flex', gap:'0.4rem', alignItems:'center'}}>
+                <input type="file" id="file-upload" onChange={handleFileUpload} style={{display:'none'}} disabled={isUploading} />
                 <label htmlFor="file-upload" className="btn btn-secondary btn-small" style={{cursor: isUploading ? 'not-allowed' : 'pointer', opacity: isUploading ? 0.7 : 1}}>
-                  {isUploading ? <Loader size={14} className="spin" /> : <Paperclip size={14} />} {isUploading ? 'Yükleniyor...' : 'Dosya Yükle'}
+                  {isUploading ? <Loader size={14} className="spin" /> : <Paperclip size={14} />} {isUploading ? 'Google Drive\'a Yükleniyor...' : 'Dosya Yükle (Drive)'}
                 </label>
+                {isUploading && (
+                  <button type="button" onClick={cancelUpload} className="btn btn-secondary btn-small" style={{color:'#ef4444', borderColor:'#fecaca', background:'#fef2f2', fontSize:'0.7rem'}}>
+                    <X size={12}/> İptal
+                  </button>
+                )}
               </div>
             </div>
             {attachments.length > 0 ? (
