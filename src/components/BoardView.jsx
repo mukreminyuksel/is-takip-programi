@@ -659,7 +659,7 @@ export default function BoardView({ customerTaskData, onCustomerTaskHandled }) {
         {!(hideAllTasksForUsers && !isAdmin) && (
           <div className="split-pane">
             <TaskTable
-              title="Tüm İşler Listesi"
+              title="Tüm İşler"
               tasksList={activeTasks}
               onEdit={openEditModal}
               onDelete={deleteTask}

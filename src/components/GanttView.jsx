@@ -93,7 +93,7 @@ const priorityLabels = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' 
 const priorityValue = { 'low': 1, 'medium': 2, 'high': 3 };
 
 export default function GanttView() {
-  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers, tagsList, getDeadlineBarColor } = useTasks();
+  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers, tagsList, getDeadlineBarColor, deadlineColors } = useTasks();
   const [scale, setScale] = useState('day');
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -612,25 +612,19 @@ export default function GanttView() {
         flexWrap:'wrap'
       }}>
         <span style={{fontSize:'0.7rem', fontWeight:600, color:'var(--text-muted)'}}>Renk Kodları:</span>
-        <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
-          <span style={{width:12, height:12, borderRadius:'2px', background:'#ef4444cc'}}></span>
-          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Yapılacak</span>
-        </div>
-        <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
-          <span style={{width:12, height:12, borderRadius:'2px', background:'#10b981cc'}}></span>
-          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Devam Eden</span>
-        </div>
-        <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
-          <span style={{width:12, height:12, borderRadius:'2px', background:'#9ca3afcc'}}></span>
-          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Tamamlandı</span>
-        </div>
-        <div style={{display:'flex', alignItems:'center', gap:'0.3rem', borderLeft:'1px solid var(--border)', paddingLeft:'1rem'}}>
-          <span style={{width:12, height:12, borderRadius:'2px', background:'#7c3aedcc'}}></span>
-          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Son 1 Gün</span>
-        </div>
-        <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
-          <span style={{width:12, height:12, borderRadius:'2px', background:'#581c87cc'}}></span>
-          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Süresi Geçmiş</span>
+        {Object.entries(statusColors).map(([id, color]) => (
+          <div key={id} style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+            <span style={{width:12, height:12, borderRadius:'2px', background:`${color}cc`}}></span>
+            <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>{statusLabels[id]}</span>
+          </div>
+        ))}
+        <div style={{borderLeft:'1px solid var(--border)', paddingLeft:'1rem', display:'flex', gap:'1rem', flexWrap:'wrap'}}>
+          {[...deadlineColors].sort((a,b) => b.days - a.days).filter(c => c.days <= 1).map((c, i) => (
+            <div key={i} style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+              <span style={{width:12, height:12, borderRadius:'2px', background:`${c.hex}cc`}}></span>
+              <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>{c.label}</span>
+            </div>
+          ))}
         </div>
         <div style={{display:'flex', alignItems:'center', gap:'0.3rem', borderLeft:'1px solid var(--border)', paddingLeft:'1rem'}}>
           <span style={{width:12, height:2, background:'var(--primary)'}}></span>
