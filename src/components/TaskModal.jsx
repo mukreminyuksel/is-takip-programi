@@ -403,24 +403,39 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
   };
 
   const checkCustomerDuplicate = () => {
-    if (!customerName.trim()) return null;
     const name = customerName.trim().toLowerCase();
     const phone = formatPhone(customerPhone);
+    const phone2 = formatPhone(customerPhone2);
     const email = customerEmail.trim().toLowerCase();
+    const address = customerAddress.trim().toLowerCase();
     const taxNo = customerTaxNo.trim();
+    const taxOffice = customerTaxOffice.trim().toLowerCase();
+    const tradeRegNo = customerTradeRegNo.trim();
+
+    // en az bir alan dolu olmalı
+    if (!name && !phone && !phone2 && !email && !address && !taxNo && !taxOffice && !tradeRegNo) return null;
 
     for (const c of customersList) {
+      const conflicts = [];
       const cName = (c.customerName || '').trim().toLowerCase();
       const cPhone = (c.customerPhone || '').trim();
+      const cPhone2 = (c.customerPhone2 || '').trim();
       const cEmail = (c.customerEmail || '').trim().toLowerCase();
+      const cAddress = (c.customerAddress || '').trim().toLowerCase();
       const cTaxNo = (c.customerTaxNo || '').trim();
+      const cTaxOffice = (c.customerTaxOffice || '').trim().toLowerCase();
+      const cTradeRegNo = (c.customerTradeRegNo || '').trim();
 
-      if (cName === name) return null; // aynı isim varsa zaten güncellenir
-
-      const conflicts = [];
+      if (name && cName && name === cName) conflicts.push(`Müşteri Adı: ${c.customerName}`);
       if (phone && cPhone && phone === cPhone) conflicts.push(`Telefon: ${phone}`);
-      if (email && cEmail && email === cEmail) conflicts.push(`E-mail: ${email}`);
+      if (phone2 && cPhone2 && phone2 === cPhone2) conflicts.push(`Telefon 2: ${phone2}`);
+      if (phone && cPhone2 && phone === cPhone2) conflicts.push(`Telefon / Telefon 2: ${phone}`);
+      if (phone2 && cPhone && phone2 === cPhone) conflicts.push(`Telefon 2 / Telefon: ${phone2}`);
+      if (email && cEmail && email === cEmail) conflicts.push(`E-mail: ${customerEmail}`);
+      if (address && cAddress && address === cAddress) conflicts.push(`Adres: ${customerAddress}`);
       if (taxNo && cTaxNo && taxNo === cTaxNo) conflicts.push(`Vergi No: ${taxNo}`);
+      if (taxOffice && cTaxOffice && taxOffice === cTaxOffice) conflicts.push(`Vergi Dairesi: ${customerTaxOffice}`);
+      if (tradeRegNo && cTradeRegNo && tradeRegNo === cTradeRegNo) conflicts.push(`Ticaret Sicil No: ${tradeRegNo}`);
 
       if (conflicts.length > 0) {
         return { existingName: c.customerName, conflicts };
@@ -433,7 +448,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
     e.preventDefault();
     if (!title.trim()) return;
 
-    if (!editTask && customerName.trim()) {
+    if (!editTask) {
       const dup = checkCustomerDuplicate();
       if (dup) {
         setDuplicateWarning(dup);
