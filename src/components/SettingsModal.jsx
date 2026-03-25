@@ -9,7 +9,7 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
-export default function SettingsModal({ isOpen, onClose, initialTab }) {
+export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTaskFromCustomer }) {
   const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin, customersList, addCustomer, editCustomer, deleteCustomer, companyDb: db } = useTasks();
   const { companies, addCompany, updateCompany, deleteCompany } = useCompany();
   const [isEditing, setIsEditing] = useState(false);
@@ -973,7 +973,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab }) {
         )}
 
         {!isEditing && activeTab === 'customers' && (
-          <CustomersTab customersList={customersList} addCustomer={addCustomer} editCustomer={editCustomer} deleteCustomer={deleteCustomer} currentUser={useTasks().currentUser} usersList={usersList} />
+          <CustomersTab customersList={customersList} addCustomer={addCustomer} editCustomer={editCustomer} deleteCustomer={deleteCustomer} currentUser={useTasks().currentUser} usersList={usersList} onCreateTaskFromCustomer={onCreateTaskFromCustomer} />
         )}
 
         {!isEditing && activeTab === 'system' && (
@@ -1042,7 +1042,7 @@ function formatPhoneTR(phone) {
   return phone.trim();
 }
 
-function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer, currentUser, usersList }) {
+function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer, currentUser, usersList, onCreateTaskFromCustomer }) {
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -1219,6 +1219,24 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
                 <button type="button" className="btn btn-secondary btn-small" onClick={handleWhatsApp} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#16a34a', borderColor: '#bbf7d0', background: '#f0fdf4', fontSize: '0.7rem' }}>
                   <MessageCircle size={13} /> WhatsApp
                 </button>
+                {onCreateTaskFromCustomer && (
+                  <button type="button" className="btn btn-secondary btn-small" onClick={() => {
+                    const notesText = notes.length > 0 ? notes.map((n, i) => `${i + 1}- ${n.text}`).join('\n') : '';
+                    onCreateTaskFromCustomer({
+                      customerName: form.customerName,
+                      customerPhone: form.customerPhone,
+                      customerEmail: form.customerEmail,
+                      customerPhone2: form.customerPhone2,
+                      customerAddress: form.customerAddress,
+                      customerTaxNo: form.customerTaxNo,
+                      customerTaxOffice: form.customerTaxOffice,
+                      customerTradeRegNo: form.customerTradeRegNo,
+                      description: notesText
+                    });
+                  }} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#7c3aed', borderColor: '#c4b5fd', background: '#f5f3ff', fontSize: '0.7rem' }}>
+                    <Plus size={13} /> Görev Oluştur
+                  </button>
+                )}
               </div>
             )}
           </div>

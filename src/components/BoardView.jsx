@@ -580,13 +580,24 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
   );
 }
 
-export default function BoardView() {
+export default function BoardView({ customerTaskData, onCustomerTaskHandled }) {
   const { tasks, updateTaskStatus, deleteTask, currentUser, updateTask, usersList, isAdmin, getUserColor, hideAllTasksForUsers, toggleHideAllTasks, tagsList } = useTasks();
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [prefillData, setPrefillData] = useState(null);
+
+  useEffect(() => {
+    if (customerTaskData) {
+      setEditingTask(null);
+      setPrefillData(customerTaskData);
+      setModalOpen(true);
+      if (onCustomerTaskHandled) onCustomerTaskHandled();
+    }
+  }, [customerTaskData]);
 
   const openNewTaskModal = () => {
     setEditingTask(null);
+    setPrefillData(null);
     setModalOpen(true);
   };
 
@@ -600,6 +611,7 @@ export default function BoardView() {
 
   const closeModal = () => {
     setEditingTask(null);
+    setPrefillData(null);
     setModalOpen(false);
   };
 
@@ -669,11 +681,12 @@ export default function BoardView() {
         )}
       </div>
 
-      <TaskModal 
-        isOpen={isModalOpen} 
-        onClose={closeModal} 
-        defaultStatus="todo" 
+      <TaskModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        defaultStatus="todo"
         editTask={editingTask}
+        prefillData={prefillData}
       />
     </>
   );

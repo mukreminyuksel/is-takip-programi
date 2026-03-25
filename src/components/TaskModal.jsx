@@ -4,7 +4,7 @@ import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar, Hist
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxncRte5tnhqc68DIlTzdOpDkEYEywiLwwWtuUq9WJ-VR8gbdJBSc9xSUcWi0NjNyYdmw/exec';
 
-export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) {
+export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, prefillData }) {
   const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor, customersList } = useTasks();
   const [title, setTitle] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -70,16 +70,16 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
         setRecurrenceCount(editTask.recurrenceCount || 3);
         setRecurrenceRemaining(editTask.recurrenceRemaining != null ? editTask.recurrenceRemaining : null);
       } else {
-        setTitle('');
-        setCustomerName('');
-        setCustomerPhone('');
-        setCustomerEmail('');
-        setCustomerAddress('');
-        setCustomerTaxNo('');
-        setCustomerTaxOffice('');
-        setCustomerTradeRegNo('');
-        setCustomerPhone2('');
-        setDescription('');
+        setTitle(prefillData?.customerName ? `${prefillData.customerName} - ` : '');
+        setCustomerName(prefillData?.customerName || '');
+        setCustomerPhone(prefillData?.customerPhone || '');
+        setCustomerEmail(prefillData?.customerEmail || '');
+        setCustomerAddress(prefillData?.customerAddress || '');
+        setCustomerTaxNo(prefillData?.customerTaxNo || '');
+        setCustomerTaxOffice(prefillData?.customerTaxOffice || '');
+        setCustomerTradeRegNo(prefillData?.customerTradeRegNo || '');
+        setCustomerPhone2(prefillData?.customerPhone2 || '');
+        setDescription(prefillData?.description || '');
         setPriority('medium');
         setAssignee(currentUser || '');
         const todayStr = new Date().toISOString().split('T')[0];
@@ -103,7 +103,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
       setPosition({ x: 0, y: 0 });
       setCopied(false);
     }
-  }, [isOpen, editTask, currentUser]);
+  }, [isOpen, editTask, currentUser, prefillData]);
 
   useEffect(() => {
     const handleMouseMove = (e) => {

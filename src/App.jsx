@@ -221,6 +221,7 @@ const AppContent = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState(null);
   const [isDeletedOpen, setIsDeletedOpen] = useState(false);
+  const [customerTaskData, setCustomerTaskData] = useState(null);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('app-view') || 'table');
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -352,10 +353,10 @@ const AppContent = () => {
     <div className="app-container">
       <Header onOpenSettings={() => { setSettingsTab(null); setIsSettingsOpen(true); }} onOpenDeleted={() => setIsDeletedOpen(true)} onOpenCustomers={() => { setSettingsTab('customers'); setIsSettingsOpen(true); }} viewMode={viewMode} onViewChange={handleViewChange} />
       <main className="app-main">
-        {viewMode === 'kanban' ? <KanbanView /> : viewMode === 'gantt' ? <GanttView /> : <BoardView />}
+        {viewMode === 'kanban' ? <KanbanView /> : viewMode === 'gantt' ? <GanttView /> : <BoardView customerTaskData={customerTaskData} onCustomerTaskHandled={() => setCustomerTaskData(null)} />}
       </main>
       <NotificationContainer />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} initialTab={settingsTab} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} initialTab={settingsTab} onCreateTaskFromCustomer={(data) => { setCustomerTaskData(data); setIsSettingsOpen(false); }} />
       <DeletedTasksModal isOpen={isDeletedOpen} onClose={() => setIsDeletedOpen(false)} />
     </div>
   );
