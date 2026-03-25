@@ -206,27 +206,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
   };
 
   const handleSendWhatsApp = () => {
-    if (!assignee) {
-      alert("Lütfen önce göreve bir kişi atayınız.");
-      return;
-    }
-    
-    const person = usersList.find(u => u.name === assignee);
-    if (!person || !person.whatsapp) {
-      alert(`"${assignee}" adlı kişinin WhatsApp numarası sisteme kayıtlı değil. Lütfen 'Ayarlar' panelinden numarayı ekleyiniz.`);
-      return;
-    }
-
-    let phoneNum = person.whatsapp.replace(/\D/g, '');
-    if (phoneNum.length === 11 && phoneNum.startsWith('0')) {
-      phoneNum = '9' + phoneNum;
-    } else if (phoneNum.length === 10) {
-      phoneNum = '90' + phoneNum;
-    }
-
     const text = generateOutputText();
-    const url = `https://wa.me/${phoneNum}?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleAddToCalendar = () => {
