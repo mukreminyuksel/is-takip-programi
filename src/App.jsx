@@ -4,10 +4,11 @@ import { TaskProvider, useTasks } from './context/TaskContext'
 import BoardView from './components/BoardView'
 import KanbanView from './components/KanbanView'
 import GanttView from './components/GanttView'
+import DashboardView from './components/DashboardView'
 import SettingsModal from './components/SettingsModal'
 import DeletedTasksModal from './components/DeletedTasksModal'
 import TaskModal from './components/TaskModal'
-import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart, Building2, ArrowLeftRight, Users, Search, X as XIcon } from 'lucide-react'
+import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart, Building2, ArrowLeftRight, Users, Search, X as XIcon, BarChart3 } from 'lucide-react'
 
 const NotificationContainer = () => {
   const { notifications } = useTasks();
@@ -143,6 +144,9 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
             </button>
             <button className={viewMode === 'gantt' ? 'active' : ''} onClick={() => onViewChange('gantt')}>
               <GanttChart size={14}/> Gantt
+            </button>
+            <button className={viewMode === 'dashboard' ? 'active' : ''} onClick={() => onViewChange('dashboard')}>
+              <BarChart3 size={14}/> Özet
             </button>
             <button onClick={onOpenCustomers} style={{marginLeft:'0.3rem', background:'#f0fdf4', color:'#16a34a', border:'1px solid #bbf7d0'}}>
               <Users size={14}/> Müşteriler
@@ -453,7 +457,7 @@ const AppContent = () => {
     <div className="app-container">
       <Header onOpenSettings={() => { setSettingsTab(null); setIsSettingsOpen(true); }} onOpenDeleted={() => setIsDeletedOpen(true)} onOpenCustomers={() => { setSettingsTab('customers'); setIsSettingsOpen(true); }} viewMode={viewMode} onViewChange={handleViewChange} onOpenTask={(task) => setSearchEditTask(task)} />
       <main className="app-main">
-        {viewMode === 'kanban' ? <KanbanView /> : viewMode === 'gantt' ? <GanttView /> : <BoardView customerTaskData={customerTaskData} onCustomerTaskHandled={() => setCustomerTaskData(null)} />}
+        {viewMode === 'dashboard' ? <DashboardView /> : viewMode === 'kanban' ? <KanbanView /> : viewMode === 'gantt' ? <GanttView /> : <BoardView customerTaskData={customerTaskData} onCustomerTaskHandled={() => setCustomerTaskData(null)} />}
       </main>
       <NotificationContainer />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} initialTab={settingsTab} onCreateTaskFromCustomer={(data) => { setCustomerTaskData(data); setIsSettingsOpen(false); }} />

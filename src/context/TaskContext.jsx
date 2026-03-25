@@ -166,12 +166,28 @@ export const TaskProvider = ({ children }) => {
       setCustomersList(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
     });
 
+    const unsubAppNotifs = onSnapshot(collection(db, 'appNotifications'), (snapshot) => {
+      const notifs = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+      notifs.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setAppNotifications(notifs);
+
+      // 7 günden eski bildirimleri temizle
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      notifs.forEach(n => {
+        if (n.date && new Date(n.date) < sevenDaysAgo) {
+          deleteDoc(doc(db, 'appNotifications', n.id)).catch(() => {});
+        }
+      });
+    });
+
     return () => {
       unsubTasks();
       unsubUsers();
       unsubTags();
       unsubSettings();
       unsubCustomers();
+      unsubAppNotifs();
     };
   }, [authUser, companyId]);
 
@@ -372,25 +388,28 @@ export const TaskProvider = ({ children }) => {
     return;
   };
 
-  const markAppNotificationAsRead = (id) => {
-    setAppNotifications(prev => prev.map(n => {
-      if (n.id === id) {
-         return { ...n, readBy: [...(n.readBy || []), currentUser] };
-      }
-      return n;
-    }));
+  const markAppNotificationAsRead = async (id) => {
+    if (!db) return;
+    const notif = appNotifications.find(n => n.id === id);
+    if (!notif) return;
+    const newReadBy = [...(notif.readBy || []), currentUser];
+    try {
+      await updateDoc(doc(db, 'appNotifications', id), { readBy: newReadBy });
+    } catch (e) {
+      // fallback: local update
+      setAppNotifications(prev => prev.map(n => n.id === id ? { ...n, readBy: newReadBy } : n));
+    }
   };
 
   const logAppEvent = async (text, author = null) => {
+    if (!db) return;
     try {
-      const newNotification = {
-        id: Date.now().toString() + Math.random().toString(),
+      await addDoc(collection(db, 'appNotifications'), {
         text,
         author: author || currentUser || 'Sistem',
         date: new Date().toISOString(),
         readBy: []
-      };
-      setAppNotifications(prev => [newNotification, ...prev]);
+      });
     } catch (e) {
       console.error(e);
     }
