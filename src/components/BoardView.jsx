@@ -181,7 +181,7 @@ const TaskTitleCell = ({ task, onEdit }) => {
   );
 };
 
-function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersList, isAdmin, currentUser, updateTask, getUserColor, headerExtra, showCheckboxes }) {
+function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersList, isAdmin, currentUser, updateTask, getUserColor, headerExtra, showCheckboxes, tagsList }) {
   const [sortCol, setSortCol] = useState('deadline');
   const [sortDir, setSortDir] = useState('asc');
   const [searchTerm, setSearchTerm] = useState('');
@@ -403,7 +403,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
 
               <h4 style={{fontSize: '0.85rem', marginBottom: '0.5rem', marginTop:'1rem', color:'var(--text-main)', borderBottom:'1px solid var(--border)', paddingBottom: '4px'}}>Etikete Göre</h4>
               <div style={{display:'flex', flexDirection:'column', gap:'0.4rem', maxHeight:'120px', overflowY:'auto'}}>
-                {tagsList.map(tag => (
+                {(tagsList || []).map(tag => (
                   <label key={tag.id} style={{fontSize:'0.8rem', display:'flex', alignItems:'center', gap:'0.4rem', cursor:'pointer', color:'var(--text-main)'}}>
                     <input type="checkbox" checked={filters.tags.includes(tag.id)}
                       onChange={(e) => {
@@ -641,6 +641,7 @@ export default function BoardView() {
             updateTask={updateTask}
             getUserColor={getUserColor}
             showCheckboxes={true}
+            tagsList={tagsList}
           />
         </div>
         {!(hideAllTasksForUsers && !isAdmin) && (
@@ -662,6 +663,7 @@ export default function BoardView() {
                   Diğer kullanıcılar için gizle
                 </label>
               )}
+              tagsList={tagsList}
             />
           </div>
         )}
