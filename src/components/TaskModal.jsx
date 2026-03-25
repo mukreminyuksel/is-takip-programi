@@ -385,38 +385,75 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
     return phone.trim();
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-    
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
+
+  const buildTaskData = () => {
     const finalPhone = formatPhone(customerPhone);
     const finalPhone2 = formatPhone(customerPhone2);
-    
-    const taskData = {
-      title,
-      customerName,
-      customerPhone: finalPhone,
-      customerEmail,
-      customerAddress,
-      customerTaxNo,
-      customerTaxOffice,
-      customerTradeRegNo,
-      customerPhone2: finalPhone2,
-      description,
-      priority,
-      assignee,
+    return {
+      title, customerName, customerPhone: finalPhone, customerEmail, customerAddress,
+      customerTaxNo, customerTaxOffice, customerTradeRegNo, customerPhone2: finalPhone2,
+      description, priority, assignee,
       startDate: startDate ? new Date(startDate).toISOString() : null,
       deadline: deadline ? new Date(deadline).toISOString() : null,
-      notes,
-      attachments,
-      subtasks,
-      tags,
-      recurrence,
+      notes, attachments, subtasks, tags, recurrence,
       recurrenceDay: recurrence === 'monthly' ? recurrenceDay : null,
       recurrenceCount: recurrence !== 'none' ? recurrenceCount : null,
       recurrenceRemaining: recurrence !== 'none' ? (recurrenceRemaining != null ? recurrenceRemaining : recurrenceCount) : null
     };
+  };
 
+  const checkCustomerDuplicate = () => {
+    if (!customerName.trim()) return null;
+    const name = customerName.trim().toLowerCase();
+    const phone = formatPhone(customerPhone);
+    const email = customerEmail.trim().toLowerCase();
+    const taxNo = customerTaxNo.trim();
+
+    for (const c of customersList) {
+      const cName = (c.customerName || '').trim().toLowerCase();
+      const cPhone = (c.customerPhone || '').trim();
+      const cEmail = (c.customerEmail || '').trim().toLowerCase();
+      const cTaxNo = (c.customerTaxNo || '').trim();
+
+      if (cName === name) return null; // aynı isim varsa zaten güncellenir
+
+      const conflicts = [];
+      if (phone && cPhone && phone === cPhone) conflicts.push(`Telefon: ${phone}`);
+      if (email && cEmail && email === cEmail) conflicts.push(`E-mail: ${email}`);
+      if (taxNo && cTaxNo && taxNo === cTaxNo) conflicts.push(`Vergi No: ${taxNo}`);
+
+      if (conflicts.length > 0) {
+        return { existingName: c.customerName, conflicts };
+      }
+    }
+    return null;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+
+    if (!editTask && customerName.trim()) {
+      const dup = checkCustomerDuplicate();
+      if (dup) {
+        setDuplicateWarning(dup);
+        return;
+      }
+    }
+
+    const taskData = buildTaskData();
+    if (editTask) {
+      updateTask(editTask.id, taskData);
+    } else {
+      addTask({ ...taskData, status: defaultStatus });
+    }
+    onClose();
+  };
+
+  const handleForceSubmit = () => {
+    setDuplicateWarning(null);
+    const taskData = buildTaskData();
     if (editTask) {
       updateTask(editTask.id, taskData);
     } else {
@@ -431,6 +468,30 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
   });
 
   return (
+    <>
+    {duplicateWarning && (
+      <div className="modal-overlay" style={{ zIndex: 10000 }} onMouseDown={() => setDuplicateWarning(null)}>
+        <div className="modal-content" onMouseDown={e => e.stopPropagation()} style={{ maxWidth: '450px', padding: '1.5rem', borderRadius: '12px' }}>
+          <h3 style={{ margin: '0 0 0.75rem', color: '#dc2626', fontSize: '1rem' }}>Müşteri Bilgisi Çakışması</h3>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+            Girdiğiniz bilgilere sahip bir müşteri <strong>Kayıtlı Müşteri Listesinde</strong> bulunmaktadır:
+          </p>
+          <div style={{ background: 'var(--bg-alt)', padding: '0.75rem', borderRadius: '6px', marginBottom: '0.75rem', border: '1px solid var(--border)' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.3rem' }}>{duplicateWarning.existingName}</div>
+            {duplicateWarning.conflicts.map((c, i) => (
+              <div key={i} style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>• {c}</div>
+            ))}
+          </div>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+            Lütfen müşteri listesinden seçiniz veya bilgileri düzeltiniz.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <button className="btn btn-secondary btn-small" onClick={() => setDuplicateWarning(null)}>Bilgileri Düzelt</button>
+            <button className="btn btn-primary btn-small" onClick={handleForceSubmit} style={{ background: '#dc2626', borderColor: '#dc2626' }}>Yine de Kaydet</button>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="modal-overlay" onMouseDown={onClose} style={{ padding: isFullScreen ? 0 : '1rem' }}>
       <div 
         className={`modal-content ${isFullScreen ? 'fullscreen' : ''}`}
@@ -854,5 +915,6 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
         </form>
       </div>
     </div>
+    </>
   );
 }
