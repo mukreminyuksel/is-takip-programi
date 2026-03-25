@@ -499,7 +499,21 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
             Lütfen müşteri listesinden seçiniz veya bilgileri düzeltiniz.
           </p>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button className="btn btn-primary btn-small" onClick={() => {
+              const c = customersList.find(x => x.customerName === duplicateWarning.existingName);
+              if (c) {
+                setCustomerName(c.customerName || '');
+                setCustomerPhone(c.customerPhone || '');
+                setCustomerEmail(c.customerEmail || '');
+                setCustomerPhone2(c.customerPhone2 || '');
+                setCustomerAddress(c.customerAddress || '');
+                setCustomerTaxNo(c.customerTaxNo || '');
+                setCustomerTaxOffice(c.customerTaxOffice || '');
+                setCustomerTradeRegNo(c.customerTradeRegNo || '');
+              }
+              setDuplicateWarning(null);
+            }} style={{ background: '#2563eb', borderColor: '#2563eb' }}>Kayıtlı Müşteriden Seç</button>
             <button className="btn btn-secondary btn-small" onClick={() => setDuplicateWarning(null)}>Bilgileri Düzelt</button>
             <button className="btn btn-primary btn-small" onClick={handleForceSubmit} style={{ background: '#dc2626', borderColor: '#dc2626' }}>Yine de Kaydet</button>
           </div>
