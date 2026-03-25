@@ -10,7 +10,7 @@ const COLUMNS = [
 ];
 
 const KanbanCard = ({ task, onEdit, onDragStart }) => {
-  const { tagsList, getUserColor } = useTasks();
+  const { tagsList, getUserColor, getDeadlineRowColor } = useTasks();
   const prioColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
   const prioLabels = { low: 'Düşük', medium: 'Orta', high: 'Yüksek' };
 
@@ -21,6 +21,8 @@ const KanbanCard = ({ task, onEdit, onDragStart }) => {
     daysLeft = Math.ceil((dl - today) / (1000*60*60*24));
   }
 
+  const cardBg = getDeadlineRowColor(daysLeft, task.status === 'done');
+
   const subtasksDone = task.subtasks?.filter(s => s.isCompleted).length || 0;
   const subtasksTotal = task.subtasks?.length || 0;
 
@@ -30,7 +32,7 @@ const KanbanCard = ({ task, onEdit, onDragStart }) => {
       onDragStart={(e) => { e.dataTransfer.setData('taskId', task.id); onDragStart(task.id); }}
       onClick={() => onEdit(task)}
       className="kanban-card"
-      style={{ cursor: 'grab' }}
+      style={{ cursor: 'grab', background: cardBg !== 'transparent' ? cardBg : undefined }}
     >
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'0.4rem' }}>
         <span style={{ fontWeight:600, fontSize:'0.8rem', color:'var(--text-main)', lineHeight:'1.3', flex:1 }}>{task.title}</span>
@@ -140,7 +142,15 @@ export default function KanbanView() {
     <>
       <div className="kanban-board">
         {COLUMNS.map(col => {
-          const colTasks = activeTasks.filter(t => t.status === col.id);
+          const prioVal = { high: 3, medium: 2, low: 1 };
+          const colTasks = activeTasks.filter(t => t.status === col.id).sort((a, b) => {
+            // Deadline ascending (no deadline = last)
+            const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+            const db2 = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+            if (da !== db2) return da - db2;
+            // Priority descending
+            return (prioVal[b.priority] || 0) - (prioVal[a.priority] || 0);
+          });
           const isOver = dragOverCol === col.id;
 
           return (

@@ -93,7 +93,7 @@ const priorityLabels = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' 
 const priorityValue = { 'low': 1, 'medium': 2, 'high': 3 };
 
 export default function GanttView() {
-  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers, tagsList } = useTasks();
+  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers, tagsList, getDeadlineBarColor, getDeadlineRowColor } = useTasks();
   const [scale, setScale] = useState('day');
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -445,15 +445,12 @@ export default function GanttView() {
               </div>
               <div style={{width:'65px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem', ...(() => {
                 if (task.status === 'done') return { color: 'var(--text-muted)' };
-                const now = new Date(); now.setHours(0,0,0,0);
-                const dl = new Date(task.deadline); dl.setHours(0,0,0,0);
-                const daysLeft = Math.ceil((dl - now) / (1000*60*60*24));
-                if (daysLeft < 0) return { color: '#7c3aed', fontWeight: 700 };
-                if (daysLeft === 0) return { color: '#dc2626', fontWeight: 700 };
-                if (daysLeft === 1) return { color: '#ef4444', fontWeight: 600 };
-                if (daysLeft <= 3) return { color: '#f97316', fontWeight: 600 };
-                if (daysLeft <= 7) return { color: '#f59e0b' };
-                return { color: 'var(--text-muted)' };
+                const now2 = new Date(); now2.setHours(0,0,0,0);
+                const dl2 = new Date(task.deadline); dl2.setHours(0,0,0,0);
+                const dLeft = Math.ceil((dl2 - now2) / (1000*60*60*24));
+                const hexColor = getDeadlineBarColor(dLeft, false, 'var(--text-muted)').replace(/cc$/, '');
+                const fw = dLeft <= 1 ? 700 : dLeft <= 3 ? 600 : 'normal';
+                return { color: hexColor, fontWeight: fw };
               })()}}>
                 {formatShortDate(task.deadline)}
               </div>
@@ -532,23 +529,12 @@ export default function GanttView() {
               const { left, width } = getBarPosition(task);
               const isDone = task.status === 'done';
 
-              // Bar color logic: approaching/overdue tasks get purple tones
               let barColor = statusColors[task.status];
-              let barBg;
-              if (isDone) {
-                barBg = `${barColor}60`;
-              } else {
-                const now = new Date(); now.setHours(0,0,0,0);
-                const dl = new Date(task.deadline); dl.setHours(0,0,0,0);
-                const daysLeft = Math.ceil((dl - now) / (1000*60*60*24));
-                if (daysLeft < 0) {
-                  barBg = '#581c87cc'; // koyu mor - süresi geçmiş
-                } else if (daysLeft <= 1) {
-                  barBg = '#7c3aedcc'; // mor - 1 gün kala
-                } else {
-                  barBg = `${barColor}cc`;
-                }
-              }
+              const now = new Date(); now.setHours(0,0,0,0);
+              const dl = task.deadline ? new Date(task.deadline) : null;
+              let daysLeft = null;
+              if (dl) { dl.setHours(0,0,0,0); daysLeft = Math.ceil((dl - now) / (1000*60*60*24)); }
+              const barBg = getDeadlineBarColor(daysLeft, isDone, barColor);
 
               return (
                 <GanttBarTooltip key={task.id} task={task} tagsList={tagsList}>

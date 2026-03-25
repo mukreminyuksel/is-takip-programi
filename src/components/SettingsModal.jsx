@@ -10,7 +10,7 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTaskFromCustomer }) {
-  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin, customersList, addCustomer, editCustomer, deleteCustomer, companyDb: db } = useTasks();
+  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin, customersList, addCustomer, editCustomer, deleteCustomer, deadlineColors, saveDeadlineColors, companyDb: db } = useTasks();
   const { companies, addCompany, updateCompany, deleteCompany } = useCompany();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('personnel');
@@ -682,6 +682,115 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
                     <span style={{fontSize:'0.55rem', color:'var(--text-muted)'}}>{p.name}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Deadline Renk Düzeni */}
+            <div style={{marginTop:'2rem', padding:'1rem', background:'var(--bg-alt)', borderRadius:'8px', border:'1px solid var(--border)'}}>
+              <h4 style={{fontSize:'0.85rem', marginBottom:'0.5rem', color:'var(--text-main)'}}>Bitiş Tarihi Renk Düzeni</h4>
+              <p style={{fontSize:'0.75rem', color:'var(--text-muted)', marginBottom:'1rem', lineHeight:'1.4'}}>
+                Görevlerin bitiş tarihine kalan gün sayısına göre satır/kutu arka plan rengini ve Gantt bar rengini belirler. Tablo, Kanban ve Gantt ekranlarında uygulanır.
+              </p>
+              <div style={{display:'flex', flexDirection:'column', gap:'0.5rem'}}>
+                {(deadlineColors || []).map((entry, idx) => (
+                  <div key={idx} style={{display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.5rem 0.75rem', background:'var(--bg-main)', border:'1px solid var(--border)', borderRadius:'6px'}}>
+                    <div style={{width:28, height:28, borderRadius:'4px', background: entry.color, border:'1px solid var(--border)', flexShrink:0}} />
+                    <div style={{display:'flex', alignItems:'center', gap:'0.5rem', flex:1, flexWrap:'wrap'}}>
+                      <label style={{fontSize:'0.7rem', color:'var(--text-muted)', width:'55px'}}>
+                        {entry.days < 0 ? 'Geçmiş' : entry.days === 0 ? 'Son gün' : `${entry.days} gün`}
+                      </label>
+                      <input
+                        type="number"
+                        value={entry.days}
+                        onChange={(e) => {
+                          const updated = [...deadlineColors];
+                          updated[idx] = { ...updated[idx], days: parseInt(e.target.value) || 0 };
+                          saveDeadlineColors(updated);
+                        }}
+                        style={{width:'50px', padding:'0.2rem 0.3rem', fontSize:'0.75rem', borderRadius:'4px', border:'1px solid var(--border)', background:'var(--bg-main)', color:'var(--text-main)', textAlign:'center'}}
+                        title="Gün sayısı"
+                      />
+                      <input
+                        type="color"
+                        value={entry.hex}
+                        onChange={(e) => {
+                          const hex = e.target.value;
+                          const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+                          const alpha = entry.days < 0 ? 0.25 : entry.days <= 1 ? 0.22 : entry.days <= 3 ? 0.20 : 0.15;
+                          const updated = [...deadlineColors];
+                          updated[idx] = { ...updated[idx], hex, color: `rgba(${r}, ${g}, ${b}, ${alpha})` };
+                          saveDeadlineColors(updated);
+                        }}
+                        style={{width:'36px', height:'28px', border:'1px solid var(--border)', borderRadius:'4px', cursor:'pointer', padding:'1px'}}
+                        title="Renk seç"
+                      />
+                      <span style={{fontSize:'0.65rem', color:'var(--text-muted)', fontFamily:'monospace'}}>{entry.hex}</span>
+                      <input
+                        type="text"
+                        value={entry.label}
+                        onChange={(e) => {
+                          const updated = [...deadlineColors];
+                          updated[idx] = { ...updated[idx], label: e.target.value };
+                          saveDeadlineColors(updated);
+                        }}
+                        style={{flex:1, minWidth:'80px', padding:'0.2rem 0.4rem', fontSize:'0.7rem', borderRadius:'4px', border:'1px solid var(--border)', background:'var(--bg-main)', color:'var(--text-main)'}}
+                        placeholder="Etiket"
+                      />
+                      <button
+                        className="icon-btn"
+                        onClick={() => {
+                          const updated = deadlineColors.filter((_, i) => i !== idx);
+                          saveDeadlineColors(updated);
+                        }}
+                        title="Kaldır"
+                        style={{fontSize:'0.65rem', color:'#ef4444', padding:'0.2rem', border:'1px solid #fecaca', borderRadius:'4px'}}
+                      >
+                        <Trash2 size={12}/>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{display:'flex', gap:'0.5rem', marginTop:'0.75rem'}}>
+                <button
+                  className="btn btn-secondary btn-small"
+                  onClick={() => {
+                    const updated = [...deadlineColors, { days: 10, color: 'rgba(200, 200, 200, 0.15)', label: 'Yeni', hex: '#9ca3af' }];
+                    saveDeadlineColors(updated);
+                  }}
+                  style={{fontSize:'0.75rem', padding:'0.3rem 0.6rem', display:'flex', alignItems:'center', gap:'0.3rem'}}
+                >
+                  <Plus size={12}/> Yeni Kademe Ekle
+                </button>
+                <button
+                  className="btn btn-secondary btn-small"
+                  onClick={() => {
+                    saveDeadlineColors([
+                      { days: 7, color: 'rgba(253, 224, 71, 0.15)', label: '7 gün', hex: '#fde047' },
+                      { days: 5, color: 'rgba(250, 204, 21, 0.18)', label: '5 gün', hex: '#facc15' },
+                      { days: 3, color: 'rgba(245, 158, 11, 0.20)', label: '3 gün', hex: '#f59e0b' },
+                      { days: 2, color: 'rgba(239, 68, 68, 0.20)', label: '2 gün', hex: '#ef4444' },
+                      { days: 1, color: 'rgba(185, 28, 28, 0.25)', label: '1 gün', hex: '#b91c1c' },
+                      { days: 0, color: 'rgba(168, 85, 247, 0.22)', label: 'Son gün (pembemsi mor)', hex: '#a855f7' },
+                      { days: -1, color: 'rgba(124, 58, 237, 0.25)', label: 'Süresi geçmiş (mor)', hex: '#7c3aed' },
+                    ]);
+                  }}
+                  style={{fontSize:'0.75rem', padding:'0.3rem 0.6rem', color:'#f59e0b', border:'1px solid #f59e0b'}}
+                >
+                  Varsayılana Sıfırla
+                </button>
+              </div>
+              {/* Preview */}
+              <div style={{marginTop:'0.75rem', padding:'0.5rem', background:'var(--bg-main)', borderRadius:'6px', border:'1px solid var(--border)'}}>
+                <div style={{fontSize:'0.7rem', color:'var(--text-muted)', marginBottom:'0.4rem', fontWeight:600}}>Önizleme:</div>
+                <div style={{display:'flex', gap:'3px', flexWrap:'wrap'}}>
+                  {[...(deadlineColors || [])].sort((a,b) => b.days - a.days).map((entry, idx) => (
+                    <div key={idx} style={{padding:'0.3rem 0.6rem', borderRadius:'4px', background: entry.color, fontSize:'0.65rem', color:'var(--text-main)', border:'1px solid var(--border)', textAlign:'center', minWidth:'55px'}}>
+                      <div style={{fontWeight:600}}>{entry.label}</div>
+                      <div style={{fontSize:'0.55rem', color:'var(--text-muted)'}}>{entry.days < 0 ? 'geçmiş' : `${entry.days} gün`}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

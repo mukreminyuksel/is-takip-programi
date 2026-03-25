@@ -21,6 +21,16 @@ export const TaskProvider = ({ children }) => {
   const [appNotifications, setAppNotifications] = useState([]);
   const [hideAllTasksForUsers, setHideAllTasksForUsers] = useState(false);
   const [customersList, setCustomersList] = useState([]);
+  const DEFAULT_DEADLINE_COLORS = [
+    { days: 7, color: 'rgba(253, 224, 71, 0.15)', label: '7 gün', hex: '#fde047' },
+    { days: 5, color: 'rgba(250, 204, 21, 0.18)', label: '5 gün', hex: '#facc15' },
+    { days: 3, color: 'rgba(245, 158, 11, 0.20)', label: '3 gün', hex: '#f59e0b' },
+    { days: 2, color: 'rgba(239, 68, 68, 0.20)', label: '2 gün', hex: '#ef4444' },
+    { days: 1, color: 'rgba(185, 28, 28, 0.25)', label: '1 gün', hex: '#b91c1c' },
+    { days: 0, color: 'rgba(168, 85, 247, 0.22)', label: 'Son gün (pembemsi mor)', hex: '#a855f7' },
+    { days: -1, color: 'rgba(124, 58, 237, 0.25)', label: 'Süresi geçmiş (mor)', hex: '#7c3aed' },
+  ];
+  const [deadlineColors, setDeadlineColors] = useState(DEFAULT_DEADLINE_COLORS);
 
   const [authUser, setAuthUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -143,7 +153,11 @@ export const TaskProvider = ({ children }) => {
 
     const unsubSettings = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
       if (docSnap.exists()) {
-        setHideAllTasksForUsers(docSnap.data().hideAllTasksForUsers || false);
+        const data = docSnap.data();
+        setHideAllTasksForUsers(data.hideAllTasksForUsers || false);
+        if (data.deadlineColors && Array.isArray(data.deadlineColors)) {
+          setDeadlineColors(data.deadlineColors);
+        }
       }
     });
 
@@ -185,6 +199,47 @@ export const TaskProvider = ({ children }) => {
     } catch (e) {
       addNotification('Ayar güncellenemedi.');
     }
+  };
+
+  const saveDeadlineColors = async (colors) => {
+    if (!db) return;
+    try {
+      setDeadlineColors(colors);
+      await setDoc(doc(db, 'settings', 'general'), { deadlineColors: colors }, { merge: true });
+    } catch (e) {
+      addNotification('Renk ayarları kaydedilemedi.');
+    }
+  };
+
+  const getDeadlineRowColor = (daysLeft, isDone) => {
+    if (isDone || daysLeft === null) return 'transparent';
+    const sorted = [...deadlineColors].sort((a, b) => a.days - b.days);
+    // overdue: days < 0 → use the most negative entry, or -1 entry
+    if (daysLeft < 0) {
+      const overdue = sorted.find(c => c.days === -1);
+      return overdue ? overdue.color : 'rgba(124, 58, 237, 0.25)';
+    }
+    // Find the matching bracket: first entry where daysLeft <= entry.days (sorted ascending)
+    for (const entry of sorted) {
+      if (entry.days < 0) continue;
+      if (daysLeft <= entry.days) return entry.color;
+    }
+    return 'transparent';
+  };
+
+  const getDeadlineBarColor = (daysLeft, isDone, defaultColor) => {
+    if (isDone) return `${defaultColor}60`;
+    if (daysLeft === null) return `${defaultColor}cc`;
+    const sorted = [...deadlineColors].sort((a, b) => a.days - b.days);
+    if (daysLeft < 0) {
+      const overdue = sorted.find(c => c.days === -1);
+      return overdue ? overdue.hex + 'cc' : '#7c3aedcc';
+    }
+    if (daysLeft <= 1) {
+      const lastDay = sorted.find(c => c.days === 0 || c.days === 1);
+      return lastDay ? lastDay.hex + 'cc' : '#a855f7cc';
+    }
+    return `${defaultColor}cc`;
   };
 
   const loginWithGoogle = async () => {
@@ -676,6 +731,7 @@ export const TaskProvider = ({ children }) => {
       loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading,
       adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin,
       customersList, addCustomer, editCustomer, deleteCustomer,
+      deadlineColors, saveDeadlineColors, getDeadlineRowColor, getDeadlineBarColor,
       companyDb: db
     }}>
       {children}
