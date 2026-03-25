@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
 import { useCompany } from '../context/CompanyContext';
-import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server, Users, Calendar, MessageCircle } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server, Users, Calendar, MessageCircle, Maximize, Minimize } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { doc, setDoc } from 'firebase/firestore';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
@@ -30,6 +30,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
   const [authMessage, setAuthMessage] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
 
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -342,10 +343,10 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose} style={{ zIndex: 1050 }}>
-      <div className="modal-content" style={{maxWidth: '1100px', width: '90vw', transform: `translate(${position.x}px, ${position.y}px)`, transition: isDragging ? 'none' : 'transform 0.1s ease', resize: 'both', position: 'relative'}} onMouseDown={e => e.stopPropagation()}>
-        <div className="modal-header" onMouseDown={startDrag} style={{ cursor: 'move', paddingBottom: 0 }}>
-          <div style={{display:'flex', alignItems:'center', gap:'1.5rem', alignSelf:'flex-end'}}>
+    <div className="modal-overlay" onMouseDown={onClose} style={{ zIndex: 1050, padding: isFullScreen ? 0 : undefined }}>
+      <div className={`modal-content ${isFullScreen ? 'fullscreen' : ''}`} style={!isFullScreen ? {maxWidth: '1100px', width: '90vw', transform: `translate(${position.x}px, ${position.y}px)`, transition: isDragging ? 'none' : 'transform 0.1s ease', resize: 'both', position: 'relative'} : {}} onMouseDown={e => e.stopPropagation()}>
+        <div className="modal-header" onMouseDown={isFullScreen ? undefined : startDrag} style={{ cursor: isFullScreen ? 'default' : 'move', paddingBottom: 0 }}>
+          <div style={{display:'flex', alignItems:'center', gap:'1.5rem', alignSelf:'flex-end', flexWrap:'wrap'}}>
             <h2 onClick={() => {setActiveTab('personnel'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'personnel' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'personnel' ? '2px solid var(--primary)' : '2px solid transparent'}}>
               Personel Yönetimi
             </h2>
@@ -368,7 +369,8 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
               <Server size={16}/> Sistem Ayarları
             </h2>
           </div>
-          <div onMouseDown={e => e.stopPropagation()} style={{paddingBottom:'0.8rem'}}>
+          <div onMouseDown={e => e.stopPropagation()} style={{paddingBottom:'0.8rem', display:'flex', alignItems:'center', gap:'0.3rem'}}>
+            <button className="icon-btn" onClick={() => { setIsFullScreen(!isFullScreen); setPosition({x:0,y:0}); }} title={isFullScreen ? 'Küçült' : 'Tam Ekran'}>{isFullScreen ? <Minimize size={18} /> : <Maximize size={18} />}</button>
             <button className="icon-btn" onClick={onClose}><X size={20} /></button>
           </div>
         </div>

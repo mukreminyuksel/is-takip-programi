@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
-import { X, RefreshCcw, Trash2 } from 'lucide-react';
+import { X, RefreshCcw, Trash2, Maximize, Minimize } from 'lucide-react';
 
 export default function DeletedTasksModal({ isOpen, onClose }) {
   const { tasks, restoreTask, permanentDeleteTask, isAdmin } = useTasks();
 
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -40,15 +41,16 @@ export default function DeletedTasksModal({ isOpen, onClose }) {
   const deletedTasks = tasks.filter(t => t.isDeleted);
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose} style={{ zIndex: 1050 }}>
-      <div 
-        className="modal-content" 
-        style={{maxWidth: '800px', transform: `translate(${position.x}px, ${position.y}px)`, transition: isDragging ? 'none' : 'transform 0.1s ease', resize: 'both', position: 'relative'}} 
+    <div className="modal-overlay" onMouseDown={onClose} style={{ zIndex: 1050, padding: isFullScreen ? 0 : undefined }}>
+      <div
+        className={`modal-content ${isFullScreen ? 'fullscreen' : ''}`}
+        style={!isFullScreen ? {maxWidth: '800px', transform: `translate(${position.x}px, ${position.y}px)`, transition: isDragging ? 'none' : 'transform 0.1s ease', resize: 'both', position: 'relative'} : {}}
         onMouseDown={e => e.stopPropagation()}
       >
-        <div className="modal-header" onMouseDown={startDrag} style={{ cursor: 'move' }}>
+        <div className="modal-header" onMouseDown={isFullScreen ? undefined : startDrag} style={{ cursor: isFullScreen ? 'default' : 'move' }}>
           <h2>Silinen Görevler (Geri Dönüşüm Kutusu)</h2>
-          <div onMouseDown={e => e.stopPropagation()}>
+          <div onMouseDown={e => e.stopPropagation()} style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+            <button className="icon-btn" onClick={() => { setIsFullScreen(!isFullScreen); setPosition({x:0,y:0}); }} title={isFullScreen ? 'Küçült' : 'Tam Ekran'}>{isFullScreen ? <Minimize size={18} /> : <Maximize size={18} />}</button>
             <button className="icon-btn" onClick={onClose}><X size={20} /></button>
           </div>
         </div>
