@@ -17,7 +17,7 @@ const priorityValue = { 'low': 1, 'medium': 2, 'high': 3 };
 
 export default function GanttView() {
   const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers } = useTasks();
-  const [scale, setScale] = useState('week');
+  const [scale, setScale] = useState('day');
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [dragInfo, setDragInfo] = useState(null); // { taskId, edge: 'left'|'right', startX, origDate }
@@ -366,7 +366,18 @@ export default function GanttView() {
               <div style={{width:'65px', textAlign:'center', color:'var(--text-muted)', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>
                 {formatShortDate(task.startDate)}
               </div>
-              <div style={{width:'65px', textAlign:'center', color:'var(--text-muted)', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>
+              <div style={{width:'65px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem', ...(() => {
+                if (task.status === 'done') return { color: 'var(--text-muted)' };
+                const now = new Date(); now.setHours(0,0,0,0);
+                const dl = new Date(task.deadline); dl.setHours(0,0,0,0);
+                const daysLeft = Math.ceil((dl - now) / (1000*60*60*24));
+                if (daysLeft < 0) return { color: '#dc2626', fontWeight: 700 };
+                if (daysLeft === 0) return { color: '#dc2626', fontWeight: 700 };
+                if (daysLeft === 1) return { color: '#ef4444', fontWeight: 600 };
+                if (daysLeft <= 3) return { color: '#f97316', fontWeight: 600 };
+                if (daysLeft <= 7) return { color: '#f59e0b' };
+                return { color: 'var(--text-muted)' };
+              })()}}>
                 {formatShortDate(task.deadline)}
               </div>
               <div style={{width:'75px', textAlign:'center', borderLeft:'1px solid var(--border)', padding:'0 0.25rem'}}>
@@ -442,8 +453,25 @@ export default function GanttView() {
             {/* Task bars */}
             {sortedTasks.map((task, i) => {
               const { left, width } = getBarPosition(task);
-              const barColor = statusColors[task.status];
               const isDone = task.status === 'done';
+
+              // Bar color logic: approaching/overdue tasks get purple tones
+              let barColor = statusColors[task.status];
+              let barBg;
+              if (isDone) {
+                barBg = `${barColor}60`;
+              } else {
+                const now = new Date(); now.setHours(0,0,0,0);
+                const dl = new Date(task.deadline); dl.setHours(0,0,0,0);
+                const daysLeft = Math.ceil((dl - now) / (1000*60*60*24));
+                if (daysLeft < 0) {
+                  barBg = '#581c87cc'; // koyu mor - süresi geçmiş
+                } else if (daysLeft <= 1) {
+                  barBg = '#7c3aedcc'; // mor - 1 gün kala
+                } else {
+                  barBg = `${barColor}cc`;
+                }
+              }
 
               return (
                 <div key={task.id} style={{ height: ROW_HEIGHT, position:'relative', borderBottom:'1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--bg-alt)' }}>
@@ -456,7 +484,7 @@ export default function GanttView() {
                       position:'absolute',
                       top: 4, height: ROW_HEIGHT - 8,
                       left, width,
-                      background: isDone ? `${barColor}60` : `${barColor}cc`,
+                      background: barBg,
                       borderRadius:'3px', cursor:'pointer',
                       display:'flex', alignItems:'center', justifyContent:'center',
                       fontSize:'0.6rem', color:'#fff', fontWeight:500,
@@ -530,6 +558,14 @@ export default function GanttView() {
         <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
           <span style={{width:12, height:12, borderRadius:'2px', background:'#9ca3afcc'}}></span>
           <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Tamamlandı</span>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:'0.3rem', borderLeft:'1px solid var(--border)', paddingLeft:'1rem'}}>
+          <span style={{width:12, height:12, borderRadius:'2px', background:'#7c3aedcc'}}></span>
+          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Son 1 Gün</span>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+          <span style={{width:12, height:12, borderRadius:'2px', background:'#581c87cc'}}></span>
+          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Süresi Geçmiş</span>
         </div>
         <div style={{display:'flex', alignItems:'center', gap:'0.3rem', borderLeft:'1px solid var(--border)', paddingLeft:'1rem'}}>
           <span style={{width:12, height:2, background:'var(--primary)'}}></span>
