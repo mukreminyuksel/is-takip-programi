@@ -55,7 +55,7 @@ export default function DeletedTasksModal({ isOpen, onClose }) {
           </div>
         </div>
         
-        <div className="settings-body" style={{padding: '1.5rem'}}>
+        <div className="settings-body">
           {!isAdmin && (
             <div style={{marginBottom: '1rem', padding: '0.75rem', background: '#fef2f2', color: '#991b1b', borderRadius: '4px', fontSize: '0.85rem'}}>
               <strong>Bilgi:</strong> Sadece "Admin" yetkisine sahip kullanıcılar çöpteki öğeleri kalıcı olarak silebilir. Öğeleri geri yükleyebilirsiniz.

@@ -376,7 +376,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
         </div>
         
         {!isEditing && activeTab === 'personnel' && (
-          <div className="settings-body" style={{padding: '1.5rem'}}>
+          <div className="settings-body">
             <div style={{display:'flex', justifyContent:'space-between', marginBottom:'1rem', alignItems:'center'}}>
               <h3 style={{fontSize:'1rem'}}>Şirket Çalışanları ({usersList.length})</h3>
               <div style={{display:'flex', gap: '0.5rem'}}>
@@ -448,7 +448,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
         )}
         
         {!isEditing && activeTab === 'analytics' && (
-          <div className="settings-body" style={{padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto'}}>
+          <div className="settings-body">
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:'1rem', marginBottom:'2rem'}}>
               <div style={{background:'var(--bg-card)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border)', textAlign:'center'}}>
                 <div style={{fontSize:'2rem', fontWeight:800, color:'var(--text-main)'}}>{tasks.filter(t => !t.isDeleted).length}</div>
@@ -560,7 +560,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
         )}
 
         {!isEditing && activeTab === 'tags' && (
-          <div className="settings-body" style={{padding: '1.5rem'}}>
+          <div className="settings-body">
             <div style={{marginBottom:'1.5rem', padding:'1rem', background:'var(--bg-alt)', borderRadius:'8px', border:'1px solid var(--border)'}}>
               <h4 style={{fontSize:'0.9rem', marginBottom:'0.75rem', color:'var(--text-main)'}}>Yeni Etiket Ekle / Düzenle</h4>
               <div style={{display:'flex', gap:'0.75rem', alignItems:'flex-end', flexWrap:'wrap'}}>
@@ -615,7 +615,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
         )}
 
         {!isEditing && activeTab === 'colors' && (
-          <div className="settings-body" style={{padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto'}}>
+          <div className="settings-body">
             <div style={{marginBottom:'1rem'}}>
               <h3 style={{fontSize:'1rem', marginBottom:'0.5rem', color:'var(--text-main)'}}>Personel Renk Kişiselleştirme</h3>
               <p style={{fontSize:'0.8rem', color:'var(--text-muted)', lineHeight:'1.5', marginBottom:'1.5rem'}}>
@@ -818,7 +818,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
         )}
 
         {!isEditing && activeTab === 'accounts' && (
-          <div className="settings-body" style={{padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto'}}>
+          <div className="settings-body">
             {authMessage && (
               <div style={{padding:'0.75rem 1rem', marginBottom:'1rem', borderRadius:'6px', fontSize:'0.85rem', background: authMessage.type === 'success' ? '#d1fae5' : '#fee2e2', color: authMessage.type === 'success' ? '#065f46' : '#991b1b', border: `1px solid ${authMessage.type === 'success' ? '#a7f3d0' : '#fecaca'}`}}>
                 {authMessage.text}
@@ -1323,7 +1323,7 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
   const labelStyle = { fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.15rem' };
 
   return (
-    <div className="settings-body" style={{ padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
+    <div className="settings-body">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <h3 style={{ fontSize: '1rem', margin: 0 }}>Kayıtlı Müşteriler ({customersList.length})</h3>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1595,7 +1595,7 @@ function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany
   );
 
   return (
-    <div className="settings-body" style={{ padding: '1.5rem' }}>
+    <div className="settings-body">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
         <h3 style={{ fontSize: '1rem', margin: 0 }}>Kayıtlı Şirketler ({companies.length})</h3>
         {!showAddForm && !editingId && (
