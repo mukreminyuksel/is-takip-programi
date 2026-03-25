@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTasks } from '../context/TaskContext';
-import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar, History, Paperclip, Download, Loader, ListTodo, Tag } from 'lucide-react';
+import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar, History, Paperclip, Download, Loader, ListTodo, Tag, Printer } from 'lucide-react';
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxncRte5tnhqc68DIlTzdOpDkEYEywiLwwWtuUq9WJ-VR8gbdJBSc9xSUcWi0NjNyYdmw/exec';
 
@@ -161,11 +161,13 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
   const generateOutputText = () => {
     const statusMap = { 'todo': 'Yapılacak', 'in-progress': 'Devam Eden', 'done': 'Tamamlandı' };
     const prioMap = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' };
-    
+
     let content = `GÖREV DETAYI: ${title}\n`;
     content += `=================================\n\n`;
-    content += `--- GENEL BİLGİLER ---\n`;
+
+    content += `--- MÜŞTERİ BİLGİLERİ ---\n`;
     if (customerName) content += `Müşteri Adı/Ünvanı: ${customerName}\n`;
+    if (customerOfficialName && customerOfficialName !== customerName) content += `Resmi Ünvan: ${customerOfficialName}\n`;
     if (customerPhone) content += `İletişim Tel/GSM: ${customerPhone}\n`;
     if (customerPhone2) content += `Telefon 2: ${customerPhone2}\n`;
     if (customerEmail) content += `E-mail: ${customerEmail}\n`;
@@ -173,14 +175,48 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
     if (customerTaxNo) content += `Vergi No: ${customerTaxNo}\n`;
     if (customerTaxOffice) content += `Vergi Dairesi: ${customerTaxOffice}\n`;
     if (customerTradeRegNo) content += `Ticaret Sicil No: ${customerTradeRegNo}\n`;
+    content += `\n`;
+
+    content += `--- GÖREV BİLGİLERİ ---\n`;
     content += `Atanan Kişi: ${assignee || 'Atanmadı'}\n`;
     content += `Durum: ${editTask ? statusMap[editTask.status] : 'Yeni'}\n`;
-    content += `Öncelik Derecesi: ${prioMap[priority]}\n`;
-    content += `Başlangıç Tarihi: ${startDate ? new Date(startDate).toLocaleDateString('tr-TR') : '-'}\n`;
-    content += `Bitiş (Hedef) Tarihi: ${deadline ? new Date(deadline).toLocaleDateString('tr-TR') : '-'}\n\n`;
+    content += `Öncelik: ${prioMap[priority]}\n`;
+    content += `Başlangıç: ${startDate ? new Date(startDate).toLocaleDateString('tr-TR') : '-'}\n`;
+    content += `Bitiş (Hedef): ${deadline ? new Date(deadline).toLocaleDateString('tr-TR') : '-'}\n`;
+    if (tags.length > 0) {
+      const tagNames = tags.map(tid => { const t = tagsList.find(x => x.id === tid); return t ? t.label : tid; });
+      content += `Etiketler: ${tagNames.join(', ')}\n`;
+    }
+    if (recurrence && recurrence !== 'none') {
+      const recMap = { daily: 'Günlük', weekly: 'Haftalık', monthly: 'Aylık' };
+      content += `Tekrarlama: ${recMap[recurrence] || recurrence}\n`;
+    }
+    content += `\n`;
 
     if (description) {
       content += `--- AÇIKLAMA ---\n${description}\n\n`;
+    }
+
+    if (subtasks.length > 0) {
+      content += `--- ALT GÖREVLER (${subtasks.filter(s => s.isCompleted).length}/${subtasks.length}) ---\n`;
+      subtasks.forEach(st => {
+        content += `${st.isCompleted ? '✓' : '☐'} ${st.text}\n`;
+      });
+      content += `\n`;
+    }
+
+    // Müşteri notları
+    if (customerName) {
+      const cust = customersList.find(c => c.customerName && c.customerName.trim().toLowerCase() === customerName.trim().toLowerCase());
+      const custNotes = cust?.notes || [];
+      if (custNotes.length > 0) {
+        content += `--- MÜŞTERİ NOTLARI ---\n`;
+        [...custNotes].reverse().forEach(n => {
+          const dateStr = new Date(n.date).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' });
+          content += `- ${dateStr} | ${n.author}: ${n.text}\n`;
+        });
+        content += `\n`;
+      }
     }
 
     if (notes && notes.length > 0) {
@@ -194,7 +230,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
     } else {
       content += `--- GÖREV GEÇMİŞİ VE NOTLAR ---\nHenüz görev notu bulunmuyor.\n`;
     }
-    
+
     return content;
   };
 
@@ -207,6 +243,87 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
       console.error('Kopyalama basarisiz:', err);
       alert("Panoya kopyalama izni verilmedi.");
     });
+  };
+
+  const handlePrint = () => {
+    const statusMap = { 'todo': 'Yapılacak', 'in-progress': 'Devam Eden', 'done': 'Tamamlandı' };
+    const prioMap = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' };
+    const prioColor = { 'low': '#22c55e', 'medium': '#f59e0b', 'high': '#ef4444' };
+    const tagNames = tags.map(tid => { const t = tagsList.find(x => x.id === tid); return t ? `<span style="background:${t.color || '#6b7280'};color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">${t.label}</span>` : ''; }).join(' ');
+
+    let custNotesHtml = '';
+    if (customerName) {
+      const cust = customersList.find(c => c.customerName && c.customerName.trim().toLowerCase() === customerName.trim().toLowerCase());
+      const cn = cust?.notes || [];
+      if (cn.length > 0) {
+        custNotesHtml = `<div style="margin-top:8px"><strong style="font-size:11px">MÜŞTERİ NOTLARI</strong><table style="width:100%;border-collapse:collapse;margin-top:3px;font-size:10px"><tbody>` +
+          [...cn].reverse().map(n => `<tr><td style="border:1px solid #ddd;padding:2px 4px;width:120px;white-space:nowrap">${new Date(n.date).toLocaleString('tr-TR',{dateStyle:'short',timeStyle:'short'})} - ${n.author}</td><td style="border:1px solid #ddd;padding:2px 4px">${n.text}</td></tr>`).join('') +
+          `</tbody></table></div>`;
+      }
+    }
+
+    let taskNotesHtml = '';
+    if (notes && notes.length > 0) {
+      const sorted = [...notes].sort((a,b) => new Date(b.date) - new Date(a.date));
+      taskNotesHtml = `<div style="margin-top:8px"><strong style="font-size:11px">GÖREV GEÇMİŞİ VE NOTLAR</strong><table style="width:100%;border-collapse:collapse;margin-top:3px;font-size:10px"><tbody>` +
+        sorted.map(n => {
+          const star = n.importance === 'important' ? '<b>[ÖNEMLİ]</b> ' : '';
+          return `<tr><td style="border:1px solid #ddd;padding:2px 4px;width:120px;white-space:nowrap">${new Date(n.date).toLocaleString('tr-TR',{dateStyle:'short',timeStyle:'short'})} - ${n.author || 'Sistem'}</td><td style="border:1px solid #ddd;padding:2px 4px">${star}${n.text}</td></tr>`;
+        }).join('') +
+        `</tbody></table></div>`;
+    }
+
+    let subtasksHtml = '';
+    if (subtasks.length > 0) {
+      subtasksHtml = `<div style="margin-top:8px"><strong style="font-size:11px">ALT GÖREVLER (${subtasks.filter(s=>s.isCompleted).length}/${subtasks.length})</strong><div style="margin-top:3px;font-size:10px">` +
+        subtasks.map(st => `<div>${st.isCompleted ? '☑' : '☐'} ${st.text}</div>`).join('') +
+        `</div></div>`;
+    }
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Görev: ${title}</title><style>
+      body{font-family:Arial,sans-serif;font-size:11px;margin:15px;color:#333}
+      h1{font-size:14px;margin:0 0 8px;border-bottom:2px solid #333;padding-bottom:4px}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:10px;margin-top:4px}
+      .grid div{display:flex;gap:4px}.grid .lbl{font-weight:700;min-width:90px;color:#555}
+      @media print{body{margin:10px}}
+    </style></head><body>
+      <h1>${title}</h1>
+      <table style="width:100%;font-size:10px;border-collapse:collapse">
+        <tr>
+          <td style="padding:2px 0"><b>Durum:</b> ${editTask ? statusMap[editTask.status] : 'Yeni'}</td>
+          <td style="padding:2px 0"><b>Öncelik:</b> <span style="color:${prioColor[priority]};font-weight:700">${prioMap[priority]}</span></td>
+          <td style="padding:2px 0"><b>Atanan:</b> ${assignee || '-'}</td>
+        </tr>
+        <tr>
+          <td style="padding:2px 0"><b>Başlangıç:</b> ${startDate ? new Date(startDate).toLocaleDateString('tr-TR') : '-'}</td>
+          <td style="padding:2px 0"><b>Bitiş:</b> ${deadline ? new Date(deadline).toLocaleDateString('tr-TR') : '-'}</td>
+          <td style="padding:2px 0">${tagNames ? `<b>Etiketler:</b> ${tagNames}` : ''}</td>
+        </tr>
+      </table>
+      ${(customerName || customerPhone || customerEmail) ? `
+        <div style="margin-top:8px;padding:6px;background:#f9f9f9;border:1px solid #ddd;border-radius:4px">
+          <strong style="font-size:11px">MÜŞTERİ BİLGİLERİ</strong>
+          <div class="grid">
+            ${customerName ? `<div><span class="lbl">Ad/Ünvan:</span> ${customerName}</div>` : ''}
+            ${customerOfficialName && customerOfficialName !== customerName ? `<div><span class="lbl">Resmi Ünvan:</span> ${customerOfficialName}</div>` : ''}
+            ${customerPhone ? `<div><span class="lbl">Telefon:</span> ${customerPhone}</div>` : ''}
+            ${customerPhone2 ? `<div><span class="lbl">Telefon 2:</span> ${customerPhone2}</div>` : ''}
+            ${customerEmail ? `<div><span class="lbl">E-mail:</span> ${customerEmail}</div>` : ''}
+            ${customerAddress ? `<div><span class="lbl">Adres:</span> ${customerAddress}</div>` : ''}
+            ${customerTaxNo ? `<div><span class="lbl">Vergi No:</span> ${customerTaxNo}</div>` : ''}
+            ${customerTaxOffice ? `<div><span class="lbl">Vergi Dai.:</span> ${customerTaxOffice}</div>` : ''}
+            ${customerTradeRegNo ? `<div><span class="lbl">Tic. Sicil:</span> ${customerTradeRegNo}</div>` : ''}
+          </div>
+        </div>` : ''}
+      ${description ? `<div style="margin-top:8px"><strong style="font-size:11px">AÇIKLAMA</strong><div style="margin-top:3px;font-size:10px;white-space:pre-wrap;background:#f9f9f9;padding:4px 6px;border:1px solid #ddd;border-radius:4px">${description}</div></div>` : ''}
+      ${subtasksHtml}
+      ${custNotesHtml}
+      ${taskNotesHtml}
+      <div style="margin-top:12px;font-size:9px;color:#999;border-top:1px solid #ddd;padding-top:4px">Yazdırma tarihi: ${new Date().toLocaleString('tr-TR')}</div>
+    </body></html>`);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   const handleSendWhatsApp = () => {
@@ -224,12 +341,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
     
     params.append('text', title);
     
-    let detailsText = '';
-    if (assignee) detailsText += `Atanan Kişi: ${assignee}\n`;
-    const prioMap = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' };
-    detailsText += `Öncelik: ${prioMap[priority] || 'Orta'}\n\n`;
-    if (description) detailsText += `Açıklama:\n${description}\n`;
-    params.append('details', detailsText);
+    params.append('details', generateOutputText());
 
     const now = new Date();
     const todayStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
@@ -809,6 +921,20 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
                   >
                     {copied ? <Check size={15}/> : <Copy size={15}/>}
                     {copied ? 'Kopyalandı' : 'Kopyala'}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handlePrint}
+                    style={{
+                      display:'flex', alignItems:'center', gap:'0.2rem',
+                      color: '#7c3aed', borderColor: '#c4b5fd', background: '#f5f3ff'
+                    }}
+                    title="Yazdır"
+                  >
+                    <Printer size={15}/>
+                    Yazdır
                   </button>
                 </>
               )}
