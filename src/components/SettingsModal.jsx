@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
 import { useCompany } from '../context/CompanyContext';
-import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server, Users } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server, Users, Calendar, MessageCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { doc, setDoc } from 'firebase/firestore';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
@@ -9,7 +9,7 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
-export default function SettingsModal({ isOpen, onClose }) {
+export default function SettingsModal({ isOpen, onClose, initialTab }) {
   const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin, customersList, addCustomer, editCustomer, deleteCustomer, companyDb: db } = useTasks();
   const { companies, addCompany, updateCompany, deleteCompany } = useCompany();
   const [isEditing, setIsEditing] = useState(false);
@@ -38,9 +38,9 @@ export default function SettingsModal({ isOpen, onClose }) {
     if (isOpen) {
       setPosition({ x: 0, y: 0 });
       setIsEditing(false);
-      setActiveTab('personnel');
+      setActiveTab(initialTab || 'personnel');
     }
-  }, [isOpen]);
+  }, [isOpen, initialTab]);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -98,14 +98,14 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   const formatPhone = (phone) => {
     if (!phone) return '';
-    const cleaned = phone.replace(/[^0-9+]/g, '');
-    if (cleaned.startsWith('+')) return cleaned;
-    
     const digits = phone.replace(/\D/g, '');
-    if (digits.startsWith('90') && digits.length === 12) return '+' + digits;
-    if (digits.startsWith('0') && digits.length === 11) return '+90' + digits.substring(1);
-    if (digits.length === 10) return '+90' + digits;
-    
+    if (digits.length === 0) return '';
+    let pure = digits;
+    if (pure.startsWith('90') && pure.length >= 12) pure = pure.substring(2);
+    else if (pure.startsWith('0') && pure.length >= 11) pure = pure.substring(1);
+    if (pure.length === 10 && (pure.startsWith('5') || pure.startsWith('2') || pure.startsWith('3') || pure.startsWith('4'))) {
+      return '+90' + pure;
+    }
     return phone.trim();
   };
 
@@ -973,7 +973,7 @@ export default function SettingsModal({ isOpen, onClose }) {
         )}
 
         {!isEditing && activeTab === 'customers' && (
-          <CustomersTab customersList={customersList} addCustomer={addCustomer} editCustomer={editCustomer} deleteCustomer={deleteCustomer} />
+          <CustomersTab customersList={customersList} addCustomer={addCustomer} editCustomer={editCustomer} deleteCustomer={deleteCustomer} currentUser={useTasks().currentUser} usersList={usersList} />
         )}
 
         {!isEditing && activeTab === 'system' && (
@@ -1029,12 +1029,27 @@ export default function SettingsModal({ isOpen, onClose }) {
   );
 }
 
-function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer }) {
+function formatPhoneTR(phone) {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 0) return '';
+  let pure = digits;
+  if (pure.startsWith('90') && pure.length >= 12) pure = pure.substring(2);
+  else if (pure.startsWith('0') && pure.length >= 11) pure = pure.substring(1);
+  if (pure.length === 10 && (pure.startsWith('5') || pure.startsWith('2') || pure.startsWith('3') || pure.startsWith('4'))) {
+    return '+90' + pure;
+  }
+  return phone.trim();
+}
+
+function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer, currentUser, usersList }) {
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const emptyForm = { customerName: '', customerPhone: '', customerEmail: '', customerPhone2: '', customerAddress: '', customerTaxNo: '', customerTaxOffice: '', customerTradeRegNo: '' };
   const [form, setForm] = useState(emptyForm);
+  const [notes, setNotes] = useState([]);
+  const [newNote, setNewNote] = useState('');
 
   const filtered = customersList.filter(c => {
     if (!search.trim()) return true;
@@ -1048,21 +1063,67 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
   const startEdit = (c) => {
     setEditingId(c.id);
     setForm({ customerName: c.customerName || '', customerPhone: c.customerPhone || '', customerEmail: c.customerEmail || '', customerPhone2: c.customerPhone2 || '', customerAddress: c.customerAddress || '', customerTaxNo: c.customerTaxNo || '', customerTaxOffice: c.customerTaxOffice || '', customerTradeRegNo: c.customerTradeRegNo || '' });
+    setNotes(c.notes || []);
+    setNewNote('');
     setShowAddForm(false);
   };
 
-  const cancelEdit = () => { setEditingId(null); setShowAddForm(false); setForm(emptyForm); };
+  const cancelEdit = () => { setEditingId(null); setShowAddForm(false); setForm(emptyForm); setNotes([]); setNewNote(''); };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !editingId) return;
+    const noteObj = { id: Date.now().toString(), text: newNote, author: currentUser || 'Sistem', date: new Date().toISOString() };
+    const updatedNotes = [...notes, noteObj];
+    setNotes(updatedNotes);
+    await editCustomer(editingId, { notes: updatedNotes });
+    setNewNote('');
+  };
 
   const handleSave = async () => {
     if (!form.customerName.trim()) { alert('Müşteri adı zorunludur.'); return; }
+    const savedForm = {
+      ...form,
+      customerPhone: formatPhoneTR(form.customerPhone),
+      customerPhone2: formatPhoneTR(form.customerPhone2)
+    };
     if (editingId) {
-      await editCustomer(editingId, form);
+      await editCustomer(editingId, { ...savedForm, notes });
       setEditingId(null);
     } else {
-      await addCustomer(form);
+      await addCustomer({ ...savedForm, notes: [] });
       setShowAddForm(false);
     }
     setForm(emptyForm);
+    setNotes([]);
+    setNewNote('');
+  };
+
+  const handleCalendar = () => {
+    if (!editingId) return;
+    const c = customersList.find(x => x.id === editingId) || form;
+    const baseUrl = 'https://calendar.google.com/calendar/u/0/r/eventedit';
+    const params = new URLSearchParams();
+    params.append('text', `Müşteri: ${form.customerName}`);
+    let details = '';
+    if (form.customerName) details += `Müşteri: ${form.customerName}\n`;
+    if (form.customerPhone) details += `Tel: ${form.customerPhone}\n`;
+    if (form.customerEmail) details += `E-mail: ${form.customerEmail}\n`;
+    if (form.customerAddress) details += `Adres: ${form.customerAddress}\n`;
+    params.append('details', details);
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    params.append('dates', `${todayStr}T100000/${todayStr}T120000`);
+    window.open(`${baseUrl}?${params.toString()}`, '_blank');
+  };
+
+  const handleWhatsApp = () => {
+    const phone = formatPhoneTR(form.customerPhone);
+    if (!phone) { alert('Müşterinin telefon numarası girilmemiş.'); return; }
+    let phoneNum = phone.replace(/\D/g, '');
+    let text = `Müşteri: ${form.customerName}\n`;
+    if (form.customerEmail) text += `E-mail: ${form.customerEmail}\n`;
+    if (form.customerAddress) text += `Adres: ${form.customerAddress}\n`;
+    window.open(`https://wa.me/${phoneNum}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleExportCustomersExcel = () => {
@@ -1102,9 +1163,9 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
           if (!name) continue;
           const custData = {
             customerName: name,
-            customerPhone: (row['İletişim Tel/GSM'] || row['Telefon'] || row['Tel'] || '').toString().trim(),
+            customerPhone: formatPhoneTR((row['İletişim Tel/GSM'] || row['Telefon'] || row['Tel'] || '').toString().trim()),
             customerEmail: (row['E-mail'] || row['Email'] || row['E-posta'] || '').toString().trim(),
-            customerPhone2: (row['Telefon 2'] || row['Tel 2'] || '').toString().trim(),
+            customerPhone2: formatPhoneTR((row['Telefon 2'] || row['Tel 2'] || '').toString().trim()),
             customerAddress: (row['Adres Bilgisi'] || row['Adres'] || '').toString().trim(),
             customerTaxNo: (row['Vergi No'] || row['VKN'] || '').toString().trim(),
             customerTaxOffice: (row['Vergi Dairesi'] || '').toString().trim(),
@@ -1132,7 +1193,7 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
   const labelStyle = { fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.15rem' };
 
   return (
-    <div className="settings-body" style={{ padding: '1.5rem' }}>
+    <div className="settings-body" style={{ padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <h3 style={{ fontSize: '1rem', margin: 0 }}>Kayıtlı Müşteriler ({customersList.length})</h3>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1143,24 +1204,61 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
             <input type="file" accept=".xlsx, .xls" style={{ display: 'none' }} onChange={handleImportCustomersExcel} />
           </label>
           {!showAddForm && !editingId && (
-            <button className="btn btn-primary btn-small" onClick={() => { setShowAddForm(true); setForm(emptyForm); }}><Plus size={14} style={{ marginRight: '4px' }} /> Yeni Müşteri</button>
+            <button className="btn btn-primary btn-small" onClick={() => { setShowAddForm(true); setForm(emptyForm); setNotes([]); }}><Plus size={14} style={{ marginRight: '4px' }} /> Yeni Müşteri</button>
           )}
         </div>
       </div>
 
       {(showAddForm || editingId) && (
         <div style={{ background: 'var(--bg-alt)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '1rem' }}>
-          <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--text-main)' }}>{editingId ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}</h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <h4 style={{ fontSize: '0.9rem', margin: 0, color: 'var(--text-main)' }}>{editingId ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}</h4>
+            {editingId && (
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <button type="button" className="btn btn-secondary btn-small" onClick={handleCalendar} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#2563eb', borderColor: '#bfdbfe', background: '#eff6ff', fontSize: '0.7rem' }}>
+                  <Calendar size={13} /> Google Takvime Ekle
+                </button>
+                <button type="button" className="btn btn-secondary btn-small" onClick={handleWhatsApp} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#16a34a', borderColor: '#bbf7d0', background: '#f0fdf4', fontSize: '0.7rem' }}>
+                  <MessageCircle size={13} /> WhatsApp
+                </button>
+              </div>
+            )}
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
             <div><label style={labelStyle}>Müşteri Adı Soyadı/Ünvanı *</label><input style={inputStyle} value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} placeholder="Ahmet Yılmaz / ABC Ltd." /></div>
-            <div><label style={labelStyle}>İletişim Numarası Tel/GSM</label><input style={inputStyle} value={form.customerPhone} onChange={e => setForm({ ...form, customerPhone: e.target.value })} placeholder="0555..." /></div>
+            <div><label style={labelStyle}>İletişim Numarası Tel/GSM</label><input style={inputStyle} value={form.customerPhone} onChange={e => setForm({ ...form, customerPhone: e.target.value })} onBlur={() => setForm(f => ({ ...f, customerPhone: formatPhoneTR(f.customerPhone) }))} placeholder="+905XXXXXXXXX" /></div>
             <div><label style={labelStyle}>E-mail</label><input style={inputStyle} value={form.customerEmail} onChange={e => setForm({ ...form, customerEmail: e.target.value })} placeholder="ornek@firma.com" /></div>
-            <div><label style={labelStyle}>Telefon 2</label><input style={inputStyle} value={form.customerPhone2} onChange={e => setForm({ ...form, customerPhone2: e.target.value })} placeholder="0212..." /></div>
+            <div><label style={labelStyle}>Telefon 2</label><input style={inputStyle} value={form.customerPhone2} onChange={e => setForm({ ...form, customerPhone2: e.target.value })} onBlur={() => setForm(f => ({ ...f, customerPhone2: formatPhoneTR(f.customerPhone2) }))} placeholder="+905XXXXXXXXX" /></div>
             <div style={{ gridColumn: '1 / -1' }}><label style={labelStyle}>Adres Bilgisi</label><input style={inputStyle} value={form.customerAddress} onChange={e => setForm({ ...form, customerAddress: e.target.value })} placeholder="Atatürk Cad. No:1 İstanbul" /></div>
             <div><label style={labelStyle}>Vergi No</label><input style={inputStyle} value={form.customerTaxNo} onChange={e => setForm({ ...form, customerTaxNo: e.target.value })} placeholder="1234567890" /></div>
             <div><label style={labelStyle}>Vergi Dairesi</label><input style={inputStyle} value={form.customerTaxOffice} onChange={e => setForm({ ...form, customerTaxOffice: e.target.value })} placeholder="Kadıköy V.D." /></div>
             <div><label style={labelStyle}>Ticaret Sicil No</label><input style={inputStyle} value={form.customerTradeRegNo} onChange={e => setForm({ ...form, customerTradeRegNo: e.target.value })} placeholder="123456" /></div>
           </div>
+
+          {editingId && (
+            <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+              <h4 style={{ fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--text-main)' }}>Notlar ({notes.length})</h4>
+              <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                <input type="text" value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Müşteriye ilişkin not ekle..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddNote(); } }} style={{ flex: 1, padding: '0.4rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--bg-main)' }} />
+                <button className="btn btn-primary btn-small" onClick={handleAddNote}>Not Ekle</button>
+              </div>
+              {notes.length > 0 && (
+                <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {[...notes].reverse().map(n => (
+                    <div key={n.id} style={{ padding: '0.5rem', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '6px' }}>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>{n.text}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        <span style={{ fontWeight: 600 }}>{n.author}</span>
+                        <span>{new Date(n.date).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {notes.length === 0 && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Henüz not eklenmemiş.</div>}
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
             <button className="btn btn-secondary btn-small" onClick={cancelEdit}>İptal</button>
             <button className="btn btn-primary btn-small" onClick={handleSave}>{editingId ? 'Güncelle' : 'Ekle'}</button>
@@ -1183,7 +1281,7 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
           <tbody>
             {filtered.map(c => (
               <tr key={c.id} style={editingId === c.id ? { background: 'var(--bg-alt)' } : {}}>
-                <td style={{ fontWeight: 600 }}>{c.customerName}</td>
+                <td style={{ fontWeight: 600, color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => startEdit(c)}>{c.customerName}</td>
                 <td style={{ fontSize: '0.8rem' }}>
                   {c.customerPhone && <div>{c.customerPhone}</div>}
                   {c.customerPhone2 && <div style={{ color: 'var(--text-muted)' }}>{c.customerPhone2}</div>}

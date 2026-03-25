@@ -393,14 +393,14 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask }) 
 
   const formatPhone = (phone) => {
     if (!phone) return '';
-    const cleaned = phone.replace(/[^0-9+]/g, '');
-    if (cleaned.startsWith('+')) return cleaned;
-    
     const digits = phone.replace(/\D/g, '');
-    if (digits.startsWith('90') && digits.length === 12) return '+' + digits;
-    if (digits.startsWith('0') && digits.length === 11) return '+90' + digits.substring(1);
-    if (digits.length === 10) return '+90' + digits;
-    
+    if (digits.length === 0) return '';
+    let pure = digits;
+    if (pure.startsWith('90') && pure.length >= 12) pure = pure.substring(2);
+    else if (pure.startsWith('0') && pure.length >= 11) pure = pure.substring(1);
+    if (pure.length === 10 && (pure.startsWith('5') || pure.startsWith('2') || pure.startsWith('3') || pure.startsWith('4'))) {
+      return '+90' + pure;
+    }
     return phone.trim();
   };
 

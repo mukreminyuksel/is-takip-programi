@@ -6,7 +6,7 @@ import KanbanView from './components/KanbanView'
 import GanttView from './components/GanttView'
 import SettingsModal from './components/SettingsModal'
 import DeletedTasksModal from './components/DeletedTasksModal'
-import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart, Building2, ArrowLeftRight } from 'lucide-react'
+import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart, Building2, ArrowLeftRight, Users } from 'lucide-react'
 
 const NotificationContainer = () => {
   const { notifications } = useTasks();
@@ -59,7 +59,7 @@ const NotificationDropdown = ({ isOpen, onClose }) => {
   );
 };
 
-const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
+const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onViewChange }) => {
   const { currentUser, logout, isAdmin, appNotifications } = useTasks();
   const { selectedCompany, selectCompany } = useCompany();
   const [notifOpen, setNotifOpen] = useState(false);
@@ -111,6 +111,9 @@ const Header = ({ onOpenSettings, onOpenDeleted, viewMode, onViewChange }) => {
             </button>
             <button className={viewMode === 'gantt' ? 'active' : ''} onClick={() => onViewChange('gantt')}>
               <GanttChart size={14}/> Gantt
+            </button>
+            <button onClick={onOpenCustomers} style={{marginLeft:'0.3rem', background:'#f0fdf4', color:'#16a34a', border:'1px solid #bbf7d0'}}>
+              <Users size={14}/> Müşteriler
             </button>
           </div>
         </div>
@@ -216,6 +219,7 @@ const AppContent = () => {
   const { selectedCompany, companyFirebase } = useCompany();
   const { currentUser, loginWithGoogle, loginWithEmail, registerWithEmail, authLoading, tasks } = useTasks();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState(null);
   const [isDeletedOpen, setIsDeletedOpen] = useState(false);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('app-view') || 'table');
   const [emailInput, setEmailInput] = useState('');
@@ -346,12 +350,12 @@ const AppContent = () => {
 
   return (
     <div className="app-container">
-      <Header onOpenSettings={() => setIsSettingsOpen(true)} onOpenDeleted={() => setIsDeletedOpen(true)} viewMode={viewMode} onViewChange={handleViewChange} />
+      <Header onOpenSettings={() => { setSettingsTab(null); setIsSettingsOpen(true); }} onOpenDeleted={() => setIsDeletedOpen(true)} onOpenCustomers={() => { setSettingsTab('customers'); setIsSettingsOpen(true); }} viewMode={viewMode} onViewChange={handleViewChange} />
       <main className="app-main">
         {viewMode === 'kanban' ? <KanbanView /> : viewMode === 'gantt' ? <GanttView /> : <BoardView />}
       </main>
       <NotificationContainer />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} initialTab={settingsTab} />
       <DeletedTasksModal isOpen={isDeletedOpen} onClose={() => setIsDeletedOpen(false)} />
     </div>
   );
