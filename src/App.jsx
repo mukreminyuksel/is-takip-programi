@@ -101,7 +101,7 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
       <div className="header-content">
         <div className="logo-title">
           <Layout className="logo-icon" size={24} />
-          <h1>{selectedCompany?.displayName || 'İş Takip Programı'}</h1>
+          <h1><span style={{fontWeight:800, color:'var(--primary)', letterSpacing:'-0.5px'}}>TaskTrack</span> <span style={{fontSize:'0.7em', fontWeight:400, color:'var(--text-muted)', marginLeft:'0.3rem'}}>{selectedCompany?.displayName || ''}</span></h1>
           <div className="view-toggle" style={{marginLeft:'0.5rem'}}>
             <button className={viewMode === 'table' ? 'active' : ''} onClick={() => onViewChange('table')}>
               <LayoutGrid size={14}/> Tablo
