@@ -718,7 +718,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
                         onChange={(e) => {
                           const hex = e.target.value;
                           const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-                          const alpha = entry.days < 0 ? 0.25 : entry.days <= 1 ? 0.22 : entry.days <= 3 ? 0.20 : 0.15;
+                          const alpha = entry.alpha ?? 0.20;
                           const updated = [...deadlineColors];
                           updated[idx] = { ...updated[idx], hex, color: `rgba(${r}, ${g}, ${b}, ${alpha})` };
                           saveDeadlineColors(updated);
@@ -726,7 +726,26 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
                         style={{width:'36px', height:'28px', border:'1px solid var(--border)', borderRadius:'4px', cursor:'pointer', padding:'1px'}}
                         title="Renk seç"
                       />
-                      <span style={{fontSize:'0.65rem', color:'var(--text-muted)', fontFamily:'monospace'}}>{entry.hex}</span>
+                      <div style={{display:'flex', alignItems:'center', gap:'0.3rem', minWidth:'100px'}}>
+                        <input
+                          type="range"
+                          min="0" max="100" step="1"
+                          value={Math.round((entry.alpha ?? parseFloat((entry.color.match(/[\d.]+\)$/)?.[0]) || 0.20)) * 100)}
+                          onChange={(e) => {
+                            const alpha = parseInt(e.target.value) / 100;
+                            const hex = entry.hex;
+                            const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+                            const updated = [...deadlineColors];
+                            updated[idx] = { ...updated[idx], alpha, color: `rgba(${r}, ${g}, ${b}, ${alpha})` };
+                            saveDeadlineColors(updated);
+                          }}
+                          style={{width:'60px', cursor:'pointer'}}
+                          title="Opasite"
+                        />
+                        <span style={{fontSize:'0.6rem', color:'var(--text-muted)', fontFamily:'monospace', minWidth:'28px'}}>
+                          {Math.round((entry.alpha ?? parseFloat((entry.color.match(/[\d.]+\)$/)?.[0]) || 0.20)) * 100)}%
+                        </span>
+                      </div>
                       <input
                         type="text"
                         value={entry.label}
@@ -757,7 +776,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
                 <button
                   className="btn btn-secondary btn-small"
                   onClick={() => {
-                    const updated = [...deadlineColors, { days: 10, color: 'rgba(200, 200, 200, 0.15)', label: 'Yeni', hex: '#9ca3af' }];
+                    const updated = [...deadlineColors, { days: 10, color: 'rgba(200, 200, 200, 0.15)', label: 'Yeni', hex: '#9ca3af', alpha: 0.15 }];
                     saveDeadlineColors(updated);
                   }}
                   style={{fontSize:'0.75rem', padding:'0.3rem 0.6rem', display:'flex', alignItems:'center', gap:'0.3rem'}}
@@ -768,13 +787,13 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
                   className="btn btn-secondary btn-small"
                   onClick={() => {
                     saveDeadlineColors([
-                      { days: 7, color: 'rgba(253, 224, 71, 0.15)', label: '7 gün', hex: '#fde047' },
-                      { days: 5, color: 'rgba(250, 204, 21, 0.18)', label: '5 gün', hex: '#facc15' },
-                      { days: 3, color: 'rgba(245, 158, 11, 0.20)', label: '3 gün', hex: '#f59e0b' },
-                      { days: 2, color: 'rgba(239, 68, 68, 0.20)', label: '2 gün', hex: '#ef4444' },
-                      { days: 1, color: 'rgba(185, 28, 28, 0.25)', label: '1 gün', hex: '#b91c1c' },
-                      { days: 0, color: 'rgba(168, 85, 247, 0.22)', label: 'Son gün (pembemsi mor)', hex: '#a855f7' },
-                      { days: -1, color: 'rgba(124, 58, 237, 0.25)', label: 'Süresi geçmiş (mor)', hex: '#7c3aed' },
+                      { days: 7, color: 'rgba(253, 224, 71, 0.15)', label: '7 gün', hex: '#fde047', alpha: 0.15 },
+                      { days: 5, color: 'rgba(250, 204, 21, 0.18)', label: '5 gün', hex: '#facc15', alpha: 0.18 },
+                      { days: 3, color: 'rgba(245, 158, 11, 0.20)', label: '3 gün', hex: '#f59e0b', alpha: 0.20 },
+                      { days: 2, color: 'rgba(239, 68, 68, 0.20)', label: '2 gün', hex: '#ef4444', alpha: 0.20 },
+                      { days: 1, color: 'rgba(185, 28, 28, 0.25)', label: '1 gün', hex: '#b91c1c', alpha: 0.25 },
+                      { days: 0, color: 'rgba(168, 85, 247, 0.22)', label: 'Son gün (pembemsi mor)', hex: '#a855f7', alpha: 0.22 },
+                      { days: -1, color: 'rgba(124, 58, 237, 0.25)', label: 'Süresi geçmiş (mor)', hex: '#7c3aed', alpha: 0.25 },
                     ]);
                   }}
                   style={{fontSize:'0.75rem', padding:'0.3rem 0.6rem', color:'#f59e0b', border:'1px solid #f59e0b'}}

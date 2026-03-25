@@ -22,13 +22,13 @@ export const TaskProvider = ({ children }) => {
   const [hideAllTasksForUsers, setHideAllTasksForUsers] = useState(false);
   const [customersList, setCustomersList] = useState([]);
   const DEFAULT_DEADLINE_COLORS = [
-    { days: 7, color: 'rgba(253, 224, 71, 0.15)', label: '7 gün', hex: '#fde047' },
-    { days: 5, color: 'rgba(250, 204, 21, 0.18)', label: '5 gün', hex: '#facc15' },
-    { days: 3, color: 'rgba(245, 158, 11, 0.20)', label: '3 gün', hex: '#f59e0b' },
-    { days: 2, color: 'rgba(239, 68, 68, 0.20)', label: '2 gün', hex: '#ef4444' },
-    { days: 1, color: 'rgba(185, 28, 28, 0.25)', label: '1 gün', hex: '#b91c1c' },
-    { days: 0, color: 'rgba(168, 85, 247, 0.22)', label: 'Son gün (pembemsi mor)', hex: '#a855f7' },
-    { days: -1, color: 'rgba(124, 58, 237, 0.25)', label: 'Süresi geçmiş (mor)', hex: '#7c3aed' },
+    { days: 7, color: 'rgba(253, 224, 71, 0.15)', label: '7 gün', hex: '#fde047', alpha: 0.15 },
+    { days: 5, color: 'rgba(250, 204, 21, 0.18)', label: '5 gün', hex: '#facc15', alpha: 0.18 },
+    { days: 3, color: 'rgba(245, 158, 11, 0.20)', label: '3 gün', hex: '#f59e0b', alpha: 0.20 },
+    { days: 2, color: 'rgba(239, 68, 68, 0.20)', label: '2 gün', hex: '#ef4444', alpha: 0.20 },
+    { days: 1, color: 'rgba(185, 28, 28, 0.25)', label: '1 gün', hex: '#b91c1c', alpha: 0.25 },
+    { days: 0, color: 'rgba(168, 85, 247, 0.22)', label: 'Son gün (pembemsi mor)', hex: '#a855f7', alpha: 0.22 },
+    { days: -1, color: 'rgba(124, 58, 237, 0.25)', label: 'Süresi geçmiş (mor)', hex: '#7c3aed', alpha: 0.25 },
   ];
   const [deadlineColors, setDeadlineColors] = useState(DEFAULT_DEADLINE_COLORS);
 
