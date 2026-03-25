@@ -412,7 +412,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
                       }}
                     />
                     <span style={{display:'inline-block', width:'10px', height:'10px', borderRadius:'50%', background: tag.color || '#6b7280'}}></span>
-                    {tag.name}
+                    {tag.label}
                   </label>
                 ))}
               </div>
