@@ -36,6 +36,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
 
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
   const uploadAbortRef = useRef(null);
 
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -384,8 +385,6 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
     }
     return phone.trim();
   };
-
-  const [duplicateWarning, setDuplicateWarning] = useState(null);
 
   const buildTaskData = () => {
     const finalPhone = formatPhone(customerPhone);
