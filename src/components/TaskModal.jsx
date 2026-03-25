@@ -907,6 +907,28 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
             );
           })()}
 
+          {customerName && (() => {
+            const cust = customersList.find(c => c.customerName && c.customerName.trim().toLowerCase() === customerName.trim().toLowerCase());
+            const custNotes = cust?.notes || [];
+            if (custNotes.length === 0) return null;
+            return (
+              <div style={{ marginBottom: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
+                <h3 style={{ marginBottom: '0.4rem', fontSize: '0.85rem', color: 'var(--text-main)' }}>Müşteri Notları ({custNotes.length})</h3>
+                <div style={{ maxHeight: '150px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  {[...custNotes].reverse().map(n => (
+                    <div key={n.id} style={{ padding: '0.4rem 0.5rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px' }}>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginBottom: '0.15rem' }}>{n.text}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                        <span style={{ fontWeight: 600 }}>{n.author}</span>
+                        <span>{new Date(n.date).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {editTask && (
             <div className="notes-section" style={{ flex: isFullScreen ? 1 : 'unset', display: 'flex', flexDirection: 'column' }}>
               <h3 style={{marginBottom: '0.4rem', fontSize:'0.85rem'}}>Görev Geçmişi ve Notlar ({notes.length})</h3>
