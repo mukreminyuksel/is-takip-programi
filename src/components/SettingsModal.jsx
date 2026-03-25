@@ -1118,12 +1118,15 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
 
   const handleWhatsApp = () => {
     const phone = formatPhoneTR(form.customerPhone);
-    if (!phone) { alert('Müşterinin telefon numarası girilmemiş.'); return; }
-    let phoneNum = phone.replace(/\D/g, '');
     let text = `Müşteri: ${form.customerName}\n`;
     if (form.customerEmail) text += `E-mail: ${form.customerEmail}\n`;
     if (form.customerAddress) text += `Adres: ${form.customerAddress}\n`;
-    window.open(`https://wa.me/${phoneNum}?text=${encodeURIComponent(text)}`, '_blank');
+    if (phone) {
+      const phoneNum = phone.replace(/\D/g, '');
+      window.open(`https://wa.me/${phoneNum}?text=${encodeURIComponent(text)}`, '_blank');
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    }
   };
 
   const handleExportCustomersExcel = () => {

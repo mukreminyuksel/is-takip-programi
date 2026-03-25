@@ -186,7 +186,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
   const [sortDir, setSortDir] = useState('asc');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({ status: [], priority: [], assignee: [], dateStart: '', dateEnd: '' });
+  const [filters, setFilters] = useState({ status: [], priority: [], assignee: [], tags: [], dateStart: '', dateEnd: '' });
   const [selectedIds, setSelectedIds] = useState(new Set());
 
   const handleBulkCalendar = () => {
@@ -258,7 +258,8 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
       const matchStatus = filters.status.length === 0 || filters.status.includes(t.status);
       const matchPriority = filters.priority.length === 0 || filters.priority.includes(t.priority);
       const matchAssignee = filters.assignee.length === 0 || filters.assignee.includes(t.assignee || 'UNASSIGN');
-      
+      const matchTags = filters.tags.length === 0 || (t.tags && t.tags.some(tag => filters.tags.includes(tag)));
+
       let matchDate = true;
       if (filters.dateStart || filters.dateEnd) {
          const d = t.deadline ? t.deadline.split('T')[0] : null;
@@ -266,7 +267,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
          if (filters.dateEnd && (!d || d > filters.dateEnd)) matchDate = false;
       }
 
-      return matchSearch && matchStatus && matchPriority && matchAssignee && matchDate;
+      return matchSearch && matchStatus && matchPriority && matchAssignee && matchTags && matchDate;
     });
 
     result.sort((a, b) => {
@@ -329,7 +330,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
             className={`btn btn-secondary btn-small`} 
             onClick={() => setShowFilters(!showFilters)}
             title="Gelişmiş Filtreleme"
-            style={(filters.status.length > 0 || filters.priority.length > 0 || filters.assignee.length > 0 || filters.dateStart || filters.dateEnd) ? {background: '#e0f2fe', borderColor: '#38bdf8', color: '#0369a1'} : {}}
+            style={(filters.status.length > 0 || filters.priority.length > 0 || filters.assignee.length > 0 || filters.tags.length > 0 || filters.dateStart || filters.dateEnd) ? {background: '#e0f2fe', borderColor: '#38bdf8', color: '#0369a1'} : {}}
           >
             <Filter size={14} style={{marginRight: '4px'}}/> Filtre
           </button>
@@ -337,9 +338,10 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
           {showFilters && (
             <div style={{
               position: 'absolute', top: '100%', right: 0, marginTop: '5px',
-              background: 'var(--bg-main)', border: '1px solid var(--border)', 
-              borderRadius: '6px', padding: '1rem', width: '250px',
-              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', zIndex: 100
+              background: 'var(--bg-main)', border: '1px solid var(--border)',
+              borderRadius: '6px', padding: '1.2rem', width: '320px',
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', zIndex: 100,
+              maxHeight: '80vh', overflowY: 'auto'
             }}>
               <h4 style={{fontSize: '0.85rem', marginBottom: '0.5rem', color:'var(--text-main)', borderBottom:'1px solid var(--border)', paddingBottom: '4px'}}>Duruma Göre</h4>
               <div style={{display:'flex', flexDirection:'column', gap:'0.4rem', marginBottom:'1rem'}}>
@@ -399,6 +401,22 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
                 </label>
               </div>
 
+              <h4 style={{fontSize: '0.85rem', marginBottom: '0.5rem', marginTop:'1rem', color:'var(--text-main)', borderBottom:'1px solid var(--border)', paddingBottom: '4px'}}>Etikete Göre</h4>
+              <div style={{display:'flex', flexDirection:'column', gap:'0.4rem', maxHeight:'120px', overflowY:'auto'}}>
+                {tagsList.map(tag => (
+                  <label key={tag.id} style={{fontSize:'0.8rem', display:'flex', alignItems:'center', gap:'0.4rem', cursor:'pointer', color:'var(--text-main)'}}>
+                    <input type="checkbox" checked={filters.tags.includes(tag.id)}
+                      onChange={(e) => {
+                        const newTags = e.target.checked ? [...filters.tags, tag.id] : filters.tags.filter(x => x !== tag.id);
+                        setFilters({...filters, tags: newTags});
+                      }}
+                    />
+                    <span style={{display:'inline-block', width:'10px', height:'10px', borderRadius:'50%', background: tag.color || '#6b7280'}}></span>
+                    {tag.name}
+                  </label>
+                ))}
+              </div>
+
               <h4 style={{fontSize: '0.85rem', marginBottom: '0.5rem', marginTop:'1rem', color:'var(--text-main)', borderBottom:'1px solid var(--border)', paddingBottom: '4px'}}>Bitiş Tarihi Aralığı</h4>
               <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
@@ -411,10 +429,10 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
                 </div>
               </div>
 
-              {(filters.status.length > 0 || filters.priority.length > 0 || filters.assignee.length > 0 || filters.dateStart || filters.dateEnd) && (
-                <button 
+              {(filters.status.length > 0 || filters.priority.length > 0 || filters.assignee.length > 0 || filters.tags.length > 0 || filters.dateStart || filters.dateEnd) && (
+                <button
                   style={{marginTop:'1.5rem', width:'100%', padding:'0.5rem', fontSize:'0.75rem', background:'#fef2f2', color:'#ef4444', border:'1px solid #fecaca', borderRadius:'4px', cursor:'pointer', fontWeight:600}}
-                  onClick={() => setFilters({status: [], priority: [], assignee: [], dateStart: '', dateEnd: ''})}
+                  onClick={() => setFilters({status: [], priority: [], assignee: [], tags: [], dateStart: '', dateEnd: ''})}
                 >
                   Filtreleri Temizle
                 </button>
@@ -563,7 +581,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
 }
 
 export default function BoardView() {
-  const { tasks, updateTaskStatus, deleteTask, currentUser, updateTask, usersList, isAdmin, getUserColor, hideAllTasksForUsers, toggleHideAllTasks } = useTasks();
+  const { tasks, updateTaskStatus, deleteTask, currentUser, updateTask, usersList, isAdmin, getUserColor, hideAllTasksForUsers, toggleHideAllTasks, tagsList } = useTasks();
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
 
@@ -595,7 +613,7 @@ export default function BoardView() {
     <>
       <div className="table-header-actions" style={{display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem'}}>
         <div style={{display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap'}}>
-          <h2 style={{margin:0}}>GÖREV PANELİ (V9.2.0)</h2>
+          <h2 style={{margin:0}}>GÖREV PANELİ (V9.2.1)</h2>
           <div style={{fontSize:'0.85rem', display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--bg-main)', padding:'0.4rem 0.8rem', borderRadius:'20px', border:'1px solid var(--border)'}}>
             <span style={{color:'var(--text-muted)'}}>Üzerinizde:</span>
             <span style={{color:'#ef4444', fontWeight:600}}>{myTodoCount} Yapılacak</span>
