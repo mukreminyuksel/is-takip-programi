@@ -613,7 +613,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
         )}
 
         {!isEditing && activeTab === 'colors' && (
-          <div className="settings-body" style={{padding: '1.5rem'}}>
+          <div className="settings-body" style={{padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto'}}>
             <div style={{marginBottom:'1rem'}}>
               <h3 style={{fontSize:'1rem', marginBottom:'0.5rem', color:'var(--text-main)'}}>Personel Renk Kişiselleştirme</h3>
               <p style={{fontSize:'0.8rem', color:'var(--text-muted)', lineHeight:'1.5', marginBottom:'1.5rem'}}>
