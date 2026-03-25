@@ -6,7 +6,8 @@ import KanbanView from './components/KanbanView'
 import GanttView from './components/GanttView'
 import SettingsModal from './components/SettingsModal'
 import DeletedTasksModal from './components/DeletedTasksModal'
-import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart, Building2, ArrowLeftRight, Users } from 'lucide-react'
+import TaskModal from './components/TaskModal'
+import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart, Building2, ArrowLeftRight, Users, Search, X as XIcon } from 'lucide-react'
 
 const NotificationContainer = () => {
   const { notifications } = useTasks();
@@ -59,11 +60,15 @@ const NotificationDropdown = ({ isOpen, onClose }) => {
   );
 };
 
-const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onViewChange }) => {
-  const { currentUser, logout, isAdmin, appNotifications } = useTasks();
+const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onViewChange, onOpenTask }) => {
+  const { currentUser, logout, isAdmin, appNotifications, tasks } = useTasks();
   const { selectedCompany, selectCompany } = useCompany();
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const searchRef = useRef(null);
+  const searchInputRef = useRef(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'light');
 
   useEffect(() => {
@@ -76,6 +81,33 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [notifOpen]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const handleClickOutside = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setSearchOpen(false);
+        setSearchTerm('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) searchInputRef.current.focus();
+  }, [searchOpen]);
+
+  const searchResults = searchTerm.trim().length >= 2
+    ? tasks.filter(t => {
+        if (t.isDeleted) return false;
+        const s = searchTerm.toLowerCase();
+        return (t.title || '').toLowerCase().includes(s) ||
+               (t.customerName || '').toLowerCase().includes(s) ||
+               (t.assignee || '').toLowerCase().includes(s) ||
+               (t.description || '').toLowerCase().includes(s);
+      }).slice(0, 8)
+    : [];
 
   const toggleTheme = () => {
     const next = theme === 'light' ? 'dark' : 'light';
@@ -118,6 +150,73 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
           </div>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {/* Global Search */}
+          <div style={{position:'relative'}} ref={searchRef}>
+            {!searchOpen ? (
+              <button className="icon-btn" onClick={() => setSearchOpen(true)} title="Görev Ara" style={{display:'flex', alignItems:'center'}}>
+                <Search size={18} />
+              </button>
+            ) : (
+              <div style={{display:'flex', alignItems:'center', gap:'0.3rem', background:'var(--bg-main)', border:'1px solid var(--border)', borderRadius:'8px', padding:'0.2rem 0.5rem', minWidth:'260px'}}>
+                <Search size={14} style={{color:'var(--text-muted)', flexShrink:0}} />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Görev, müşteri veya kişi ara..."
+                  style={{border:'none', outline:'none', background:'transparent', fontSize:'0.8rem', color:'var(--text-main)', width:'100%', padding:'0.2rem'}}
+                  onKeyDown={e => { if (e.key === 'Escape') { setSearchOpen(false); setSearchTerm(''); } }}
+                />
+                <button className="icon-btn" onClick={() => { setSearchOpen(false); setSearchTerm(''); }} style={{padding:'2px'}}>
+                  <XIcon size={14} />
+                </button>
+              </div>
+            )}
+            {searchOpen && searchTerm.trim().length >= 2 && (
+              <div style={{
+                position:'absolute', top:'100%', right:0, marginTop:'5px',
+                background:'var(--bg-main)', border:'1px solid var(--border)',
+                borderRadius:'8px', width:'360px', maxHeight:'400px', overflowY:'auto',
+                boxShadow:'0 10px 25px -5px rgba(0,0,0,0.2)', zIndex:1000
+              }}>
+                {searchResults.length === 0 ? (
+                  <div style={{padding:'1.5rem', textAlign:'center', color:'var(--text-muted)', fontSize:'0.85rem'}}>Sonuç bulunamadı.</div>
+                ) : (
+                  searchResults.map(task => {
+                    const statusMap = { 'todo': 'Yapılacak', 'in-progress': 'Devam Eden', 'done': 'Tamamlandı' };
+                    const statusColor = { 'todo': '#ef4444', 'in-progress': '#10b981', 'done': '#9ca3af' };
+                    return (
+                      <div
+                        key={task.id}
+                        onClick={() => { onOpenTask(task); setSearchOpen(false); setSearchTerm(''); }}
+                        style={{padding:'0.6rem 0.8rem', borderBottom:'1px solid var(--border)', cursor:'pointer', transition:'background 0.15s'}}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style={{display:'flex', alignItems:'center', gap:'0.4rem', marginBottom:'0.2rem'}}>
+                          <span style={{width:6, height:6, borderRadius:'50%', background: statusColor[task.status], flexShrink:0}}></span>
+                          <span style={{fontWeight:600, fontSize:'0.85rem', color:'var(--text-main)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{task.title}</span>
+                        </div>
+                        <div style={{display:'flex', gap:'0.8rem', fontSize:'0.7rem', color:'var(--text-muted)'}}>
+                          <span>{statusMap[task.status]}</span>
+                          {task.assignee && <span>@{task.assignee}</span>}
+                          {task.customerName && <span>🏢 {task.customerName}</span>}
+                          {task.deadline && <span>{new Date(task.deadline).toLocaleDateString('tr-TR')}</span>}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                {searchResults.length > 0 && (
+                  <div style={{padding:'0.4rem 0.8rem', fontSize:'0.7rem', color:'var(--text-muted)', textAlign:'center', borderTop:'1px solid var(--border)'}}>
+                    {searchResults.length === 8 ? 'İlk 8 sonuç gösteriliyor' : `${searchResults.length} sonuç`}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {selectedCompany && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: selectedCompany.color || '#3b82f6', color: '#fff', padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
               <Building2 size={13} />
@@ -222,6 +321,7 @@ const AppContent = () => {
   const [settingsTab, setSettingsTab] = useState(null);
   const [isDeletedOpen, setIsDeletedOpen] = useState(false);
   const [customerTaskData, setCustomerTaskData] = useState(null);
+  const [searchEditTask, setSearchEditTask] = useState(null);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('app-view') || 'table');
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -351,13 +451,21 @@ const AppContent = () => {
 
   return (
     <div className="app-container">
-      <Header onOpenSettings={() => { setSettingsTab(null); setIsSettingsOpen(true); }} onOpenDeleted={() => setIsDeletedOpen(true)} onOpenCustomers={() => { setSettingsTab('customers'); setIsSettingsOpen(true); }} viewMode={viewMode} onViewChange={handleViewChange} />
+      <Header onOpenSettings={() => { setSettingsTab(null); setIsSettingsOpen(true); }} onOpenDeleted={() => setIsDeletedOpen(true)} onOpenCustomers={() => { setSettingsTab('customers'); setIsSettingsOpen(true); }} viewMode={viewMode} onViewChange={handleViewChange} onOpenTask={(task) => setSearchEditTask(task)} />
       <main className="app-main">
         {viewMode === 'kanban' ? <KanbanView /> : viewMode === 'gantt' ? <GanttView /> : <BoardView customerTaskData={customerTaskData} onCustomerTaskHandled={() => setCustomerTaskData(null)} />}
       </main>
       <NotificationContainer />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} initialTab={settingsTab} onCreateTaskFromCustomer={(data) => { setCustomerTaskData(data); setIsSettingsOpen(false); }} />
       <DeletedTasksModal isOpen={isDeletedOpen} onClose={() => setIsDeletedOpen(false)} />
+      {searchEditTask && (
+        <TaskModal
+          isOpen={true}
+          onClose={() => setSearchEditTask(null)}
+          defaultStatus="todo"
+          editTask={searchEditTask}
+        />
+      )}
     </div>
   );
 };
