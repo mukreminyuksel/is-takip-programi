@@ -475,22 +475,12 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
               const isDone = task.status === 'done';
               const dlDate = task.deadline ? new Date(task.deadline) : null;
               let daysLeft = null;
-              let dlStyle = {};
 
               if (dlDate) {
                 const today = new Date();
                 today.setHours(0,0,0,0);
                 dlDate.setHours(0,0,0,0);
                 daysLeft = Math.ceil((dlDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                
-                if (!isDone) {
-                  if (daysLeft < 0) {
-                    dlStyle.backgroundColor = `rgba(239, 68, 68, 0.4)`;
-                  } else if (daysLeft <= 7) {
-                    const intensity = 0.4 - (daysLeft / 7) * 0.4;
-                    dlStyle.backgroundColor = `rgba(239, 68, 68, ${intensity})`;
-                  }
-                }
               }
 
               const deadlinePassed = !isDone && daysLeft !== null && daysLeft < 0;
@@ -562,7 +552,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
                        task.startDate ? new Date(task.startDate).toLocaleDateString('tr-TR') : '-'
                      )}
                   </td>
-                  <td className={deadlinePassed && !isAdmin ? 'text-red' : ''} style={{...dlStyle, fontSize:'0.65rem', fontWeight: deadlinePassed ? 600 : 400}}>
+                  <td className={deadlinePassed && !isAdmin ? 'text-red' : ''} style={{fontSize:'0.65rem', fontWeight: deadlinePassed ? 600 : 400}}>
                      {isAdmin ? (
                        <input type="date" value={task.deadline ? task.deadline.split('T')[0] : ''} onChange={e => updateTask(task.id, { deadline: e.target.value })} onClick={e => e.stopPropagation()} className="status-select" style={{padding:'0', color: deadlinePassed ? '#ef4444' : 'inherit', backgroundColor: 'transparent', border: 'none', fontSize:'0.65rem'}} />
                      ) : (
@@ -635,7 +625,7 @@ export default function BoardView({ customerTaskData, onCustomerTaskHandled }) {
     <>
       <div className="table-header-actions" style={{display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem'}}>
         <div style={{display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap'}}>
-          <h2 style={{margin:0}}>GÖREV PANELİ (V9.3.1)</h2>
+          <h2 style={{margin:0}}>GÖREV PANELİ (V9.3.2)</h2>
           <div style={{fontSize:'0.85rem', display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--bg-main)', padding:'0.4rem 0.8rem', borderRadius:'20px', border:'1px solid var(--border)'}}>
             <span style={{color:'var(--text-muted)'}}>Üzerinizde:</span>
             <span style={{color:'#ef4444', fontWeight:600}}>{myTodoCount} Yapılacak</span>

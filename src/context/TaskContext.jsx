@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useCompany } from './CompanyContext';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword, deleteUser as deleteAuthUser } from 'firebase/auth';
@@ -6,6 +6,16 @@ import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPasswor
 const TaskContext = createContext();
 
 export const useTasks = () => useContext(TaskContext);
+
+const DEFAULT_DEADLINE_COLORS = [
+  { days: 7, color: 'rgba(253, 224, 71, 0.15)', label: '7 gün', hex: '#fde047', alpha: 0.15 },
+  { days: 5, color: 'rgba(250, 204, 21, 0.18)', label: '5 gün', hex: '#facc15', alpha: 0.18 },
+  { days: 3, color: 'rgba(245, 158, 11, 0.20)', label: '3 gün', hex: '#f59e0b', alpha: 0.20 },
+  { days: 2, color: 'rgba(239, 68, 68, 0.20)', label: '2 gün', hex: '#ef4444', alpha: 0.20 },
+  { days: 1, color: 'rgba(185, 28, 28, 0.25)', label: '1 gün', hex: '#b91c1c', alpha: 0.25 },
+  { days: 0, color: 'rgba(168, 85, 247, 0.22)', label: 'Son gün (pembemsi mor)', hex: '#a855f7', alpha: 0.22 },
+  { days: -1, color: 'rgba(124, 58, 237, 0.25)', label: 'Süresi geçmiş (mor)', hex: '#7c3aed', alpha: 0.25 },
+];
 
 export const TaskProvider = ({ children }) => {
   const { companyFirebase, selectedCompany } = useCompany();
@@ -21,15 +31,6 @@ export const TaskProvider = ({ children }) => {
   const [appNotifications, setAppNotifications] = useState([]);
   const [hideAllTasksForUsers, setHideAllTasksForUsers] = useState(false);
   const [customersList, setCustomersList] = useState([]);
-  const DEFAULT_DEADLINE_COLORS = [
-    { days: 7, color: 'rgba(253, 224, 71, 0.15)', label: '7 gün', hex: '#fde047', alpha: 0.15 },
-    { days: 5, color: 'rgba(250, 204, 21, 0.18)', label: '5 gün', hex: '#facc15', alpha: 0.18 },
-    { days: 3, color: 'rgba(245, 158, 11, 0.20)', label: '3 gün', hex: '#f59e0b', alpha: 0.20 },
-    { days: 2, color: 'rgba(239, 68, 68, 0.20)', label: '2 gün', hex: '#ef4444', alpha: 0.20 },
-    { days: 1, color: 'rgba(185, 28, 28, 0.25)', label: '1 gün', hex: '#b91c1c', alpha: 0.25 },
-    { days: 0, color: 'rgba(168, 85, 247, 0.22)', label: 'Son gün (pembemsi mor)', hex: '#a855f7', alpha: 0.22 },
-    { days: -1, color: 'rgba(124, 58, 237, 0.25)', label: 'Süresi geçmiş (mor)', hex: '#7c3aed', alpha: 0.25 },
-  ];
   const [deadlineColors, setDeadlineColors] = useState(DEFAULT_DEADLINE_COLORS);
 
   const [authUser, setAuthUser] = useState(null);
@@ -211,16 +212,15 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
+  const sortedDeadlineColors = useMemo(() => [...deadlineColors].sort((a, b) => a.days - b.days), [deadlineColors]);
+
   const getDeadlineRowColor = (daysLeft, isDone) => {
     if (isDone || daysLeft === null) return 'transparent';
-    const sorted = [...deadlineColors].sort((a, b) => a.days - b.days);
-    // overdue: days < 0 → use the most negative entry, or -1 entry
     if (daysLeft < 0) {
-      const overdue = sorted.find(c => c.days === -1);
+      const overdue = sortedDeadlineColors.find(c => c.days === -1);
       return overdue ? overdue.color : 'rgba(124, 58, 237, 0.25)';
     }
-    // Find the matching bracket: first entry where daysLeft <= entry.days (sorted ascending)
-    for (const entry of sorted) {
+    for (const entry of sortedDeadlineColors) {
       if (entry.days < 0) continue;
       if (daysLeft <= entry.days) return entry.color;
     }
@@ -230,13 +230,12 @@ export const TaskProvider = ({ children }) => {
   const getDeadlineBarColor = (daysLeft, isDone, defaultColor) => {
     if (isDone) return `${defaultColor}60`;
     if (daysLeft === null) return `${defaultColor}cc`;
-    const sorted = [...deadlineColors].sort((a, b) => a.days - b.days);
     if (daysLeft < 0) {
-      const overdue = sorted.find(c => c.days === -1);
+      const overdue = sortedDeadlineColors.find(c => c.days === -1);
       return overdue ? overdue.hex + 'cc' : '#7c3aedcc';
     }
     if (daysLeft <= 1) {
-      const lastDay = sorted.find(c => c.days === 0 || c.days === 1);
+      const lastDay = sortedDeadlineColors.find(c => c.days === 0 || c.days === 1);
       return lastDay ? lastDay.hex + 'cc' : '#a855f7cc';
     }
     return `${defaultColor}cc`;

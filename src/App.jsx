@@ -174,7 +174,7 @@ const CompanySelector = () => {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
       <Building2 size={64} style={{ color: 'var(--primary, #3b82f6)', marginBottom: '1rem' }} />
-      <h1 style={{ marginBottom: '0.5rem', fontSize: '2rem', color: 'var(--text-main)', textAlign: 'center' }}>İş Takip Programı</h1>
+      <h1 style={{ marginBottom: '0.5rem', fontSize: '2rem', color: 'var(--text-main)', textAlign: 'center' }}>TaskTrack</h1>
       <p style={{ marginBottom: '2rem', fontSize: '1rem', color: 'var(--text-muted)', textAlign: 'center' }}>Giriş yapmak istediğiniz şirketi seçin</p>
 
       <div style={{display:'flex', flexDirection:'column', gap:'1rem', width:'320px'}}>
@@ -295,7 +295,7 @@ const AppContent = () => {
           <span style={{ fontSize: '1.1rem', fontWeight: 700, color: selectedCompany?.color || '#3b82f6' }}>{selectedCompany?.displayName || selectedCompany?.name}</span>
         </div>
         <Layout size={64} style={{ color: 'var(--primary)', marginBottom: '1rem' }} />
-        <h1 style={{ marginBottom: '2rem', fontSize: '2rem', color: 'var(--text-main)', textAlign: 'center' }}>İş Takip Programı</h1>
+        <h1 style={{ marginBottom: '2rem', fontSize: '2rem', color: 'var(--text-main)', textAlign: 'center' }}>TaskTrack</h1>
 
         <div style={{display:'flex', flexDirection:'column', gap:'0.8rem', width:'300px', marginBottom: '1.5rem'}}>
           <input

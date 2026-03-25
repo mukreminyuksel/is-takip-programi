@@ -93,7 +93,7 @@ const priorityLabels = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' 
 const priorityValue = { 'low': 1, 'medium': 2, 'high': 3 };
 
 export default function GanttView() {
-  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers, tagsList, getDeadlineBarColor, getDeadlineRowColor } = useTasks();
+  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers, tagsList, getDeadlineBarColor } = useTasks();
   const [scale, setScale] = useState('day');
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -448,7 +448,8 @@ export default function GanttView() {
                 const now2 = new Date(); now2.setHours(0,0,0,0);
                 const dl2 = new Date(task.deadline); dl2.setHours(0,0,0,0);
                 const dLeft = Math.ceil((dl2 - now2) / (1000*60*60*24));
-                const hexColor = getDeadlineBarColor(dLeft, false, 'var(--text-muted)').replace(/cc$/, '');
+                const barColor2 = getDeadlineBarColor(dLeft, false, '#6b7280');
+                const hexColor = barColor2.replace(/cc$/, '');
                 const fw = dLeft <= 1 ? 700 : dLeft <= 3 ? 600 : 'normal';
                 return { color: hexColor, fontWeight: fw };
               })()}}>
