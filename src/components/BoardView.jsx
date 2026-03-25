@@ -276,7 +276,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
 
       let aVal = a[sortCol];
       let bVal = b[sortCol];
-      
+
       if (sortCol === 'priority') {
         aVal = priorityValue[a.priority] || 0;
         bVal = priorityValue[b.priority] || 0;
@@ -284,9 +284,16 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
         aVal = aVal ? new Date(aVal).getTime() : 9999999999999;
         bVal = bVal ? new Date(bVal).getTime() : 9999999999999;
       }
-      
+
       if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+
+      // Eşit deadline'da öncelik yüksek olan üstte
+      if (sortCol === 'deadline') {
+        const aPrio = priorityValue[a.priority] || 0;
+        const bPrio = priorityValue[b.priority] || 0;
+        return bPrio - aPrio;
+      }
       return 0;
     });
 
@@ -488,8 +495,28 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
               const deadlinePassed = !isDone && daysLeft !== null && daysLeft < 0;
               const trClass = `${isDone ? 'row-completed ' : ''}`.trim();
 
+              // Row background color gradient based on deadline proximity
+              let rowBg = 'transparent';
+              if (!isDone && daysLeft !== null) {
+                if (daysLeft < 0) {
+                  rowBg = 'rgba(124, 58, 237, 0.18)'; // mor - süresi geçmiş
+                } else if (daysLeft === 0) {
+                  rowBg = 'rgba(185, 28, 28, 0.22)'; // koyu kırmızı - son gün
+                } else if (daysLeft <= 1) {
+                  rowBg = 'rgba(220, 38, 38, 0.18)'; // kırmızı - 1 gün
+                } else if (daysLeft <= 3) {
+                  rowBg = 'rgba(239, 68, 68, 0.14)'; // kırmızı-turuncu
+                } else if (daysLeft <= 5) {
+                  rowBg = 'rgba(245, 158, 11, 0.14)'; // turuncu
+                } else if (daysLeft <= 7) {
+                  rowBg = 'rgba(250, 204, 21, 0.12)'; // sarı
+                } else if (daysLeft <= 14) {
+                  rowBg = 'rgba(253, 224, 71, 0.08)'; // açık sarı
+                }
+              }
+
               return (
-                <tr key={task.id} className={trClass}>
+                <tr key={task.id} className={trClass} style={{background: rowBg}}>
                   {(isAdmin || showCheckboxes) && (
                     <td style={{textAlign:'center'}} onClick={e => e.stopPropagation()}>
                       <input type="checkbox" checked={selectedIds.has(task.id)} onChange={() => toggleSelectRow(task.id)} />
@@ -625,7 +652,7 @@ export default function BoardView({ customerTaskData, onCustomerTaskHandled }) {
     <>
       <div className="table-header-actions" style={{display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem'}}>
         <div style={{display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap'}}>
-          <h2 style={{margin:0}}>GÖREV PANELİ (V9.2.9)</h2>
+          <h2 style={{margin:0}}>GÖREV PANELİ (V9.3.0)</h2>
           <div style={{fontSize:'0.85rem', display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--bg-main)', padding:'0.4rem 0.8rem', borderRadius:'20px', border:'1px solid var(--border)'}}>
             <span style={{color:'var(--text-muted)'}}>Üzerinizde:</span>
             <span style={{color:'#ef4444', fontWeight:600}}>{myTodoCount} Yapılacak</span>

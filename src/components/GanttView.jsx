@@ -1,7 +1,84 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
 import TaskModal from './TaskModal';
 import { ArrowUpDown, ArrowUp, ArrowDown, Filter } from 'lucide-react';
+
+const GanttBarTooltip = ({ task, tagsList, children }) => {
+  const [show, setShow] = useState(false);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const showRef = useRef(null);
+  const hideRef = useRef(null);
+
+  useEffect(() => () => { clearTimeout(showRef.current); clearTimeout(hideRef.current); }, []);
+
+  const onEnter = (e) => {
+    clearTimeout(hideRef.current);
+    if (show) return;
+    const x = e.clientX; const y = e.clientY;
+    showRef.current = setTimeout(() => { setPos({ x, y }); setShow(true); }, 1300);
+  };
+  const onLeave = () => { clearTimeout(showRef.current); hideRef.current = setTimeout(() => setShow(false), 300); };
+  const onTipEnter = () => clearTimeout(hideRef.current);
+  const onTipLeave = () => { hideRef.current = setTimeout(() => setShow(false), 300); };
+
+  const statusMap = { 'todo': 'Yapılacak', 'in-progress': 'Devam Eden', 'done': 'Tamamlandı' };
+  const prioMap = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' };
+  const sortedNotes = useMemo(() => task.notes ? [...task.notes].sort((a,b) => { if (a.importance !== b.importance) return a.importance === 'important' ? -1 : 1; return new Date(b.date) - new Date(a.date); }) : [], [task.notes]);
+
+  return (
+    <div onMouseEnter={onEnter} onMouseLeave={onLeave} style={{display:'contents'}}>
+      {children}
+      {show && (
+        <div onMouseEnter={onTipEnter} onMouseLeave={onTipLeave} style={{
+          position:'fixed', top: Math.min(pos.y + 15, window.innerHeight - 320), left: Math.min(pos.x + 15, window.innerWidth - 300),
+          background:'var(--bg-main)', border:'1px solid var(--border)', padding:'0.75rem', borderRadius:'6px',
+          boxShadow:'0 10px 25px -5px rgba(0,0,0,0.3)', zIndex:99999, width:'280px', maxHeight:'300px', overflowY:'auto',
+          fontSize:'0.8rem', pointerEvents:'auto', color:'var(--text-main)', whiteSpace:'normal', lineHeight:'1.4'
+        }}>
+          <h4 style={{margin:'0 0 0.4rem', fontSize:'0.85rem', color:'var(--primary)', borderBottom:'1px solid var(--border)', paddingBottom:'4px'}}>{task.title}</h4>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'2px 8px', fontSize:'0.7rem', marginBottom:'0.4rem'}}>
+            <div><b>Durum:</b> {statusMap[task.status]}</div>
+            <div><b>Öncelik:</b> {prioMap[task.priority]}</div>
+            <div><b>Atanan:</b> {task.assignee || '-'}</div>
+            <div><b>Bitiş:</b> {task.deadline ? new Date(task.deadline).toLocaleDateString('tr-TR') : '-'}</div>
+          </div>
+          {task.customerName && <div style={{fontSize:'0.7rem', marginBottom:'0.3rem'}}><b>Müşteri:</b> {task.customerName}</div>}
+          {task.description && <div style={{fontSize:'0.7rem', color:'var(--text-muted)', marginBottom:'0.3rem', maxHeight:'40px', overflow:'hidden'}}>{task.description}</div>}
+          {task.tags?.length > 0 && (
+            <div style={{display:'flex', gap:'3px', flexWrap:'wrap', marginBottom:'0.4rem'}}>
+              {task.tags.map(tid => { const t = (tagsList||[]).find(x => x.id === tid); return t ? <span key={tid} style={{fontSize:'0.55rem', padding:'1px 4px', borderRadius:'6px', background:`${t.color}18`, color:t.color, border:`1px solid ${t.color}40`}}>{t.label}</span> : null; })}
+            </div>
+          )}
+          {sortedNotes.length > 0 && (
+            <>
+              <h4 style={{margin:'0.4rem 0 0.3rem', fontSize:'0.75rem', color:'var(--primary)', borderBottom:'1px solid var(--border)', paddingBottom:'3px'}}>Notlar ({sortedNotes.length})</h4>
+              <div style={{display:'flex', flexDirection:'column', gap:'0.3rem'}}>
+                {sortedNotes.slice(0, 5).map(n => (
+                  <div key={n.id} style={{borderBottom:'1px dotted #cbd5e1', paddingBottom:'3px'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.65rem'}}>
+                      <span style={{fontWeight:600, color: n.importance === 'important' ? '#991b1b' : 'var(--text-main)'}}>{n.importance === 'important' ? '⭐ ' : ''}{n.author}</span>
+                      <span style={{color:'var(--text-muted)'}}>{new Date(n.date).toLocaleDateString('tr-TR')}</span>
+                    </div>
+                    <div style={{fontSize:'0.7rem', color: n.isRead === false ? '#ef4444' : 'var(--text-main)', fontWeight: n.isRead === false ? 700 : 'normal'}}>{n.text}</div>
+                  </div>
+                ))}
+                {sortedNotes.length > 5 && <div style={{fontSize:'0.65rem', color:'var(--text-muted)', fontStyle:'italic'}}>+{sortedNotes.length - 5} not daha...</div>}
+              </div>
+            </>
+          )}
+          {task.subtasks?.length > 0 && (
+            <>
+              <h4 style={{margin:'0.4rem 0 0.3rem', fontSize:'0.75rem', color:'var(--primary)', borderBottom:'1px solid var(--border)', paddingBottom:'3px'}}>Alt Görevler ({task.subtasks.filter(s=>s.isCompleted).length}/{task.subtasks.length})</h4>
+              <div style={{fontSize:'0.7rem'}}>
+                {task.subtasks.map(st => <div key={st.id}>{st.isCompleted ? '✓' : '○'} <span style={{textDecoration: st.isCompleted ? 'line-through' : 'none', color: st.isCompleted ? 'var(--text-muted)' : 'var(--text-main)'}}>{st.text}</span></div>)}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const SCALE_OPTIONS = [
   { id: 'day', label: 'Gün', days: 1 },
@@ -16,7 +93,7 @@ const priorityLabels = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' 
 const priorityValue = { 'low': 1, 'medium': 2, 'high': 3 };
 
 export default function GanttView() {
-  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers } = useTasks();
+  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers, tagsList } = useTasks();
   const [scale, setScale] = useState('day');
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -371,7 +448,7 @@ export default function GanttView() {
                 const now = new Date(); now.setHours(0,0,0,0);
                 const dl = new Date(task.deadline); dl.setHours(0,0,0,0);
                 const daysLeft = Math.ceil((dl - now) / (1000*60*60*24));
-                if (daysLeft < 0) return { color: '#dc2626', fontWeight: 700 };
+                if (daysLeft < 0) return { color: '#7c3aed', fontWeight: 700 };
                 if (daysLeft === 0) return { color: '#dc2626', fontWeight: 700 };
                 if (daysLeft === 1) return { color: '#ef4444', fontWeight: 600 };
                 if (daysLeft <= 3) return { color: '#f97316', fontWeight: 600 };
@@ -474,59 +551,60 @@ export default function GanttView() {
               }
 
               return (
-                <div key={task.id} style={{ height: ROW_HEIGHT, position:'relative', borderBottom:'1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--bg-alt)' }}>
-                  {/* Main bar */}
-                  <div
-                    className="gantt-bar"
-                    onClick={() => openEdit(task)}
-                    title={`${task.title}\n${task.assignee || 'Atanmamış'}\n${new Date(task.startDate).toLocaleDateString('tr-TR')} → ${new Date(task.deadline).toLocaleDateString('tr-TR')}`}
-                    style={{
-                      position:'absolute',
-                      top: 4, height: ROW_HEIGHT - 8,
-                      left, width,
-                      background: barBg,
-                      borderRadius:'3px', cursor:'pointer',
-                      display:'flex', alignItems:'center', justifyContent:'center',
-                      fontSize:'0.6rem', color:'#fff', fontWeight:500,
-                      overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis',
-                      textDecoration: isDone ? 'line-through' : 'none',
-                      opacity: isDone ? 0.5 : 1,
-                    }}
-                  >
-                    {width > 60 && <span style={{padding:'0 6px'}}>{task.assignee || ''}</span>}
-                  </div>
+                <GanttBarTooltip key={task.id} task={task} tagsList={tagsList}>
+                  <div style={{ height: ROW_HEIGHT, position:'relative', borderBottom:'1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--bg-alt)' }}>
+                    {/* Main bar */}
+                    <div
+                      className="gantt-bar"
+                      onClick={() => openEdit(task)}
+                      style={{
+                        position:'absolute',
+                        top: 4, height: ROW_HEIGHT - 8,
+                        left, width,
+                        background: barBg,
+                        borderRadius:'3px', cursor:'pointer',
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        fontSize:'0.6rem', color:'#fff', fontWeight:500,
+                        overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis',
+                        textDecoration: isDone ? 'line-through' : 'none',
+                        opacity: isDone ? 0.5 : 1,
+                      }}
+                    >
+                      {width > 60 && <span style={{padding:'0 6px'}}>{task.assignee || ''}</span>}
+                    </div>
 
-                  {/* Left drag handle */}
-                  <div
-                    className="gantt-bar-edge"
-                    onMouseDown={(e) => handleEdgeDragStart(e, task.id, 'left')}
-                    style={{
-                      position:'absolute',
-                      top: 4, height: ROW_HEIGHT - 8,
-                      left: left - 2, width: 8,
-                      cursor:'ew-resize', zIndex: 3,
-                      borderRadius:'3px 0 0 3px',
-                      background: 'transparent',
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = `${barColor}88`}
-                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
-                  />
-                  {/* Right drag handle */}
-                  <div
-                    className="gantt-bar-edge"
-                    onMouseDown={(e) => handleEdgeDragStart(e, task.id, 'right')}
-                    style={{
-                      position:'absolute',
-                      top: 4, height: ROW_HEIGHT - 8,
-                      left: left + width - 6, width: 8,
-                      cursor:'ew-resize', zIndex: 3,
-                      borderRadius:'0 3px 3px 0',
-                      background: 'transparent',
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = `${barColor}88`}
-                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
-                  />
-                </div>
+                    {/* Left drag handle */}
+                    <div
+                      className="gantt-bar-edge"
+                      onMouseDown={(e) => handleEdgeDragStart(e, task.id, 'left')}
+                      style={{
+                        position:'absolute',
+                        top: 4, height: ROW_HEIGHT - 8,
+                        left: left - 2, width: 8,
+                        cursor:'ew-resize', zIndex: 3,
+                        borderRadius:'3px 0 0 3px',
+                        background: 'transparent',
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = `${barColor}88`}
+                      onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                    />
+                    {/* Right drag handle */}
+                    <div
+                      className="gantt-bar-edge"
+                      onMouseDown={(e) => handleEdgeDragStart(e, task.id, 'right')}
+                      style={{
+                        position:'absolute',
+                        top: 4, height: ROW_HEIGHT - 8,
+                        left: left + width - 6, width: 8,
+                        cursor:'ew-resize', zIndex: 3,
+                        borderRadius:'0 3px 3px 0',
+                        background: 'transparent',
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = `${barColor}88`}
+                      onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                    />
+                  </div>
+                </GanttBarTooltip>
               );
             })}
 
