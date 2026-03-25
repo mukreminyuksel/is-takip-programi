@@ -1117,16 +1117,11 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
   };
 
   const handleWhatsApp = () => {
-    const phone = formatPhoneTR(form.customerPhone);
     let text = `Müşteri: ${form.customerName}\n`;
+    if (form.customerPhone) text += `Tel: ${formatPhoneTR(form.customerPhone)}\n`;
     if (form.customerEmail) text += `E-mail: ${form.customerEmail}\n`;
     if (form.customerAddress) text += `Adres: ${form.customerAddress}\n`;
-    if (phone) {
-      const phoneNum = phone.replace(/\D/g, '');
-      window.open(`https://wa.me/${phoneNum}?text=${encodeURIComponent(text)}`, '_blank');
-    } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleExportCustomersExcel = () => {
