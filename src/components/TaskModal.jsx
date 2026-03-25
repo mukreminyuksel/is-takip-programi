@@ -8,6 +8,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
   const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor, customersList } = useTasks();
   const [title, setTitle] = useState('');
   const [customerName, setCustomerName] = useState('');
+  const [customerOfficialName, setCustomerOfficialName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
@@ -50,6 +51,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
       if (editTask) {
         setTitle(editTask.title || '');
         setCustomerName(editTask.customerName || '');
+        setCustomerOfficialName(editTask.customerOfficialName || '');
         setCustomerPhone(editTask.customerPhone || '');
         setCustomerEmail(editTask.customerEmail || '');
         setCustomerAddress(editTask.customerAddress || '');
@@ -73,6 +75,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
       } else {
         setTitle(prefillData?.customerName ? `${prefillData.customerName} - ` : '');
         setCustomerName(prefillData?.customerName || '');
+        setCustomerOfficialName(prefillData?.customerOfficialName || prefillData?.customerName || '');
         setCustomerPhone(prefillData?.customerPhone || '');
         setCustomerEmail(prefillData?.customerEmail || '');
         setCustomerAddress(prefillData?.customerAddress || '');
@@ -390,7 +393,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
     const finalPhone = formatPhone(customerPhone);
     const finalPhone2 = formatPhone(customerPhone2);
     return {
-      title, customerName, customerPhone: finalPhone, customerEmail, customerAddress,
+      title, customerName, customerOfficialName: customerOfficialName || customerName, customerPhone: finalPhone, customerEmail, customerAddress,
       customerTaxNo, customerTaxOffice, customerTradeRegNo, customerPhone2: finalPhone2,
       description, priority, assignee,
       startDate: startDate ? new Date(startDate).toISOString() : null,
@@ -504,6 +507,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
               const c = customersList.find(x => x.customerName === duplicateWarning.existingName);
               if (c) {
                 setCustomerName(c.customerName || '');
+                setCustomerOfficialName(c.customerOfficialName || '');
                 setCustomerPhone(c.customerPhone || '');
                 setCustomerEmail(c.customerEmail || '');
                 setCustomerPhone2(c.customerPhone2 || '');
@@ -590,7 +594,15 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
                   </span>
                 )}
               </label>
-              <input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Örn: Ahmet Yılmaz..." />
+              <input type="text" value={customerName} onChange={e => {
+                const val = e.target.value;
+                setCustomerName(val);
+                if (!customerOfficialName || customerOfficialName === customerName) setCustomerOfficialName(val);
+              }} placeholder="Örn: Ahmet Yılmaz..." />
+            </div>
+            <div className="form-group" style={{flex: 1, minWidth:'150px', marginBottom: 0}}>
+              <label>Müşteri Adı Soyadı/Ünvanı (Resmi)</label>
+              <input type="text" value={customerOfficialName} onChange={e => setCustomerOfficialName(e.target.value)} placeholder="Vergi levhasındaki resmi ad" />
             </div>
             <div className="form-group" style={{flex: 1, minWidth:'150px', marginBottom: 0}}>
               <label>İletişim Numarası Tel/GSM</label>
@@ -877,6 +889,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
                         </div>
                         <button type="button" className="btn btn-primary btn-small" onClick={() => {
                           setCustomerName(c.customerName || '');
+                          setCustomerOfficialName(c.customerOfficialName || '');
                           setCustomerPhone(c.customerPhone || '');
                           setCustomerEmail(c.customerEmail || '');
                           setCustomerPhone2(c.customerPhone2 || '');

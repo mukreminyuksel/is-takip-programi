@@ -1046,7 +1046,7 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const emptyForm = { customerName: '', customerPhone: '', customerEmail: '', customerPhone2: '', customerAddress: '', customerTaxNo: '', customerTaxOffice: '', customerTradeRegNo: '' };
+  const emptyForm = { customerName: '', customerOfficialName: '', customerPhone: '', customerEmail: '', customerPhone2: '', customerAddress: '', customerTaxNo: '', customerTaxOffice: '', customerTradeRegNo: '' };
   const [form, setForm] = useState(emptyForm);
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
@@ -1062,7 +1062,7 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
 
   const startEdit = (c) => {
     setEditingId(c.id);
-    setForm({ customerName: c.customerName || '', customerPhone: c.customerPhone || '', customerEmail: c.customerEmail || '', customerPhone2: c.customerPhone2 || '', customerAddress: c.customerAddress || '', customerTaxNo: c.customerTaxNo || '', customerTaxOffice: c.customerTaxOffice || '', customerTradeRegNo: c.customerTradeRegNo || '' });
+    setForm({ customerName: c.customerName || '', customerOfficialName: c.customerOfficialName || '', customerPhone: c.customerPhone || '', customerEmail: c.customerEmail || '', customerPhone2: c.customerPhone2 || '', customerAddress: c.customerAddress || '', customerTaxNo: c.customerTaxNo || '', customerTaxOffice: c.customerTaxOffice || '', customerTradeRegNo: c.customerTradeRegNo || '' });
     setNotes(c.notes || []);
     setNewNote('');
     setShowAddForm(false);
@@ -1128,6 +1128,7 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
     if (customersList.length === 0) { alert('Dışa aktarılacak müşteri kaydı bulunmuyor.'); return; }
     const data = customersList.map(c => ({
       'Müşteri Adı/Ünvanı': c.customerName || '',
+      'Müşteri Adı/Ünvanı (Resmi)': c.customerOfficialName || '',
       'İletişim Tel/GSM': c.customerPhone || '',
       'E-mail': c.customerEmail || '',
       'Telefon 2': c.customerPhone2 || '',
@@ -1161,6 +1162,7 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
           if (!name) continue;
           const custData = {
             customerName: name,
+            customerOfficialName: (row['Müşteri Adı/Ünvanı (Resmi)'] || row['Resmi Ünvan'] || '').toString().trim() || name,
             customerPhone: formatPhoneTR((row['İletişim Tel/GSM'] || row['Telefon'] || row['Tel'] || '').toString().trim()),
             customerEmail: (row['E-mail'] || row['Email'] || row['E-posta'] || '').toString().trim(),
             customerPhone2: formatPhoneTR((row['Telefon 2'] || row['Tel 2'] || '').toString().trim()),
@@ -1224,6 +1226,7 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
                     const notesText = notes.length > 0 ? notes.map((n, i) => `${i + 1}- ${n.text}`).join('\n') : '';
                     onCreateTaskFromCustomer({
                       customerName: form.customerName,
+                      customerOfficialName: form.customerOfficialName,
                       customerPhone: form.customerPhone,
                       customerEmail: form.customerEmail,
                       customerPhone2: form.customerPhone2,
@@ -1241,7 +1244,11 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
             )}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-            <div><label style={labelStyle}>Müşteri Adı Soyadı/Ünvanı *</label><input style={inputStyle} value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} placeholder="Ahmet Yılmaz / ABC Ltd." /></div>
+            <div><label style={labelStyle}>Müşteri Adı Soyadı/Ünvanı *</label><input style={inputStyle} value={form.customerName} onChange={e => {
+              const val = e.target.value;
+              setForm(f => ({ ...f, customerName: val, ...(f.customerOfficialName === '' || f.customerOfficialName === f.customerName ? { customerOfficialName: val } : {}) }));
+            }} placeholder="Ahmet Yılmaz / ABC Ltd." /></div>
+            <div><label style={labelStyle}>Müşteri Adı Soyadı/Ünvanı (Resmi)</label><input style={inputStyle} value={form.customerOfficialName} onChange={e => setForm({ ...form, customerOfficialName: e.target.value })} placeholder="Vergi levhasındaki resmi ad" /></div>
             <div><label style={labelStyle}>İletişim Numarası Tel/GSM</label><input style={inputStyle} value={form.customerPhone} onChange={e => setForm({ ...form, customerPhone: e.target.value })} onBlur={() => setForm(f => ({ ...f, customerPhone: formatPhoneTR(f.customerPhone) }))} placeholder="+905XXXXXXXXX" /></div>
             <div><label style={labelStyle}>E-mail</label><input style={inputStyle} value={form.customerEmail} onChange={e => setForm({ ...form, customerEmail: e.target.value })} placeholder="ornek@firma.com" /></div>
             <div><label style={labelStyle}>Telefon 2</label><input style={inputStyle} value={form.customerPhone2} onChange={e => setForm({ ...form, customerPhone2: e.target.value })} onBlur={() => setForm(f => ({ ...f, customerPhone2: formatPhoneTR(f.customerPhone2) }))} placeholder="+905XXXXXXXXX" /></div>

@@ -298,6 +298,7 @@ export const TaskProvider = ({ children }) => {
     const existing = customersList.find(c => c.customerName && c.customerName.trim().toLowerCase() === taskData.customerName.trim().toLowerCase());
     const custFields = {
       customerName: taskData.customerName || '',
+      customerOfficialName: taskData.customerOfficialName || taskData.customerName || '',
       customerPhone: taskData.customerPhone || '',
       customerEmail: taskData.customerEmail || '',
       customerPhone2: taskData.customerPhone2 || '',
