@@ -584,16 +584,16 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
             <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Örn: Tasarımı tamamla..." autoFocus required />
           </div>
 
-          <div style={{display:'flex', gap:'0.75rem', marginBottom:'0.5rem', flexWrap:'wrap'}}>
+          {customersList.length > 0 && (
+            <div style={{textAlign:'right', marginBottom:'0.2rem'}}>
+              <span onClick={() => { setShowCustomerPicker(true); setCustomerSearch(''); }} style={{fontSize:'0.7rem', color:'var(--primary)', cursor:'pointer', fontWeight:600, textDecoration:'underline'}}>
+                Kayıtlı Müşteri Bilgilerinden Getir
+              </span>
+            </div>
+          )}
+          <div style={{display:'flex', gap:'0.75rem', marginBottom:'0.5rem', flexWrap:'wrap', alignItems:'flex-end'}}>
             <div className="form-group" style={{flex: 1, minWidth:'150px', marginBottom: 0}}>
-              <label style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
-                <span>Müşteri Adı Soyadı/Ünvanı</span>
-                {customersList.length > 0 && (
-                  <span onClick={() => { setShowCustomerPicker(true); setCustomerSearch(''); }} style={{fontSize:'0.7rem', color:'var(--primary)', cursor:'pointer', fontWeight:600, textDecoration:'underline'}}>
-                    Kayıtlı Müşteri Bilgilerinden Getir
-                  </span>
-                )}
-              </label>
+              <label>Müşteri Adı Soyadı/Ünvanı</label>
               <input type="text" value={customerName} onChange={e => {
                 const val = e.target.value;
                 setCustomerName(val);
