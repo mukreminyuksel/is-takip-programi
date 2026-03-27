@@ -10,7 +10,7 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTaskFromCustomer }) {
-  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin, customersList, addCustomer, editCustomer, deleteCustomer, deadlineColors, saveDeadlineColors, companyDb: db } = useTasks();
+  const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin, customersList, addCustomer, editCustomer, deleteCustomer, deadlineColors, saveDeadlineColors, getAssignees, companyDb: db } = useTasks();
   const { companies, addCompany, updateCompany, deleteCompany } = useCompany();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('personnel');
@@ -166,7 +166,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
       'Müşteri Telefonu': t.customerPhone || '',
       'Durum': t.status === 'done' ? 'Tamamlandı' : (t.status === 'in-progress' ? 'Devam Eden' : 'Yapılacak'),
       'Öncelik': t.priority === 'high' ? 'Yüksek' : (t.priority === 'medium' ? 'Orta' : 'Düşük'),
-      'Atanan Kişi': t.assignee || '',
+      'Atanan Kişi': getAssignees(t).join(', '),
       'Başlangıç Tarihi': t.startDate ? new Date(t.startDate).toLocaleDateString('tr-TR') : '-',
       'Bitiş Tarihi': t.deadline ? new Date(t.deadline).toLocaleDateString('tr-TR') : '-',
       'Açıklama/Detay': t.description || '',
@@ -504,19 +504,19 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
                     datasets: [
                       {
                         label: 'Bekleyen',
-                        data: usersList.map(u => tasks.filter(t => t.assignee === u.name && t.status === 'todo' && !t.isDeleted).length),
+                        data: usersList.map(u => tasks.filter(t => getAssignees(t).includes(u.name) && t.status === 'todo' && !t.isDeleted).length),
                         backgroundColor: '#ef4444',
                         borderRadius: 3
                       },
                       {
                         label: 'Devam Eden',
-                        data: usersList.map(u => tasks.filter(t => t.assignee === u.name && t.status === 'in-progress' && !t.isDeleted).length),
+                        data: usersList.map(u => tasks.filter(t => getAssignees(t).includes(u.name) && t.status === 'in-progress' && !t.isDeleted).length),
                         backgroundColor: '#10b981',
                         borderRadius: 3
                       },
                       {
                         label: 'Tamamlanan',
-                        data: usersList.map(u => tasks.filter(t => t.assignee === u.name && t.status === 'done' && !t.isDeleted).length),
+                        data: usersList.map(u => tasks.filter(t => getAssignees(t).includes(u.name) && t.status === 'done' && !t.isDeleted).length),
                         backgroundColor: '#9ca3af',
                         borderRadius: 3
                       }
@@ -539,7 +539,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
             <h3 style={{fontSize:'1rem', marginBottom:'1rem'}}>Personel Performans Analizi</h3>
             <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
               {usersList.map(u => {
-                 const uTasks = tasks.filter(t => t.assignee === u.name && !t.isDeleted);
+                 const uTasks = tasks.filter(t => getAssignees(t).includes(u.name) && !t.isDeleted);
                  const uDone = uTasks.filter(t => t.status === 'done').length;
                  const uTotal = uTasks.length;
                  const pct = uTotal === 0 ? 0 : Math.round((uDone / uTotal) * 100);

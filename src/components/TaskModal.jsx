@@ -18,7 +18,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
   const [customerPhone2, setCustomerPhone2] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('medium');
-  const [assignee, setAssignee] = useState('');
+  const [assignees, setAssignees] = useState([]);
+  const [assigneeDropOpen, setAssigneeDropOpen] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [deadline, setDeadline] = useState('');
   const [notes, setNotes] = useState([]);
@@ -46,6 +47,14 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
   const [copied, setCopied] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Close assignee dropdown on outside click
+  useEffect(() => {
+    if (!assigneeDropOpen) return;
+    const handler = () => setAssigneeDropOpen(false);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [assigneeDropOpen]);
+
   useEffect(() => {
     if (isOpen) {
       if (editTask) {
@@ -61,7 +70,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
         setCustomerPhone2(editTask.customerPhone2 || '');
         setDescription(editTask.description || '');
         setPriority(editTask.priority || 'medium');
-        setAssignee(editTask.assignee || '');
+        setAssignees(Array.isArray(editTask.assignees) && editTask.assignees.length > 0 ? editTask.assignees : (editTask.assignee ? [editTask.assignee] : []));
         setStartDate(editTask.startDate ? editTask.startDate.split('T')[0] : '');
         setDeadline(editTask.deadline ? editTask.deadline.split('T')[0] : '');
         setNotes(editTask.notes || []);
@@ -85,7 +94,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
         setCustomerPhone2(prefillData?.customerPhone2 || '');
         setDescription(prefillData?.description || '');
         setPriority('medium');
-        setAssignee(currentUser || '');
+        setAssignees(currentUser ? [currentUser] : []);
         const todayStr = new Date().toISOString().split('T')[0];
         const nextWeek = new Date();
         nextWeek.setDate(nextWeek.getDate() + 7);
@@ -178,7 +187,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
     content += `\n`;
 
     content += `--- GÖREV BİLGİLERİ ---\n`;
-    content += `Atanan Kişi: ${assignee || 'Atanmadı'}\n`;
+    content += `Atanan Kişi: ${assignees.length > 0 ? assignees.join(', ') : 'Atanmadı'}\n`;
     content += `Durum: ${editTask ? statusMap[editTask.status] : 'Yeni'}\n`;
     content += `Öncelik: ${prioMap[priority]}\n`;
     content += `Başlangıç: ${startDate ? new Date(startDate).toLocaleDateString('tr-TR') : '-'}\n`;
@@ -293,7 +302,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
         <tr>
           <td style="padding:2px 0"><b>Durum:</b> ${editTask ? statusMap[editTask.status] : 'Yeni'}</td>
           <td style="padding:2px 0"><b>Öncelik:</b> <span style="color:${prioColor[priority]};font-weight:700">${prioMap[priority]}</span></td>
-          <td style="padding:2px 0"><b>Atanan:</b> ${assignee || '-'}</td>
+          <td style="padding:2px 0"><b>Atanan:</b> ${assignees.length > 0 ? assignees.join(', ') : '-'}</td>
         </tr>
         <tr>
           <td style="padding:2px 0"><b>Başlangıç:</b> ${startDate ? new Date(startDate).toLocaleDateString('tr-TR') : '-'}</td>
@@ -507,7 +516,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
     return {
       title, customerName, customerOfficialName: customerOfficialName || customerName, customerPhone: finalPhone, customerEmail, customerAddress,
       customerTaxNo, customerTaxOffice, customerTradeRegNo, customerPhone2: finalPhone2,
-      description, priority, assignee,
+      description, priority, assignees, assignee: assignees[0] || '',
       startDate: startDate ? new Date(startDate).toISOString() : null,
       deadline: deadline ? new Date(deadline).toISOString() : null,
       notes, attachments, subtasks, tags, recurrence,
@@ -759,12 +768,63 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
           </div>
 
           <div className="form-row" style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
-            <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+            <div className="form-group" style={{ flex: 1, marginBottom: 0, position: 'relative' }}>
               <label>Atanan Kişi</label>
-              <select value={assignee} onChange={e => setAssignee(e.target.value)} style={{width:'100%', padding:'0.4rem', border:'1px solid var(--border)', borderRadius:'4px', fontSize:'0.85rem', background: 'var(--bg-main)', color: getUserColor(assignee) || 'var(--text-main)', fontWeight: getUserColor(assignee) ? 600 : 400}}>
-                <option value="" style={{color:'var(--text-main)', fontWeight:400}}>Atanmadı</option>
-                {usersList.map(u => <option key={u.id} value={u.name} style={u.color ? {color: u.color, fontWeight: 600} : {}}>{u.name}</option>)}
-              </select>
+              <div
+                onClick={() => setAssigneeDropOpen(o => !o)}
+                style={{
+                  width:'100%', padding:'0.35rem 0.5rem', border:'1px solid var(--border)', borderRadius:'4px',
+                  fontSize:'0.85rem', background:'var(--bg-main)', cursor:'pointer', minHeight:'2rem',
+                  display:'flex', alignItems:'center', flexWrap:'wrap', gap:'0.25rem'
+                }}
+              >
+                {assignees.length === 0
+                  ? <span style={{color:'var(--text-muted)'}}>Atanmadı</span>
+                  : assignees.map(name => (
+                    <span key={name} style={{
+                      display:'inline-flex', alignItems:'center', gap:'0.2rem',
+                      background: getUserColor(name) ? getUserColor(name) + '22' : 'var(--bg-alt)',
+                      color: getUserColor(name) || 'var(--text-main)', fontWeight: 600,
+                      borderRadius:'10px', padding:'0.1rem 0.4rem', fontSize:'0.75rem',
+                      border: `1px solid ${getUserColor(name) || 'var(--border)'}`
+                    }}>
+                      <span style={{width:6, height:6, borderRadius:'50%', background: getUserColor(name) || '#9ca3af', flexShrink:0}}></span>
+                      {name}
+                      <span
+                        onClick={e => { e.stopPropagation(); setAssignees(prev => prev.filter(n => n !== name)); }}
+                        style={{marginLeft:'0.1rem', cursor:'pointer', fontWeight:700, color:'inherit', opacity:0.7}}
+                      >×</span>
+                    </span>
+                  ))
+                }
+              </div>
+              {assigneeDropOpen && (
+                <div style={{
+                  position:'absolute', top:'100%', left:0, zIndex:1000, background:'var(--bg-main)',
+                  border:'1px solid var(--border)', borderRadius:'6px', boxShadow:'0 4px 12px rgba(0,0,0,0.15)',
+                  minWidth:'180px', maxHeight:'200px', overflowY:'auto', marginTop:'2px'
+                }}>
+                  {usersList.map(u => (
+                    <label key={u.id} style={{
+                      display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.4rem 0.7rem',
+                      cursor:'pointer', fontSize:'0.85rem',
+                      background: assignees.includes(u.name) ? (getUserColor(u.name) ? getUserColor(u.name)+'15' : 'var(--bg-alt)') : 'transparent'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
+                    onMouseLeave={e => e.currentTarget.style.background = assignees.includes(u.name) ? (getUserColor(u.name) ? getUserColor(u.name)+'15' : 'var(--bg-alt)') : 'transparent'}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={assignees.includes(u.name)}
+                        onChange={e => setAssignees(prev => e.target.checked ? [...prev, u.name] : prev.filter(n => n !== u.name))}
+                        style={{accentColor: u.color || 'var(--primary)'}}
+                      />
+                      {u.color && <span style={{width:8, height:8, borderRadius:'50%', background:u.color, flexShrink:0}}></span>}
+                      <span style={{color: getUserColor(u.name) || 'var(--text-main)', fontWeight: u.color ? 600 : 400}}>{u.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
               <label>Başlangıç Tarihi</label>
@@ -1082,7 +1142,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
                       </div>
                       <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
                         <span className="note-date">{new Date(note.date).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                        {note.isRead === false && editTask && editTask.assignee === currentUser && (
+                        {note.isRead === false && editTask && assignees.includes(currentUser) && (
                           <button type="button" className="blink-btn" onClick={() => markNoteAsRead(note.id)} style={{background:'#ef4444', color:'white', border:'none', borderRadius:'4px', padding:'2px 8px', fontSize:'0.7rem', cursor:'pointer', fontWeight:600}} title="Notu okundu olarak onayla">
                             Okundu Onayı Gerekiyor
                           </button>

@@ -10,7 +10,8 @@ const COLUMNS = [
 ];
 
 const KanbanCard = ({ task, onEdit, onDragStart }) => {
-  const { tagsList, getUserColor, getDeadlineRowColor } = useTasks();
+  const { tagsList, getUserColor, getDeadlineRowColor, getAssignees } = useTasks();
+  const taskAssignees = getAssignees(task);
   const prioColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
   const prioLabels = { low: 'Düşük', medium: 'Orta', high: 'Yüksek' };
 
@@ -46,12 +47,12 @@ const KanbanCard = ({ task, onEdit, onDragStart }) => {
       )}
 
       <div style={{ display:'flex', flexWrap:'wrap', gap:'0.4rem', alignItems:'center', marginTop:'0.3rem' }}>
-        {task.assignee && (
-          <span style={{ display:'flex', alignItems:'center', gap:'0.2rem', fontSize:'0.65rem', color: getUserColor(task.assignee) || 'var(--text-muted)', fontWeight: getUserColor(task.assignee) ? 600 : 400, background:'var(--bg-alt)', padding:'0.15rem 0.4rem', borderRadius:'10px' }}>
-            {getUserColor(task.assignee) && <span style={{width:6, height:6, borderRadius:'50%', background: getUserColor(task.assignee), flexShrink:0}}></span>}
-            <User size={10}/> {task.assignee}
+        {taskAssignees.map(name => (
+          <span key={name} style={{ display:'flex', alignItems:'center', gap:'0.2rem', fontSize:'0.65rem', color: getUserColor(name) || 'var(--text-muted)', fontWeight: getUserColor(name) ? 600 : 400, background:'var(--bg-alt)', padding:'0.15rem 0.4rem', borderRadius:'10px' }}>
+            {getUserColor(name) && <span style={{width:6, height:6, borderRadius:'50%', background: getUserColor(name), flexShrink:0}}></span>}
+            <User size={10}/> {name}
           </span>
-        )}
+        ))}
 
         {daysLeft !== null && (
           <span style={{
@@ -98,7 +99,7 @@ const KanbanCard = ({ task, onEdit, onDragStart }) => {
 };
 
 export default function KanbanView() {
-  const { tasks, updateTaskStatus, updateTask, deleteTask, currentUser, usersList, isAdmin, hideAllTasksForUsers } = useTasks();
+  const { tasks, updateTaskStatus, updateTask, deleteTask, currentUser, usersList, isAdmin, hideAllTasksForUsers, getAssignees } = useTasks();
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [defaultStatus, setDefaultStatus] = useState('todo');
@@ -106,7 +107,7 @@ export default function KanbanView() {
 
   const activeTasks = tasks.filter(t => {
     if (t.isDeleted) return false;
-    if (hideAllTasksForUsers && !isAdmin && t.assignee !== currentUser) return false;
+    if (hideAllTasksForUsers && !isAdmin && !getAssignees(t).includes(currentUser)) return false;
     return true;
   });
 
@@ -117,7 +118,7 @@ export default function KanbanView() {
   };
 
   const openEditModal = (task) => {
-    if (task.isNewForAssignee && (!task.assignee || task.assignee === currentUser)) {
+    if (task.isNewForAssignee && (getAssignees(task).length === 0 || getAssignees(task).includes(currentUser))) {
       updateTask(task.id, { isNewForAssignee: false });
     }
     setEditingTask(task);

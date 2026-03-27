@@ -228,6 +228,14 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
+  // Helper: returns array of assignees from task (supports both old single-string and new array format)
+  const getAssignees = (task) => {
+    if (!task) return [];
+    if (Array.isArray(task.assignees) && task.assignees.length > 0) return task.assignees;
+    if (task.assignee) return [task.assignee];
+    return [];
+  };
+
   const sortedDeadlineColors = useMemo(() => [...deadlineColors].sort((a, b) => a.days - b.days), [deadlineColors]);
 
   const getDeadlineRowColor = (daysLeft, isDone) => {
@@ -317,13 +325,13 @@ export const TaskProvider = ({ children }) => {
     const user = usersList.find(u => u.id === id);
     if (!user) return;
 
-    const activeTasks = tasks.filter(t => t.assignee === user.name && !t.isDeleted && t.status !== 'done');
+    const activeTasks = tasks.filter(t => getAssignees(t).includes(user.name) && !t.isDeleted && t.status !== 'done');
     if (activeTasks.length > 0) {
       alert(`"${user.name}" üzerinde ${activeTasks.length} adet aktif görev bulunmaktadır!\n\nBu kullanıcıyı silmeden önce üzerindeki görevleri başka bir kullanıcıya atamalısınız.\n\nAktif görevler:\n${activeTasks.map(t => `- ${t.title}`).join('\n')}`);
       return;
     }
 
-    const allUserTasks = tasks.filter(t => t.assignee === user.name && !t.isDeleted);
+    const allUserTasks = tasks.filter(t => getAssignees(t).includes(user.name) && !t.isDeleted);
     let confirmMsg = `"${user.name}" adlı kullanıcıyı silmek istediğinize emin misiniz?`;
     if (allUserTasks.length > 0) {
       confirmMsg += `\n\n(${allUserTasks.length} adet tamamlanmış görevi bulunmaktadır. Görev geçmişindeki notlar ve loglar korunacaktır.)`;
@@ -418,15 +426,21 @@ export const TaskProvider = ({ children }) => {
   const addTask = async (task) => {
     if (!db) return;
     try {
+      // Normalize: assignees array is canonical, assignee string for backward compat
+      const assigneesList = Array.isArray(task.assignees) ? task.assignees : (task.assignee ? [task.assignee] : []);
+      const primaryAssignee = assigneesList[0] || '';
+      const normalizedTask = { ...task, assignees: assigneesList, assignee: primaryAssignee };
+
       const logs = [{ id: Date.now().toString(), text: `Görev oluşturuldu.`, user: currentUser, date: new Date().toISOString() }];
       await addDoc(collection(db, 'tasks'), {
-        ...task, date: new Date().toISOString(), isDeleted: false, isNewForAssignee: true, logs
+        ...normalizedTask, date: new Date().toISOString(), isDeleted: false, isNewForAssignee: assigneesList.length > 0, logs
       });
       if (task.customerName) saveCustomerFromTask(task);
-      if (task.assignee) {
-        addNotification(`${task.assignee} adlı kullanıcıya yeni iş atandı.`);
-        triggerCommunicationSimulations(task.assignee, task.title);
-        logAppEvent(`Yeni iş atandı: '${task.title}'`, task.assignee);
+      if (assigneesList.length > 0) {
+        const names = assigneesList.join(', ');
+        addNotification(`${names} adlı kullanıcıya yeni iş atandı.`);
+        assigneesList.forEach(name => triggerCommunicationSimulations(name, task.title));
+        logAppEvent(`Yeni iş atandı: '${task.title}'`, names);
       } else {
         logAppEvent(`Yeni görev oluşturuldu: '${task.title}'`);
       }
@@ -496,6 +510,7 @@ export const TaskProvider = ({ children }) => {
         customerPhone2: completedTask.customerPhone2 || '',
         description: completedTask.description || '',
         priority: completedTask.priority || 'medium',
+        assignees: getAssignees(completedTask),
         assignee: completedTask.assignee || '',
         startDate: nextStart.toISOString(),
         deadline: nextDeadline.toISOString(),
@@ -553,7 +568,12 @@ export const TaskProvider = ({ children }) => {
       const sMap = {'todo':'Yapılacak','in-progress':'Devam Eden','done':'Tamamlandı'};
 
       if (updatedData.title && oldTask.title !== updatedData.title) logs.push({ id: Date.now()+Math.random(), text: `Başlık değiştirildi: '${oldTask.title}' -> '${updatedData.title}'`, user: currentUser, date: new Date().toISOString() });
-      if (updatedData.assignee !== undefined && oldTask.assignee !== updatedData.assignee) logs.push({ id: Date.now()+Math.random(), text: `Kişi değiştirildi: '${oldTask.assignee || 'Atanmamış'}' -> '${updatedData.assignee || 'Atanmamış'}'`, user: currentUser, date: new Date().toISOString() });
+      const oldAssigneeStr = getAssignees(oldTask).join(', ') || 'Atanmamış';
+      const newAssigneesRaw = updatedData.assignees ?? (updatedData.assignee !== undefined ? (updatedData.assignee ? [updatedData.assignee] : []) : null);
+      if (newAssigneesRaw !== null) {
+        const newAssigneeStr = newAssigneesRaw.join(', ') || 'Atanmamış';
+        if (oldAssigneeStr !== newAssigneeStr) logs.push({ id: Date.now()+Math.random(), text: `Kişi değiştirildi: '${oldAssigneeStr}' -> '${newAssigneeStr}'`, user: currentUser, date: new Date().toISOString() });
+      }
       if (updatedData.priority && oldTask.priority !== updatedData.priority) logs.push({ id: Date.now()+Math.random(), text: `Öncelik değiştirildi: '${pMap[oldTask.priority]}' -> '${pMap[updatedData.priority]}'`, user: currentUser, date: new Date().toISOString() });
       if (updatedData.startDate !== undefined && oldTask.startDate !== updatedData.startDate) logs.push({ id: Date.now()+Math.random(), text: `Başlangıç Tarihi değiştirildi: '${oldTask.startDate ? oldTask.startDate.split('T')[0] : '-'}' -> '${updatedData.startDate ? updatedData.startDate.split('T')[0] : '-'}'`, user: currentUser, date: new Date().toISOString() });
       if (updatedData.deadline !== undefined && oldTask.deadline !== updatedData.deadline) logs.push({ id: Date.now()+Math.random(), text: `Bitiş Tarihi değiştirildi: '${oldTask.deadline ? oldTask.deadline.split('T')[0] : '-'}' -> '${updatedData.deadline ? updatedData.deadline.split('T')[0] : '-'}'`, user: currentUser, date: new Date().toISOString() });
@@ -561,11 +581,31 @@ export const TaskProvider = ({ children }) => {
 
       finalData.logs = logs;
 
-      if (updatedData.assignee && oldTask.assignee !== updatedData.assignee) {
+      // Normalize assignees on update
+      if (updatedData.assignees !== undefined) {
+        const assigneesList = updatedData.assignees;
+        finalData.assignees = assigneesList;
+        finalData.assignee = assigneesList[0] || '';
+        const oldList = getAssignees(oldTask);
+        const newNames = assigneesList.filter(n => !oldList.includes(n));
+        if (newNames.length > 0) {
+          addNotification(`${newNames.join(', ')} adlı kullanıcıya iş atandı.`);
+          newNames.forEach(n => triggerCommunicationSimulations(n, updatedData.title || oldTask.title));
+          finalData.isNewForAssignee = true;
+          logAppEvent(`'${updatedData.title || oldTask.title}' görevi ${assigneesList.join(', ')} adlı kullanıcıya atandı.`, assigneesList.join(', '));
+        }
+      } else if (updatedData.assignee !== undefined && oldTask.assignee !== updatedData.assignee) {
+        // backward compat: single assignee update
+        const assigneesList = updatedData.assignee ? [updatedData.assignee] : [];
+        finalData.assignees = assigneesList;
         addNotification(`${updatedData.assignee} adlı kullanıcıya iş atandı.`);
         triggerCommunicationSimulations(updatedData.assignee, updatedData.title || oldTask.title);
         finalData.isNewForAssignee = true;
         logAppEvent(`'${updatedData.title || oldTask.title}' görevini ${updatedData.assignee} adlı kullanıcıya atadı.`, updatedData.assignee);
+      }
+
+      if (updatedData.assignees !== undefined || (updatedData.assignee !== undefined && oldTask.assignee !== updatedData.assignee)) {
+        // assignee change handled above
       } else if (updatedData.status && oldTask.status !== updatedData.status) {
         const sM = {'todo':'Yapılacak','in-progress':'Devam Eden','done':'Tamamlandı'};
         logAppEvent(`'${updatedData.title || oldTask.title}' görevinin durumunu '${sM[updatedData.status]}' yaptı.`, oldTask.assignee);
@@ -749,7 +789,7 @@ export const TaskProvider = ({ children }) => {
       loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading,
       adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin,
       customersList, addCustomer, editCustomer, deleteCustomer,
-      deadlineColors, saveDeadlineColors, getDeadlineRowColor, getDeadlineBarColor,
+      deadlineColors, saveDeadlineColors, getDeadlineRowColor, getDeadlineBarColor, getAssignees,
       companyDb: db
     }}>
       {children}

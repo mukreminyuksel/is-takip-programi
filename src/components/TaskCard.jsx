@@ -10,7 +10,8 @@ const priorityColors = {
 const priorityLabels = { low: 'Düşük', medium: 'Orta', high: 'Yüksek' };
 
 export default function TaskCard({ task, onEdit }) {
-  const { deleteTask, getUserColor } = useTasks();
+  const { deleteTask, getUserColor, getAssignees } = useTasks();
+  const taskAssignees = getAssignees(task);
 
   const handleDragStart = (e) => {
     e.dataTransfer.setData('taskId', task.id);
@@ -49,13 +50,13 @@ export default function TaskCard({ task, onEdit }) {
       {task.description && <p className="task-desc">{task.description}</p>}
       
       <div className="task-meta">
-        {task.assignee && (
-          <span className="meta-badge assignee" style={getUserColor(task.assignee) ? {color: getUserColor(task.assignee), fontWeight: 600, borderColor: getUserColor(task.assignee) + '40'} : {}}>
-            {getUserColor(task.assignee) && <span style={{width:7, height:7, borderRadius:'50%', background: getUserColor(task.assignee), display:'inline-block', marginRight:'3px'}}></span>}
+        {taskAssignees.length > 0 && taskAssignees.map(name => (
+          <span key={name} className="meta-badge assignee" style={getUserColor(name) ? {color: getUserColor(name), fontWeight: 600, borderColor: getUserColor(name) + '40'} : {}}>
+            {getUserColor(name) && <span style={{width:7, height:7, borderRadius:'50%', background: getUserColor(name), display:'inline-block', marginRight:'3px'}}></span>}
             <User size={12} style={{marginRight: '4px'}}/>
-            {task.assignee}
+            {name}
           </span>
-        )}
+        ))}
         {task.deadline && (
           <span className={`meta-badge deadline ${deadlinePassed ? 'overdue' : ''}`}>
             <Calendar size={12} style={{marginRight: '4px'}}/>

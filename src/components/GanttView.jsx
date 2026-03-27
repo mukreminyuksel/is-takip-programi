@@ -39,7 +39,7 @@ const GanttBarTooltip = ({ task, tagsList, children }) => {
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'2px 8px', fontSize:'0.7rem', marginBottom:'0.4rem'}}>
             <div><b>Durum:</b> {statusMap[task.status]}</div>
             <div><b>Öncelik:</b> {prioMap[task.priority]}</div>
-            <div><b>Atanan:</b> {task.assignee || '-'}</div>
+            <div><b>Atanan:</b> {getAssignees(task).join(', ') || '-'}</div>
             <div><b>Bitiş:</b> {task.deadline ? new Date(task.deadline).toLocaleDateString('tr-TR') : '-'}</div>
           </div>
           {task.customerName && <div style={{fontSize:'0.7rem', marginBottom:'0.3rem'}}><b>Müşteri:</b> {task.customerName}</div>}
@@ -93,7 +93,7 @@ const priorityLabels = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' 
 const priorityValue = { 'low': 1, 'medium': 2, 'high': 3 };
 
 export default function GanttView() {
-  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers, tagsList, getDeadlineBarColor, deadlineColors } = useTasks();
+  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers, tagsList, getDeadlineBarColor, deadlineColors, getAssignees } = useTasks();
   const [scale, setScale] = useState('day');
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -109,7 +109,7 @@ export default function GanttView() {
 
   const activeTasks = tasks.filter(t => {
     if (t.isDeleted || !t.startDate || !t.deadline) return false;
-    if (hideAllTasksForUsers && !isAdmin && t.assignee !== currentUser) return false;
+    if (hideAllTasksForUsers && !isAdmin && !getAssignees(t).includes(currentUser)) return false;
     return true;
   });
 
@@ -182,7 +182,7 @@ export default function GanttView() {
   };
 
   const openEdit = (task) => {
-    if (task.isNewForAssignee && (!task.assignee || task.assignee === currentUser)) {
+    if (task.isNewForAssignee && (getAssignees(task).length === 0 || getAssignees(task).includes(currentUser))) {
       updateTask(task.id, { isNewForAssignee: false });
     }
     setEditingTask(task);
@@ -434,9 +434,9 @@ export default function GanttView() {
                 <span style={{overflow:'hidden', textOverflow:'ellipsis', fontWeight:500, color:'var(--text-main)'}}>
                   {task.title}
                 </span>
-                {task.assignee && (
-                  <span style={{fontSize:'0.55rem', color: getUserColor(task.assignee) || 'var(--text-muted)', fontWeight: getUserColor(task.assignee) ? 600 : 400, marginLeft:'0.2rem', flexShrink:0}}>
-                    ({task.assignee})
+                {getAssignees(task).length > 0 && (
+                  <span style={{fontSize:'0.55rem', color: getUserColor(getAssignees(task)[0]) || 'var(--text-muted)', fontWeight: 600, marginLeft:'0.2rem', flexShrink:0}}>
+                    ({getAssignees(task).join(', ')})
                   </span>
                 )}
               </div>
@@ -557,7 +557,7 @@ export default function GanttView() {
                         opacity: isDone ? 0.5 : 1,
                       }}
                     >
-                      {width > 60 && <span style={{padding:'0 6px'}}>{task.assignee || ''}</span>}
+                      {width > 60 && <span style={{padding:'0 6px'}}>{getAssignees(task).join(', ')}</span>}
                     </div>
 
                     {/* Left drag handle */}

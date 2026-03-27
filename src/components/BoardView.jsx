@@ -203,7 +203,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
       details += `${i+1}. ${task.title}\n`;
       details += `   Durum: ${statusMap[task.status] || task.status}\n`;
       details += `   Öncelik: ${prioMap[task.priority] || 'Orta'}\n`;
-      if (task.assignee) details += `   Kişi: ${task.assignee}\n`;
+      const asgn = getAssignees(task); if (asgn.length) details += `   Kişi: ${asgn.join(', ')}\n`;
       if (task.deadline) details += `   Bitiş: ${new Date(task.deadline).toLocaleDateString('tr-TR')}\n`;
       details += '\n';
     });
@@ -224,7 +224,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
       text += `*${i+1}. ${task.title}*\n`;
       text += `Durum: ${statusMap[task.status] || task.status}\n`;
       text += `Öncelik: ${prioMap[task.priority] || 'Orta'}\n`;
-      if (task.assignee) text += `Kişi: ${task.assignee}\n`;
+      const asgnT = getAssignees(task); if (asgnT.length) text += `Kişi: ${asgnT.join(', ')}\n`;
       if (task.deadline) text += `Bitiş: ${new Date(task.deadline).toLocaleDateString('tr-TR')}\n`;
       text += '\n';
     });
@@ -255,10 +255,11 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
   const filteredAndSorted = useMemo(() => {
     let result = tasksList.filter(t => {
       const matchSearch = t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (t.assignee && t.assignee.toLowerCase().includes(searchTerm.toLowerCase()));
+                          getAssignees(t).some(n => n.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchStatus = filters.status.length === 0 || filters.status.includes(t.status);
       const matchPriority = filters.priority.length === 0 || filters.priority.includes(t.priority);
-      const matchAssignee = filters.assignee.length === 0 || filters.assignee.includes(t.assignee || 'UNASSIGN');
+      const taskAsgn = getAssignees(t);
+      const matchAssignee = filters.assignee.length === 0 || filters.assignee.some(f => f === 'UNASSIGN' ? taskAsgn.length === 0 : taskAsgn.includes(f));
       const matchTags = filters.tags.length === 0 || (t.tags && t.tags.some(tag => filters.tags.includes(tag)));
 
       let matchDate = true;
@@ -497,7 +498,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
                   )}
                   <TaskTitleCell task={task} onEdit={onEdit} />
                   <td>
-                    {(isAdmin || task.assignee === currentUser) ? (
+                    {(isAdmin || getAssignees(task).includes(currentUser)) ? (
                       <select 
                         value={task.status} 
                         onChange={(e) => onStatusChange(task.id, e.target.value)}
@@ -531,18 +532,18 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
                   </td>
                   <td>
                     {isAdmin ? (
-                      <select 
-                        value={task.assignee || ''} 
-                        onChange={(e) => updateTask(task.id, { assignee: e.target.value })}
+                      <select
+                        value={getAssignees(task)[0] || ''}
+                        onChange={(e) => updateTask(task.id, { assignees: e.target.value ? [e.target.value] : [], assignee: e.target.value })}
                         className="status-select"
                         onClick={e => e.stopPropagation()}
-                        style={getUserColor(task.assignee) ? {color: getUserColor(task.assignee), fontWeight: 600} : {}}
+                        style={getUserColor(getAssignees(task)[0]) ? {color: getUserColor(getAssignees(task)[0]), fontWeight: 600} : {}}
                       >
                         <option value="">Atanmamış</option>
                         {usersList?.map(u => <option key={u.id} value={u.name} style={u.color ? {color: u.color, fontWeight: 600} : {}}>{u.name}</option>)}
                       </select>
                     ) : (
-                      <span style={getUserColor(task.assignee) ? {color: getUserColor(task.assignee), fontWeight: 600} : {}}>{task.assignee || '-'}</span>
+                      <span style={getUserColor(getAssignees(task)[0]) ? {color: getUserColor(getAssignees(task)[0]), fontWeight: 600} : {}}>{getAssignees(task).join(', ') || '-'}</span>
                     )}
                   </td>
                   <td style={{fontSize:'0.65rem', fontWeight:400}}>
@@ -581,7 +582,7 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
 }
 
 export default function BoardView({ customerTaskData, onCustomerTaskHandled }) {
-  const { tasks, updateTaskStatus, deleteTask, currentUser, updateTask, usersList, isAdmin, getUserColor, hideAllTasksForUsers, toggleHideAllTasks, tagsList } = useTasks();
+  const { tasks, updateTaskStatus, deleteTask, currentUser, updateTask, usersList, isAdmin, getUserColor, hideAllTasksForUsers, toggleHideAllTasks, tagsList, getAssignees } = useTasks();
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [prefillData, setPrefillData] = useState(null);
@@ -602,7 +603,7 @@ export default function BoardView({ customerTaskData, onCustomerTaskHandled }) {
   };
 
   const openEditModal = (task) => {
-    if (task.isNewForAssignee && (!task.assignee || task.assignee === currentUser)) {
+    if (task.isNewForAssignee && (getAssignees(task).length === 0 || getAssignees(task).includes(currentUser))) {
       updateTask(task.id, { isNewForAssignee: false });
     }
     setEditingTask(task);
@@ -616,7 +617,7 @@ export default function BoardView({ customerTaskData, onCustomerTaskHandled }) {
   };
 
   const activeTasks = tasks.filter(t => !t.isDeleted);
-  const myTasks = activeTasks.filter(t => t.assignee === currentUser);
+  const myTasks = activeTasks.filter(t => getAssignees(t).includes(currentUser));
 
   const myTodoCount = myTasks.filter(t => t.status === 'todo').length;
   const myInProgressCount = myTasks.filter(t => t.status === 'in-progress').length;
@@ -625,7 +626,7 @@ export default function BoardView({ customerTaskData, onCustomerTaskHandled }) {
     <>
       <div className="table-header-actions" style={{display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem'}}>
         <div style={{display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap'}}>
-          <h2 style={{margin:0}}>GÖREV PANELİ (V9.4.0)</h2>
+          <h2 style={{margin:0}}>GÖREV PANELİ (V9.5.0)</h2>
           <div style={{fontSize:'0.85rem', display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--bg-main)', padding:'0.4rem 0.8rem', borderRadius:'20px', border:'1px solid var(--border)'}}>
             <span style={{color:'var(--text-muted)'}}>Üzerinizde:</span>
             <span style={{color:'#ef4444', fontWeight:600}}>{myTodoCount} Yapılacak</span>

@@ -4,7 +4,7 @@ import TaskModal from './TaskModal';
 import { TrendingUp, Clock, AlertTriangle, CheckCircle, ListTodo, Users, BarChart3 } from 'lucide-react';
 
 export default function DashboardView() {
-  const { tasks, usersList, currentUser, isAdmin, hideAllTasksForUsers, updateTask, getUserColor } = useTasks();
+  const { tasks, usersList, currentUser, isAdmin, hideAllTasksForUsers, updateTask, getUserColor, getAssignees } = useTasks();
   const [editingTask, setEditingTask] = useState(null);
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
@@ -40,7 +40,7 @@ export default function DashboardView() {
       : 0;
 
     // My tasks
-    const myTasks = activeTasks.filter(t => t.assignee === currentUser);
+    const myTasks = activeTasks.filter(t => getAssignees(t).includes(currentUser));
     const myOverdue = myTasks.filter(t => {
       if (t.status === 'done' || !t.deadline) return false;
       const dl = new Date(t.deadline); dl.setHours(0,0,0,0);
@@ -60,7 +60,7 @@ export default function DashboardView() {
   const personStats = useMemo(() => {
     if (!isAdmin && hideAllTasksForUsers) return [];
     return usersList.map(u => {
-      const uTasks = activeTasks.filter(t => t.assignee === u.name);
+      const uTasks = activeTasks.filter(t => getAssignees(t).includes(u.name));
       const uTodo = uTasks.filter(t => t.status === 'todo').length;
       const uInProgress = uTasks.filter(t => t.status === 'in-progress').length;
       const uDone = uTasks.filter(t => t.status === 'done').length;
@@ -74,7 +74,7 @@ export default function DashboardView() {
   }, [activeTasks, usersList, today, isAdmin, hideAllTasksForUsers]);
 
   const openTask = (task) => {
-    if (task.isNewForAssignee && (!task.assignee || task.assignee === currentUser)) {
+    if (task.isNewForAssignee && (getAssignees(task).length === 0 || getAssignees(task).includes(currentUser))) {
       updateTask(task.id, { isNewForAssignee: false });
     }
     setEditingTask(task);
