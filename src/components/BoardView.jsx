@@ -182,7 +182,7 @@ const TaskTitleCell = ({ task, onEdit }) => {
 };
 
 function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersList, isAdmin, currentUser, updateTask, getUserColor, headerExtra, showCheckboxes, tagsList }) {
-  const { getDeadlineRowColor } = useTasks();
+  const { getDeadlineRowColor, getAssignees } = useTasks();
   const [sortCol, setSortCol] = useState('deadline');
   const [sortDir, setSortDir] = useState('asc');
   const [searchTerm, setSearchTerm] = useState('');
