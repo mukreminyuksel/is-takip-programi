@@ -572,6 +572,8 @@ body {
   .compact-table { font-size: 0.7rem; }
   .compact-table th, .compact-table td { padding: 0.25rem 0.2rem; }
   .compact-table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .compact-table .status-select { font-size: 0.65rem !important; padding: 2px 1px !important; min-width: 0 !important; max-width: 75px !important; }
+  .compact-table select { font-size: 0.65rem !important; padding: 2px !important; max-width: 75px !important; }
 
   /* Kanban */
   .kanban-board { flex-direction: column; gap: 0.5rem; }
@@ -605,7 +607,10 @@ body {
   .app-header h1 { font-size: 0.85rem; }
   .view-toggle button { padding: 0.18rem 0.3rem; font-size: 0.62rem; }
   .view-toggle button svg { display: none; }
+  /* Sadece checkbox + görev adı + durum göster */
   .compact-table th:nth-child(n+4), .compact-table td:nth-child(n+4) { display: none; }
+  .compact-table .status-select { max-width: 65px !important; font-size: 0.6rem !important; }
+  .compact-table select { max-width: 65px !important; font-size: 0.6rem !important; }
   .kanban-card { padding: 0.4rem 0.5rem; }
   .kanban-card h4 { font-size: 0.8rem; }
   div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
