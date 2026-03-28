@@ -47,7 +47,7 @@ export const CompanyProvider = ({ children }) => {
       setDoc(doc(masterDb, 'settings', 'superAdmins'), {
         emails: ['mukreminyuksel@gmail.com'],
         createdAt: new Date().toISOString()
-      }).catch(e => console.error('SuperAdmin seed error:', e));
+      }).catch(() => {});
     }
   }, [superAdminLoaded, superAdminEmails]);
 
@@ -73,7 +73,7 @@ export const CompanyProvider = ({ children }) => {
       gasDeploymentUrl: 'https://script.google.com/macros/s/AKfycbxncRte5tnhqc68DIlTzdOpDkEYEywiLwwWtuUq9WJ-VR8gbdJBSc9xSUcWi0NjNyYdmw/exec',
       driveFolderId: '1nCPx7LbZU15OirK0IC_QCBgc7e7PCdzE',
       createdAt: new Date().toISOString()
-    }).catch(e => console.error('Seed error:', e));
+    }).catch(() => {});
   }, [companiesLoading, companies]);
 
   // Auto-select last company from localStorage
@@ -121,7 +121,7 @@ export const CompanyProvider = ({ children }) => {
         createdAt: new Date().toISOString()
       });
     } catch (e) {
-      console.error('Add company error:', e);
+      /* silent */
     }
   };
 
@@ -136,7 +136,7 @@ export const CompanyProvider = ({ children }) => {
         setSelectedCompany(prev => ({ ...prev, ...data }));
       }
     } catch (e) {
-      console.error('Update company error:', e);
+      /* silent */
     }
   };
 
@@ -147,7 +147,7 @@ export const CompanyProvider = ({ children }) => {
         selectCompany(null);
       }
     } catch (e) {
-      console.error('Delete company error:', e);
+      /* silent */
     }
   };
 
@@ -155,7 +155,7 @@ export const CompanyProvider = ({ children }) => {
     try {
       await setDoc(doc(masterDb, 'settings', 'superAdmins'), { emails, updatedAt: new Date().toISOString() });
     } catch (e) {
-      console.error('Update superAdmins error:', e);
+      /* silent */
     }
   };
 
@@ -170,7 +170,7 @@ export const CompanyProvider = ({ children }) => {
         updatedAt: new Date().toISOString()
       });
     } catch (e) {
-      console.error('Email map register error:', e);
+      /* silent */
     }
   };
 
@@ -190,7 +190,7 @@ export const CompanyProvider = ({ children }) => {
         return snap.data().companyId;
       }
     } catch (e) {
-      console.error('Email lookup error:', e);
+      /* silent */
     }
     return null;
   };

@@ -251,7 +251,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch(err => {
-      console.error('Kopyalama basarisiz:', err);
+      /* clipboard fallback handled */
       alert("Panoya kopyalama izni verilmedi.");
     });
   };
@@ -483,7 +483,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
       if (err.name === 'AbortError') {
         // Upload cancelled by user
       } else {
-        console.error(err);
+        /* error shown via alert */
         alert("Dosya yüklenirken bir hata oluştu: " + err.message);
       }
     } finally {

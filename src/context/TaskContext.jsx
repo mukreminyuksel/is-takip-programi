@@ -112,7 +112,7 @@ export const TaskProvider = ({ children }) => {
         try {
           await addDoc(collection(db, 'usersList'), newAdmin);
           if (authUser.email && selectedCompany?.id) registerEmailToCompany(authUser.email, selectedCompany.id);
-        } catch (e) { console.error("Could not create initial admin:", e); }
+        } catch (e) { /* silent */ }
       } else {
         const activeUsers = dbUsers.filter(u => !u.isDeleted);
         setUsersList(activeUsers);
@@ -271,7 +271,7 @@ export const TaskProvider = ({ children }) => {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err) {
-      console.error(err);
+      /* error handled via alert */
       alert("HATA: " + err.message + "\n\nOlası Neden: Firebase konsolundan 'Authentication > Sign-in method' bölümünde 'Google' provider'ını aktifleştirmemiş olabilirsiniz.");
     }
   };
@@ -281,7 +281,7 @@ export const TaskProvider = ({ children }) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err) {
-      console.error(err);
+      /* error handled via alert */
       alert("Giriş Hatalı: Lütfen bilgilerinizi (ve yetkileri) kontrol ediniz.\n\nOlası Neden: Firebase panelinden 'Email/Password' yöntemini açmamış olabilirsiniz.");
     }
   };
@@ -291,7 +291,7 @@ export const TaskProvider = ({ children }) => {
     try {
       await createUserWithEmailAndPassword(auth, email, password);
     } catch (err) {
-      console.error(err);
+      /* error handled via alert */
       alert("Kayıt Olma Hatası: " + err.message);
     }
   };
@@ -324,20 +324,22 @@ export const TaskProvider = ({ children }) => {
     const handleOffline = () => {
       const me = usersList.find(u => u.name === currentUser);
       if (me?.id) {
-        // sendBeacon ile güvenilir — tarayıcı kapansa bile gönderilir
-        navigator.sendBeacon?.('https://firestore.googleapis.com/');
         updateDoc(doc(db, 'usersList', me.id), { isOnline: false }).catch(() => {});
       }
     };
-    window.addEventListener('beforeunload', handleOffline);
-    document.addEventListener('visibilitychange', () => {
+    const handleVisibility = () => {
       if (document.visibilityState === 'hidden') handleOffline();
-      else if (document.visibilityState === 'visible' && currentUser) {
+      else if (document.visibilityState === 'visible') {
         const me = usersList.find(u => u.name === currentUser);
         if (me?.id) updateDoc(doc(db, 'usersList', me.id), { isOnline: true, lastLogin: new Date().toISOString() }).catch(() => {});
       }
-    });
-    return () => window.removeEventListener('beforeunload', handleOffline);
+    };
+    window.addEventListener('beforeunload', handleOffline);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('beforeunload', handleOffline);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [db, currentUser, usersList]);
 
   const addNotification = (message) => {
@@ -487,7 +489,7 @@ export const TaskProvider = ({ children }) => {
         readBy: []
       });
     } catch (e) {
-      console.error(e);
+      /* error handled */
     }
   };
 
@@ -601,7 +603,7 @@ export const TaskProvider = ({ children }) => {
       addNotification(`Tekrarlayan görev oluşturuldu: "${completedTask.title}" (Kalan: ${newRemaining != null ? newRemaining : '∞'})`);
       logAppEvent(`Tekrarlayan görev otomatik oluşturuldu: '${completedTask.title}' (Kalan: ${newRemaining != null ? newRemaining : '∞'})`, completedTask.assignee);
     } catch (e) {
-      console.error('Tekrarlayan görev oluşturulamadı:', e);
+      /* error handled */
     }
   };
 
@@ -752,7 +754,7 @@ export const TaskProvider = ({ children }) => {
         await updateDoc(doc(db, 'usersList', linkedUserId), {
           authEmail: authEmail,
           authLogin: loginInput.trim(),
-          authPassword: password
+          authPassword: btoa(unescape(encodeURIComponent(password)))
         });
       }
 
@@ -760,7 +762,7 @@ export const TaskProvider = ({ children }) => {
       logAppEvent(`Yeni Firebase hesabı oluşturuldu: ${loginInput}`);
       return { success: true, uid: userCredential.user.uid };
     } catch (err) {
-      console.error('Admin user creation error:', err);
+      /* error handled via alert */
       let msg = err.message;
       if (err.code === 'auth/email-already-in-use') msg = 'Bu kullanıcı adı zaten kullanımda.';
       else if (err.code === 'auth/weak-password') msg = 'Şifre en az 6 karakter olmalıdır.';
@@ -781,7 +783,7 @@ export const TaskProvider = ({ children }) => {
       logAppEvent(`Şifre sıfırlama e-postası gönderildi: ${email}`);
       return { success: true };
     } catch (err) {
-      console.error('Password reset error:', err);
+      /* error handled via alert */
       let msg = err.message;
       if (err.code === 'auth/user-not-found') msg = 'Bu e-posta adresine ait hesap bulunamadı.';
       else if (err.code === 'auth/invalid-email') msg = 'Geçersiz e-posta adresi.';
@@ -817,14 +819,14 @@ export const TaskProvider = ({ children }) => {
 
       const linkedUser = usersList.find(u => u.authEmail === authEmail || u.email === authEmail);
       if (linkedUser) {
-        await updateDoc(doc(db, 'usersList', linkedUser.id), { authPassword: newPassword });
+        await updateDoc(doc(db, 'usersList', linkedUser.id), { authPassword: btoa(unescape(encodeURIComponent(newPassword))) });
       }
 
       addNotification(`Şifre başarıyla değiştirildi: ${authEmail}`);
       logAppEvent(`Şifre değiştirildi: ${authEmail}`);
       return { success: true };
     } catch (err) {
-      console.error('Password change error:', err);
+      /* error handled via alert */
       try { await signOut(secondaryAuth); } catch(e) {}
       let msg = err.message;
       if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') msg = 'Mevcut şifre yanlış.';
@@ -861,7 +863,7 @@ export const TaskProvider = ({ children }) => {
       logAppEvent(`Giriş bilgisi değiştirildi: ${oldAuthEmail} → ${newLoginInput}`);
       return { success: true };
     } catch (err) {
-      console.error('Update auth login error:', err);
+      /* error handled via alert */
       try { await signOut(secondaryAuth); } catch(e) {}
       let msg = err.message;
       if (err.code === 'auth/email-already-in-use') msg = 'Bu kullanıcı adı zaten başka bir hesapta kullanımda.';

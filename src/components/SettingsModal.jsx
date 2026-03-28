@@ -282,7 +282,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
         alert(`Excel İçe Aktarma Başarılı!\n${tCount} mevcut görev güncellendi, ${pCount} yeni görev eklendi.`);
         onClose();
       } catch (err) {
-        console.error(err);
+        /* error handled */
         alert("Excel içe aktarma hatası: " + err.message);
       }
       e.target.value = '';
@@ -864,7 +864,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
                         </td>
                         <td>
                           {u.authPassword ? (
-                            <span style={{fontFamily:'monospace', fontSize:'0.8rem', background:'var(--bg-hover)', padding:'0.15rem 0.4rem', borderRadius:'4px', userSelect:'all'}}>{u.authPassword}</span>
+                            <span style={{fontFamily:'monospace', fontSize:'0.8rem', background:'var(--bg-hover)', padding:'0.15rem 0.4rem', borderRadius:'4px', userSelect:'all'}}>{(() => { try { return decodeURIComponent(escape(atob(u.authPassword))); } catch(e) { return u.authPassword; } })()}</span>
                           ) : (
                             <span style={{color:'var(--text-muted)', fontSize:'0.75rem'}}>-</span>
                           )}
@@ -906,7 +906,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
               const selectedUser = usersList.find(u => u.id === authChangeUserId);
               if (!selectedUser) return null;
               const targetAuthEmail = selectedUser.authEmail || selectedUser.email;
-              const currentPw = selectedUser.authPassword || '';
+              const currentPw = selectedUser.authPassword ? (() => { try { return decodeURIComponent(escape(atob(selectedUser.authPassword))); } catch(e) { return selectedUser.authPassword; } })() : '';
               return (
                 <div style={{background:'#fef3c7', padding:'1rem', borderRadius:'8px', border:'1px solid #fcd34d', marginBottom:'1.5rem'}}>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.75rem'}}>
@@ -962,7 +962,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
               const selectedUser = usersList.find(u => u.id === authEditLoginUserId);
               if (!selectedUser) return null;
               const oldAuthEmail = selectedUser.authEmail;
-              const currentPw = selectedUser.authPassword || '';
+              const currentPw = selectedUser.authPassword ? (() => { try { return decodeURIComponent(escape(atob(selectedUser.authPassword))); } catch(e) { return selectedUser.authPassword; } })() : '';
               return (
                 <div style={{background:'#ede9fe', padding:'1rem', borderRadius:'8px', border:'1px solid #c4b5fd', marginBottom:'1.5rem'}}>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.75rem'}}>
