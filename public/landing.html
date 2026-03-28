@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,95 +8,447 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', -apple-system, sans-serif; color: #0f172a; background: #fff; }
-    a { text-decoration: none; color: inherit; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      color: #0f172a;
+      background: #fff;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
 
     /* Navbar */
-    .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 2rem; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid #e2e8f0; }
-    .nav-logo { display: flex; align-items: center; gap: 0.5rem; font-size: 1.2rem; font-weight: 800; color: #2563eb; }
-    .nav-logo svg { width: 28px; height: 28px; }
-    .nav-links { display: flex; align-items: center; gap: 1.5rem; }
-    .nav-links a { font-size: 0.9rem; font-weight: 500; color: #475569; transition: color 0.2s; }
-    .nav-links a:hover { color: #2563eb; }
-    .btn-nav { padding: 0.5rem 1.2rem; background: #2563eb; color: #fff !important; border-radius: 8px; font-weight: 600; font-size: 0.88rem; transition: all 0.2s; }
-    .btn-nav:hover { background: #1d4ed8; }
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.8rem 2rem;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #2563eb;
+    }
+
+    .nav-logo svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .nav-links a {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #475569;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: #2563eb;
+    }
+
+    .btn-nav {
+      padding: 0.5rem 1.2rem;
+      background: #2563eb;
+      color: #fff !important;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      transition: all 0.2s;
+    }
+
+    .btn-nav:hover {
+      background: #1d4ed8;
+    }
 
     /* Hero */
-    .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 5rem 2rem 3rem; background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 50%, #faf5ff 100%); }
-    .hero-badge { display: inline-flex; align-items: center; gap: 0.4rem; background: #dbeafe; color: #1d4ed8; padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.82rem; font-weight: 600; margin-bottom: 1.5rem; }
-    .hero h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 800; line-height: 1.15; margin-bottom: 1rem; max-width: 700px; }
-    .hero h1 span { color: #2563eb; }
-    .hero p { font-size: clamp(1rem, 2vw, 1.2rem); color: #475569; max-width: 560px; margin-bottom: 2rem; line-height: 1.6; }
-    .hero-buttons { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; margin-bottom: 3rem; }
-    .btn-primary { padding: 0.9rem 2rem; background: #2563eb; color: #fff; border-radius: 10px; font-weight: 700; font-size: 1rem; transition: all 0.2s; border: none; cursor: pointer; display: inline-block; }
-    .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 8px 25px rgba(37,99,235,0.3); }
-    .btn-outline { padding: 0.9rem 2rem; background: transparent; color: #2563eb; border: 2px solid #2563eb; border-radius: 10px; font-weight: 700; font-size: 1rem; transition: all 0.2s; cursor: pointer; display: inline-block; }
-    .btn-outline:hover { background: #2563eb; color: #fff; }
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 5rem 2rem 3rem;
+      background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 50%, #faf5ff 100%);
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #dbeafe;
+      color: #1d4ed8;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 1rem;
+      max-width: 700px;
+    }
+
+    .hero h1 span {
+      color: #2563eb;
+    }
+
+    .hero p {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: #475569;
+      max-width: 560px;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 3rem;
+    }
+
+    .btn-primary {
+      padding: 0.9rem 2rem;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      transition: all 0.2s;
+      border: none;
+      cursor: pointer;
+      display: inline-block;
+    }
+
+    .btn-primary:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-outline {
+      padding: 0.9rem 2rem;
+      background: transparent;
+      color: #2563eb;
+      border: 2px solid #2563eb;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      transition: all 0.2s;
+      cursor: pointer;
+      display: inline-block;
+    }
+
+    .btn-outline:hover {
+      background: #2563eb;
+      color: #fff;
+    }
 
     /* Screenshot area */
-    .hero-screenshot { max-width: 900px; width: 100%; border-radius: 12px; border: 1px solid #cbd5e1; box-shadow: 0 20px 60px rgba(0,0,0,0.12); overflow: hidden; background: #f1f5f9; }
-    .hero-screenshot img { width: 100%; display: block; }
-    .hero-screenshot .placeholder { padding: 4rem 2rem; text-align: center; color: #94a3b8; font-size: 0.95rem; }
+    .hero-screenshot {
+      max-width: 900px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+      background: #f1f5f9;
+    }
+
+    .hero-screenshot img {
+      width: 100%;
+      display: block;
+    }
+
+    .hero-screenshot .placeholder {
+      padding: 4rem 2rem;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.95rem;
+    }
 
     /* Features */
-    .features { padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }
-    .features h2 { text-align: center; font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
-    .features .subtitle { text-align: center; color: #64748b; font-size: 1.05rem; margin-bottom: 3rem; }
-    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
-    .feature-card { padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; background: #f8fafc; transition: all 0.2s; }
-    .feature-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.08); border-color: #bfdbfe; }
-    .feature-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1rem; }
-    .feature-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; }
-    .feature-card p { font-size: 0.9rem; color: #64748b; line-height: 1.5; }
+    .features {
+      padding: 5rem 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .features h2 {
+      text-align: center;
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+    }
+
+    .features .subtitle {
+      text-align: center;
+      color: #64748b;
+      font-size: 1.05rem;
+      margin-bottom: 3rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .feature-card {
+      padding: 1.5rem;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      transition: all 0.2s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      border-color: #bfdbfe;
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .feature-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .feature-card p {
+      font-size: 0.9rem;
+      color: #64748b;
+      line-height: 1.5;
+    }
 
     /* Pricing */
-    .pricing { padding: 5rem 2rem; background: #f8fafc; }
-    .pricing h2 { text-align: center; font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
-    .pricing .subtitle { text-align: center; color: #64748b; font-size: 1.05rem; margin-bottom: 3rem; }
-    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; max-width: 900px; margin: 0 auto; }
-    .price-card { padding: 2rem; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; text-align: center; }
-    .price-card.featured { border-color: #2563eb; box-shadow: 0 8px 30px rgba(37,99,235,0.15); position: relative; }
-    .price-card.featured::before { content: 'En Pop\00FCler'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #2563eb; color: #fff; padding: 0.2rem 1rem; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
-    .price-card h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
-    .price-card .price { font-size: 2.5rem; font-weight: 800; color: #2563eb; margin-bottom: 0.3rem; }
-    .price-card .price span { font-size: 1rem; font-weight: 500; color: #64748b; }
-    .price-card ul { list-style: none; text-align: left; margin: 1.5rem 0; }
-    .price-card ul li { padding: 0.4rem 0; font-size: 0.9rem; color: #334155; }
-    .price-card ul li::before { content: '\2713'; color: #16a34a; font-weight: 700; margin-right: 0.5rem; }
+    .pricing {
+      padding: 5rem 2rem;
+      background: #f8fafc;
+    }
+
+    .pricing h2 {
+      text-align: center;
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+    }
+
+    .pricing .subtitle {
+      text-align: center;
+      color: #64748b;
+      font-size: 1.05rem;
+      margin-bottom: 3rem;
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .price-card {
+      padding: 2rem;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      text-align: center;
+    }
+
+    .price-card.featured {
+      border-color: #2563eb;
+      box-shadow: 0 8px 30px rgba(37, 99, 235, 0.15);
+      position: relative;
+    }
+
+    .price-card.featured::before {
+      content: 'En Pop\00FCler';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2563eb;
+      color: #fff;
+      padding: 0.2rem 1rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .price-card h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .price-card .price {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #2563eb;
+      margin-bottom: 0.3rem;
+    }
+
+    .price-card .price span {
+      font-size: 1rem;
+      font-weight: 500;
+      color: #64748b;
+    }
+
+    .price-card ul {
+      list-style: none;
+      text-align: left;
+      margin: 1.5rem 0;
+    }
+
+    .price-card ul li {
+      padding: 0.4rem 0;
+      font-size: 0.9rem;
+      color: #334155;
+    }
+
+    .price-card ul li::before {
+      content: '\2713';
+      color: #16a34a;
+      font-weight: 700;
+      margin-right: 0.5rem;
+    }
 
     /* CTA */
-    .cta { padding: 5rem 2rem; text-align: center; background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff; }
-    .cta h2 { font-size: 2rem; font-weight: 800; margin-bottom: 1rem; }
-    .cta p { font-size: 1.05rem; opacity: 0.9; margin-bottom: 2rem; max-width: 500px; margin-left: auto; margin-right: auto; }
-    .btn-white { padding: 0.9rem 2rem; background: #fff; color: #2563eb; border-radius: 10px; font-weight: 700; font-size: 1rem; border: none; cursor: pointer; transition: all 0.2s; display: inline-block; }
-    .btn-white:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
+    .cta {
+      padding: 5rem 2rem;
+      text-align: center;
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      color: #fff;
+    }
+
+    .cta h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+    }
+
+    .cta p {
+      font-size: 1.05rem;
+      opacity: 0.9;
+      margin-bottom: 2rem;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .btn-white {
+      padding: 0.9rem 2rem;
+      background: #fff;
+      color: #2563eb;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-block;
+    }
+
+    .btn-white:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    }
 
     /* Footer */
-    footer { padding: 2rem; text-align: center; color: #94a3b8; font-size: 0.85rem; background: #0f172a; }
-    footer a { color: #60a5fa; }
+    footer {
+      padding: 2rem;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.85rem;
+      background: #0f172a;
+    }
+
+    footer a {
+      color: #60a5fa;
+    }
 
     @media (max-width: 768px) {
-      .navbar { padding: 0.6rem 1rem; }
-      .nav-links a:not(.btn-nav) { display: none; }
-      .hero { padding: 4rem 1rem 2rem; }
-      .features, .pricing { padding: 3rem 1rem; }
-      .pricing-grid { grid-template-columns: 1fr; }
+      .navbar {
+        padding: 0.6rem 1rem;
+      }
+
+      .nav-links a:not(.btn-nav) {
+        display: none;
+      }
+
+      .hero {
+        padding: 4rem 1rem 2rem;
+      }
+
+      .features,
+      .pricing {
+        padding: 3rem 1rem;
+      }
+
+      .pricing-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
+
 <body>
 
   <!-- Navbar -->
   <nav class="navbar">
-    <div class="nav-logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <a href="/landing.html" class="nav-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
         <line x1="3" y1="9" x2="21" y2="9"></line>
         <line x1="9" y1="21" x2="9" y2="9"></line>
       </svg>
       TaskTrack
-    </div>
+    </a>
     <div class="nav-links">
       <a href="#ozellikler">&#214;zellikler</a>
       <a href="#fiyatlar">Fiyatlar</a>
@@ -108,14 +461,16 @@
   <section class="hero">
     <div class="hero-badge">Yeni V9.7 S&#252;r&#252;m&#252; Yay&#305;nda</div>
     <h1>Projelerinizi <span>TaskTrack</span> ile Y&#246;netin</h1>
-    <p>G&#246;rev atama, Kanban panosu, Gantt &#351;emas&#305;, &#246;zet dashboard, ekip y&#246;netimi ve m&#252;&#351;teri takibi &#8212; hepsi tek platformda.</p>
+    <p>G&#246;rev atama, Kanban panosu, Gantt &#351;emas&#305;, &#246;zet dashboard, ekip y&#246;netimi ve
+      m&#252;&#351;teri takibi &#8212; hepsi tek platformda.</p>
     <div class="hero-buttons">
       <a href="https://avrupa-proje-istakip.web.app" class="btn-primary">&#220;cretsiz Deneyin</a>
       <a href="#fiyatlar" class="btn-outline">Fiyatlar&#305; G&#246;r</a>
     </div>
     <div class="hero-screenshot">
       <!-- Buraya uygulama ekran g&#246;r&#252;nt&#252;s&#252; ekleyin: <img src="screenshot.png" alt="TaskTrack"> -->
-      <div class="placeholder">Uygulama ekran g&#246;r&#252;nt&#252;s&#252; buraya eklenecek<br><small style="color:#cbd5e1">public/ klas&#246;r&#252;ne screenshot.png ekleyin</small></div>
+      <div class="placeholder">Uygulama ekran g&#246;r&#252;nt&#252;s&#252; buraya eklenecek<br><small
+          style="color:#cbd5e1">public/ klas&#246;r&#252;ne screenshot.png ekleyin</small></div>
     </div>
   </section>
 
@@ -127,47 +482,56 @@
       <div class="feature-card">
         <div class="feature-icon" style="background:#dbeafe">&#128203;</div>
         <h3>G&#246;rev Y&#246;netimi</h3>
-        <p>G&#246;rev olu&#351;turun, atay&#305;n, &#246;ncelik ve deadline belirleyin. Alt g&#246;revler, notlar ve dosya ekleri ile detaylan d&#305;r&#305;n.</p>
+        <p>G&#246;rev olu&#351;turun, atay&#305;n, &#246;ncelik ve deadline belirleyin. Alt g&#246;revler, notlar ve
+          dosya ekleri ile detaylan d&#305;r&#305;n.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon" style="background:#dcfce7">&#128202;</div>
         <h3>Kanban Panosu</h3>
-        <p>S&#252;r&#252;kle-b&#305;rak ile g&#246;revleri y&#246;netin. Yap&#305;lacak, Devam Eden, Tamamland&#305; kolonlar&#305; ile g&#246;r&#252;n&#252;rl&#252;k.</p>
+        <p>S&#252;r&#252;kle-b&#305;rak ile g&#246;revleri y&#246;netin. Yap&#305;lacak, Devam Eden, Tamamland&#305;
+          kolonlar&#305; ile g&#246;r&#252;n&#252;rl&#252;k.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon" style="background:#fef3c7">&#128197;</div>
         <h3>Gantt &#350;emas&#305;</h3>
-        <p>Projenizin zaman &#231;izelgesini g&#246;r&#252;n. Ba&#351;lang&#305;&#231;-biti&#351; tarihleri, gecikme takibi ve tooltip detaylar&#305;.</p>
+        <p>Projenizin zaman &#231;izelgesini g&#246;r&#252;n. Ba&#351;lang&#305;&#231;-biti&#351; tarihleri, gecikme
+          takibi ve tooltip detaylar&#305;.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon" style="background:#ede9fe">&#128200;</div>
         <h3>&#214;zet Dashboard</h3>
-        <p>KPI kartlar&#305;, ekip performans&#305;, g&#246;rev da&#287;&#305;l&#305;mlar&#305; ve trend grafikleri ile b&#252;y&#252;k resmi g&#246;r&#252;n.</p>
+        <p>KPI kartlar&#305;, ekip performans&#305;, g&#246;rev da&#287;&#305;l&#305;mlar&#305; ve trend grafikleri ile
+          b&#252;y&#252;k resmi g&#246;r&#252;n.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon" style="background:#fce7f3">&#128101;</div>
         <h3>&#199;oklu &#350;irket</h3>
-        <p>Birden fazla &#351;irket/&#351;ube y&#246;netin. Her &#351;irketin kendi veritaban&#305;, kullan&#305;c&#305;lar&#305; ve ayarlar&#305;.</p>
+        <p>Birden fazla &#351;irket/&#351;ube y&#246;netin. Her &#351;irketin kendi veritaban&#305;,
+          kullan&#305;c&#305;lar&#305; ve ayarlar&#305;.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon" style="background:#ccfbf1">&#128274;</div>
         <h3>Rol Bazl&#305; Eri&#351;im</h3>
-        <p>S&#252;per Admin, &#350;irket Admin ve Kullan&#305;c&#305; rolleri. Herkes sadece yetkisi d&#226;hilindekini g&#246;r&#252;r.</p>
+        <p>S&#252;per Admin, &#350;irket Admin ve Kullan&#305;c&#305; rolleri. Herkes sadece yetkisi d&#226;hilindekini
+          g&#246;r&#252;r.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon" style="background:#fee2e2">&#128231;</div>
         <h3>E-posta Bildirimleri</h3>
-        <p>G&#246;rev atand&#305;&#287;&#305;nda, durum de&#287;i&#351;ti&#287;inde otomatik e-posta. Gmail entegrasyonu ile kolay kurulum.</p>
+        <p>G&#246;rev atand&#305;&#287;&#305;nda, durum de&#287;i&#351;ti&#287;inde otomatik e-posta. Gmail entegrasyonu
+          ile kolay kurulum.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon" style="background:#e0e7ff">&#128190;</div>
         <h3>Yedekleme</h3>
-        <p>Tek t&#305;kla JSON yedek al&#305;n. Ba&#351;ka Firebase projesine ta&#351;&#305;y&#305;n. Verileriniz her zaman g&#252;vende.</p>
+        <p>Tek t&#305;kla JSON yedek al&#305;n. Ba&#351;ka Firebase projesine ta&#351;&#305;y&#305;n. Verileriniz her
+          zaman g&#252;vende.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon" style="background:#f1f5f9">&#127760;</div>
         <h3>Bulut Tabanl&#305;</h3>
-        <p>Kurulum gerektirmez. Taray&#305;c&#305;n&#305;zdan eri&#351;in &#8212; masa&#252;st&#252;, tablet veya telefon.</p>
+        <p>Kurulum gerektirmez. Taray&#305;c&#305;n&#305;zdan eri&#351;in &#8212; masa&#252;st&#252;, tablet veya
+          telefon.</p>
       </div>
     </div>
   </section>
@@ -187,20 +551,22 @@
           <li>E-posta bildirimleri</li>
           <li>Dosya y&#252;kleme (1GB)</li>
         </ul>
-        <a href="https://avrupa-proje-istakip.web.app" class="btn-primary" style="display:block;text-align:center">Hemen Ba&#351;la</a>
+        <a href="https://avrupa-proje-istakip.web.app" class="btn-primary" style="display:block;text-align:center">Hemen
+          Ba&#351;la</a>
       </div>
       <div class="price-card featured">
         <h3>Profesyonel</h3>
-        <div class="price">2.490 &#8378; <span>/ ay</span></div>
+        <div class="price">500 &#8378; <span>/ ay</span></div>
         <p style="color:#64748b;font-size:0.85rem">B&#252;y&#252;yen ekipler i&#231;in</p>
         <ul>
-          <li>25 kullan&#305;c&#305;ya kadar</li>
+          <li>10 kullan&#305;c&#305;ya kadar</li>
           <li>T&#252;m &#246;zellikler</li>
           <li>&#214;ncelikli destek</li>
           <li>Dosya y&#252;kleme (10GB)</li>
           <li>M&#252;&#351;teri y&#246;netimi (CRM)</li>
         </ul>
-        <a href="mailto:info@tasktrack.net?subject=TaskTrack%20Pro%20Plan" class="btn-primary" style="display:block;text-align:center">&#304;leti&#351;ime Ge&#231;</a>
+        <a href="mailto:info@tasktrack.net?subject=TaskTrack%20Pro%20Plan" class="btn-primary"
+          style="display:block;text-align:center">&#304;leti&#351;ime Ge&#231;</a>
       </div>
       <div class="price-card">
         <h3>Kurumsal</h3>
@@ -213,7 +579,8 @@
           <li>S&#305;n&#305;rs&#305;z depolama</li>
           <li>SLA garantisi</li>
         </ul>
-        <a href="mailto:info@tasktrack.net?subject=TaskTrack%20Kurumsal" class="btn-primary" style="display:block;text-align:center">Teklif Al&#305;n</a>
+        <a href="mailto:info@tasktrack.net?subject=TaskTrack%20Kurumsal" class="btn-primary"
+          style="display:block;text-align:center">Teklif Al&#305;n</a>
       </div>
     </div>
   </section>
@@ -227,8 +594,10 @@
 
   <!-- Footer -->
   <footer>
-    <p>&copy; 2026 TaskTrack. T&#252;m haklar&#305; sakl&#305;d&#305;r. | <a href="mailto:info@tasktrack.net">info@tasktrack.net</a></p>
+    <p>&copy; 2026 TaskTrack. T&#252;m haklar&#305; sakl&#305;d&#305;r. | <a
+        href="mailto:info@tasktrack.net">info@tasktrack.net</a></p>
   </footer>
 
 </body>
+
 </html>

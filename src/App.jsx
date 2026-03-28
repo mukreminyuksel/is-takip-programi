@@ -477,7 +477,20 @@ const AppContent = () => {
   // Login ekranı: şirket seçilmemiş veya auth olmamış
   if (!currentUser) {
     return (
-      <div className="login-screen" style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
+      <div className="login-screen" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-main)' }}>
+        {/* Navbar — landing page ile aynı */}
+        <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.8rem 2rem', background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)' }}>
+          <a href="/landing.html" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)', textDecoration: 'none' }}>
+            <Layout size={24} />
+            TaskTrack
+          </a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            <a href="/landing.html#ozellikler" style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-muted)', textDecoration: 'none' }}>Özellikler</a>
+            <a href="/landing.html#fiyatlar" style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-muted)', textDecoration: 'none' }}>Fiyatlar</a>
+          </div>
+        </nav>
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
         <Layout size={64} style={{ color: 'var(--primary)', marginBottom: '1rem' }} />
         <h1 style={{ marginBottom: '2rem', fontSize: '2rem', color: 'var(--text-main)', textAlign: 'center' }}>TaskTrack</h1>
 
@@ -557,6 +570,7 @@ const AppContent = () => {
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo" style={{ width: '20px', height: '20px' }} />
           Google ile Giriş Yap
         </button>
+        </div>
       </div>
     );
   }
