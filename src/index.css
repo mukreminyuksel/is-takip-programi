@@ -618,8 +618,9 @@ body {
   .app-header h1 { font-size: 0.85rem; }
   .view-toggle button { padding: 0.18rem 0.3rem; font-size: 0.62rem; }
   .view-toggle button svg { display: none; }
-  /* Sadece checkbox + görev adı + durum göster (kişi de gizle) */
-  .compact-table th:nth-child(n+4), .compact-table td:nth-child(n+4) { display: none; }
+  /* checkbox(1) + görev(2) + durum(3) + kişi(5) göster, öncelik(4) + tarih/işlem(6+) gizle */
+  .compact-table th:nth-child(4), .compact-table td:nth-child(4),
+  .compact-table th:nth-child(n+6), .compact-table td:nth-child(n+6) { display: none !important; }
   .compact-table .status-select { max-width: 65px !important; font-size: 0.6rem !important; }
   .compact-table select { max-width: 65px !important; font-size: 0.6rem !important; }
   .kanban-card { padding: 0.4rem 0.5rem; }
