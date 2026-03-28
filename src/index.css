@@ -550,56 +550,64 @@ body {
 
 /* Mobile */
 @media (max-width: 768px) {
+  .hide-mobile { display: none !important; }
+
   .app-container { padding: 0.3rem 2px; }
 
-  /* Header */
-  .app-header { flex-wrap: wrap; gap: 0.5rem; padding-bottom: 0.3rem; }
-  .header-content { flex-wrap: wrap; gap: 0.4rem; }
-  .logo-title { width: 100%; justify-content: space-between; }
-  .logo-title h1 { font-size: 1rem; }
-  .view-toggle { flex-wrap: wrap; }
-  .view-toggle button { padding: 0.25rem 0.5rem; font-size: 0.7rem; }
-  .user-profile span { display: none; }
-  .icon-btn { padding: 4px; }
+  /* Header — kompakt tek satır */
+  .app-header { flex-wrap: wrap; gap: 0.3rem; padding-bottom: 0.3rem; margin-bottom: 0.3rem; }
+  .header-content { flex-wrap: wrap; gap: 0.3rem; }
+  .logo-title { width: 100%; justify-content: space-between; align-items: center; }
+  .logo-title h1 { font-size: 0.95rem; }
+  .logo-title h1 span:last-child { display: none; } /* şirket adını gizle */
+  .view-toggle { order: -1; }
+  .view-toggle button { padding: 0.2rem 0.45rem; font-size: 0.68rem; }
+  .view-toggle button svg { width: 12px; height: 12px; }
+  .icon-btn { padding: 3px; }
+  .icon-btn svg { width: 16px; height: 16px; }
 
   /* Tablo görünümü */
-  .table-header-actions { flex-direction: column; align-items: stretch; gap: 0.5rem; }
-  .compact-table { font-size: 0.72rem; }
-  .compact-table th, .compact-table td { padding: 0.3rem 0.25rem; white-space: nowrap; }
+  .table-header-actions { flex-direction: column; align-items: stretch; gap: 0.4rem; }
+  .table-header-actions h2 { font-size: 0.85rem !important; }
+  .compact-table { font-size: 0.7rem; }
+  .compact-table th, .compact-table td { padding: 0.25rem 0.2rem; }
   .compact-table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
   /* Kanban */
   .kanban-board { flex-direction: column; gap: 0.5rem; }
   .kanban-column { max-height: 350px; }
 
-  /* Modaller */
-  .settings-modal, .task-modal {
+  /* Modaller — tam ekran */
+  .settings-modal, .task-modal,
+  div[style*="position: fixed"][style*="inset: 0"] > div {
     width: 100vw !important;
-    height: 100vh !important;
     max-width: 100vw !important;
+    height: 100vh !important;
     max-height: 100vh !important;
     border-radius: 0 !important;
-    top: 0 !important;
-    left: 0 !important;
-    transform: none !important;
+    margin: 0 !important;
   }
 
   /* Filtreler */
   .filter-row { flex-wrap: wrap; gap: 0.3rem; }
-  .filter-row select, .filter-row input { font-size: 0.78rem; min-width: 0; flex: 1 1 120px; }
+  .filter-row select, .filter-row input { font-size: 0.75rem; min-width: 0; flex: 1 1 100px; }
 
   /* Bildirimler */
   .notification-container { left: 0.5rem; right: 0.5rem; bottom: 0.5rem; }
   .toast-notification { font-size: 0.8rem; padding: 0.5rem 0.8rem; }
+
+  /* Dashboard kartları */
+  div[style*="grid-template-columns"] { grid-template-columns: 1fr 1fr !important; }
 }
 
 /* Small mobile */
 @media (max-width: 480px) {
-  .app-header h1 { font-size: 0.9rem; }
-  .view-toggle button { padding: 0.2rem 0.35rem; font-size: 0.65rem; }
+  .app-header h1 { font-size: 0.85rem; }
+  .view-toggle button { padding: 0.18rem 0.3rem; font-size: 0.62rem; }
   .view-toggle button svg { display: none; }
-  .compact-table th:nth-child(n+5), .compact-table td:nth-child(n+5) { display: none; }
+  .compact-table th:nth-child(n+4), .compact-table td:nth-child(n+4) { display: none; }
   .kanban-card { padding: 0.4rem 0.5rem; }
   .kanban-card h4 { font-size: 0.8rem; }
+  div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
 }
 

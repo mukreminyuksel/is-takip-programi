@@ -197,7 +197,7 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
             <button className={viewMode === 'dashboard' ? 'active' : ''} onClick={() => onViewChange('dashboard')}>
               <BarChart3 size={14}/> Özet
             </button>
-            <button onClick={onOpenCustomers} style={{marginLeft:'0.3rem', background:'#f0fdf4', color:'#16a34a', border:'1px solid #bbf7d0'}}>
+            <button className="hide-mobile" onClick={onOpenCustomers} style={{marginLeft:'0.3rem', background:'#f0fdf4', color:'#16a34a', border:'1px solid #bbf7d0'}}>
               <Users size={14}/> Müşteriler
             </button>
           </div>
@@ -271,31 +271,31 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
           </div>
 
           {selectedCompany && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: selectedCompany.color || '#3b82f6', color: '#fff', padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
+            <div className="hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: selectedCompany.color || '#3b82f6', color: '#fff', padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
               <Building2 size={13} />
               {selectedCompany.name}
             </div>
           )}
-          <div className="user-profile" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <div className="user-profile hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <UserCircle size={18} style={{ color: "var(--text-muted)" }}/>
             <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{currentUser}</span>
             {isAdmin && <span style={{ fontSize: '0.7rem', background: '#fef08a', color: '#854d0e', padding: '2px 6px', borderRadius: '4px' }}>Admin</span>}
           </div>
-          <button className="icon-btn" onClick={() => setPwModalOpen(true)} title="Şifre Değiştir">
+          <button className="icon-btn hide-mobile" onClick={() => setPwModalOpen(true)} title="Şifre Değiştir">
             <KeyRound size={18} />
           </button>
           <button className="icon-btn" onClick={logout} title="Çıkış Yap">
             <LogOut size={18} />
           </button>
-          {headerIsSuperAdmin && <button className="icon-btn" onClick={handleSwitchCompany} title="Şirket Değiştir">
+          {headerIsSuperAdmin && <button className="icon-btn hide-mobile" onClick={handleSwitchCompany} title="Şirket Değiştir">
             <ArrowLeftRight size={18} />
           </button>}
 
-          <button className="icon-btn" onClick={toggleTheme} title={theme === 'light' ? 'Karanlık Tema' : 'Aydınlık Tema'} style={{display:'flex', alignItems:'center'}}>
+          <button className="icon-btn hide-mobile" onClick={toggleTheme} title={theme === 'light' ? 'Karanlık Tema' : 'Aydınlık Tema'} style={{display:'flex', alignItems:'center'}}>
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} color="#fbbf24" />}
           </button>
 
-          <div style={{ width: '1px', height: '24px', background: 'var(--border)', margin: '0 0.5rem' }}></div>
+          <div className="hide-mobile" style={{ width: '1px', height: '24px', background: 'var(--border)', margin: '0 0.5rem' }}></div>
 
           <div style={{position:'relative'}} ref={notifRef}>
             <button className="icon-btn" onClick={() => setNotifOpen(!notifOpen)} title="Bildirimler" style={{position:'relative'}}>
