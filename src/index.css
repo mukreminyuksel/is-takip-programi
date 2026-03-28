@@ -571,17 +571,17 @@ body {
   .table-header-actions h2 { font-size: 0.85rem !important; }
   .table-header-actions > div { flex-wrap: wrap !important; gap: 0.3rem !important; }
   .table-header-actions .btn-small { font-size: 0.62rem !important; padding: 0.2rem 0.4rem !important; }
-  .table-header-actions .search-input { min-width: 0 !important; width: 100% !important; font-size: 0.75rem !important; }
+  .table-header-actions .search-input { min-width: 0 !important; width: 100% !important; font-size: 0.7rem !important; padding: 0.3rem 0.5rem !important; }
 
   /* Tablo görünümü */
   .compact-table { font-size: 0.7rem; }
   .compact-table th, .compact-table td { padding: 0.25rem 0.2rem; }
   .compact-table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  /* Durum ve öncelik select'leri dar */
-  .compact-table td:nth-child(3) select,
-  .compact-table td:nth-child(4) select { font-size: 0.62rem !important; padding: 2px !important; max-width: 72px !important; min-width: 0 !important; }
-  /* Kişi select'i biraz daha geniş */
-  .compact-table td:nth-child(5) select { font-size: 0.62rem !important; padding: 2px !important; max-width: 90px !important; min-width: 0 !important; }
+  /* Durum select dar */
+  .compact-table td:nth-child(3) select { font-size: 0.58rem !important; padding: 1px !important; max-width: 62px !important; min-width: 0 !important; }
+  /* Kişi select dar */
+  .compact-table td:nth-child(5) select,
+  .compact-table td:nth-child(5) span { font-size: 0.58rem !important; padding: 1px !important; max-width: 70px !important; min-width: 0 !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
   /* Mobil kolon: checkbox(1) + görev(2) + durum(3) + kişi(5) göster, öncelik(4) + tarihler(6,7) + işlem(8) gizle */
   .compact-table th:nth-child(4), .compact-table td:nth-child(4),
   .compact-table th:nth-child(n+6), .compact-table td:nth-child(n+6) { display: none !important; }
