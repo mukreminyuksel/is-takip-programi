@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
 import { useCompany } from '../context/CompanyContext';
-import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server, Users, Calendar, MessageCircle, Maximize, Minimize } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server, Users, Calendar, MessageCircle, Maximize, Minimize, CheckCircle, XCircle, Loader } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { doc, setDoc } from 'firebase/firestore';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
@@ -1471,7 +1473,7 @@ function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany
   const emptyForm = {
     name: '', displayName: '', color: '#3b82f6',
     firebaseConfig: { apiKey: '', authDomain: '', projectId: '', storageBucket: '', messagingSenderId: '', appId: '' },
-    githubRepo: '', gasDeploymentUrl: ''
+    gasDeploymentUrl: '', driveFolderId: ''
   };
   const [form, setForm] = useState(emptyForm);
 
@@ -1482,8 +1484,8 @@ function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany
       displayName: company.displayName || '',
       color: company.color || '#3b82f6',
       firebaseConfig: company.firebaseConfig || emptyForm.firebaseConfig,
-      githubRepo: company.githubRepo || '',
-      gasDeploymentUrl: company.gasDeploymentUrl || ''
+      gasDeploymentUrl: company.gasDeploymentUrl || '',
+      driveFolderId: company.driveFolderId || ''
     });
     setShowAddForm(false);
   };
@@ -1519,7 +1521,40 @@ function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany
     await deleteCompany(id);
   };
 
+  const [testStatus, setTestStatus] = useState(null); // null | 'testing' | 'success' | 'error'
+  const [testMessage, setTestMessage] = useState('');
+
+  const testFirebaseConnection = async () => {
+    const cfg = form.firebaseConfig;
+    if (!cfg.apiKey || !cfg.projectId) {
+      setTestStatus('error');
+      setTestMessage('API Key ve Project ID zorunludur.');
+      return;
+    }
+    setTestStatus('testing');
+    setTestMessage('Bağlantı test ediliyor...');
+    let testApp = null;
+    try {
+      testApp = initializeApp(cfg, 'connection-test-' + Date.now());
+      const testDb = getFirestore(testApp);
+      await getDocs(collection(testDb, '__test__'));
+      setTestStatus('success');
+      setTestMessage('Firebase bağlantısı başarılı! Firestore erişimi doğrulandı.');
+    } catch (err) {
+      if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
+        setTestStatus('success');
+        setTestMessage('Firebase bağlantısı başarılı! (Firestore erişim kuralları aktif)');
+      } else {
+        setTestStatus('error');
+        setTestMessage('Bağlantı hatası: ' + (err.message || 'Bilinmeyen hata'));
+      }
+    } finally {
+      if (testApp) { try { deleteApp(testApp); } catch(e){} }
+    }
+  };
+
   const updateFirebaseField = (field, value) => {
+    setTestStatus(null);
     setForm(prev => ({ ...prev, firebaseConfig: { ...prev.firebaseConfig, [field]: value } }));
   };
 
@@ -1547,7 +1582,44 @@ function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany
         </div>
       </div>
 
-      <h4 style={{ fontSize: '0.9rem', margin: '1rem 0 0.6rem', color: 'var(--text-main)' }}>Firebase Yapılandırması *</h4>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '1rem 0 0.6rem' }}>
+        <h4 style={{ fontSize: '0.9rem', margin: 0, color: 'var(--text-main)' }}>Firebase Yapılandırması *</h4>
+        <button
+          type="button"
+          onClick={testFirebaseConnection}
+          disabled={testStatus === 'testing'}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.3rem',
+            padding: '0.35rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600,
+            border: '1px solid', cursor: testStatus === 'testing' ? 'wait' : 'pointer',
+            background: testStatus === 'success' ? '#f0fdf4' : testStatus === 'error' ? '#fef2f2' : '#f0f9ff',
+            color: testStatus === 'success' ? '#16a34a' : testStatus === 'error' ? '#dc2626' : '#2563eb',
+            borderColor: testStatus === 'success' ? '#bbf7d0' : testStatus === 'error' ? '#fecaca' : '#bfdbfe'
+          }}
+        >
+          {testStatus === 'testing' ? <Loader size={13} style={{animation:'spin 1s linear infinite'}} /> : testStatus === 'success' ? <CheckCircle size={13} /> : testStatus === 'error' ? <XCircle size={13} /> : <Server size={13} />}
+          {testStatus === 'testing' ? 'Test Ediliyor...' : 'Bağlantıyı Test Et'}
+        </button>
+      </div>
+      {testStatus && testStatus !== 'testing' && (
+        <div style={{
+          padding: '0.5rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', marginBottom: '0.6rem',
+          background: testStatus === 'success' ? '#f0fdf4' : '#fef2f2',
+          color: testStatus === 'success' ? '#166534' : '#991b1b',
+          border: `1px solid ${testStatus === 'success' ? '#bbf7d0' : '#fecaca'}`
+        }}>
+          {testMessage}
+        </div>
+      )}
+      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '0.8rem', marginBottom: '0.8rem', fontSize: '0.78rem', color: '#1e40af', lineHeight: '1.5' }}>
+        <strong>Firebase Proje Kurulum Rehberi:</strong><br/>
+        1. <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" style={{color:'#2563eb'}}>Firebase Console</a>'a gidin ve "Proje ekle" butonuna tiklatin<br/>
+        2. Proje adini girin (ornegin: "firma-adi-istakip"), olusturun<br/>
+        3. Sol menuden <strong>Authentication</strong> {">"} "Baslayin" {">"} "Email/Password" ve "Google" yontemlerini aktif edin<br/>
+        4. Sol menuden <strong>Firestore Database</strong> {">"} "Veritabani olustur" {">"} "Test modunda basla" secin<br/>
+        5. Sol menuden <strong>Proje Ayarlari</strong> (disli ikon) {">"} "Uygulamalariniz" {">"} Web uygulamasi ekle ({"</>"})<br/>
+        6. Gosterilen <strong>firebaseConfig</strong> degerlerini asagidaki alanlara yapiştirin
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
         <div>
           <label style={labelStyle}>API Key *</label>
@@ -1575,15 +1647,48 @@ function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany
         </div>
       </div>
 
-      <h4 style={{ fontSize: '0.9rem', margin: '1rem 0 0.6rem', color: 'var(--text-main)' }}>Harici Servisler (Opsiyonel)</h4>
+      <h4 style={{ fontSize: '0.9rem', margin: '1rem 0 0.6rem', color: 'var(--text-main)' }}>Dosya Yükleme Ayarları (Google Drive)</h4>
+      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '0.8rem', marginBottom: '0.8rem', fontSize: '0.78rem', color: '#1e40af', lineHeight: '1.5' }}>
+        <strong>Kurulum Rehberi:</strong><br/>
+        1. <a href="https://drive.google.com" target="_blank" rel="noopener noreferrer" style={{color:'#2563eb'}}>Google Drive</a>'a gidin ve yeni bir klasor oluturun (ornegin: "TaskTrack Dosyalar")<br/>
+        2. Klasore sag tiklayip "Paylas" deyin, "Baglantiya sahip herkes" secenegini "Duzenleyici" yapin<br/>
+        3. Klasor URL'sindeki ID'yi kopyalayin (drive.google.com/drive/folders/<strong>BU_KISIM</strong>)<br/>
+        4. <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" style={{color:'#2563eb'}}>Google Apps Script</a>'e gidin, yeni proje olusturun<br/>
+        5. Asagidaki kodu yapiştirin (klasor ID'sini degistirin), "Dagit" {">"} "Web uygulamasi" olarak dagitin<br/>
+        6. Erisim: "Herkes" secin, URL'yi asagiya yapiştirin
+        <details style={{marginTop:'0.5rem'}}>
+          <summary style={{cursor:'pointer', fontWeight:600, color:'#1d4ed8'}}>Google Apps Script Kodu (tiklayip kopyalayin)</summary>
+          <pre style={{background:'#1e293b', color:'#e2e8f0', padding:'0.8rem', borderRadius:'6px', fontSize:'0.72rem', overflow:'auto', marginTop:'0.4rem', whiteSpace:'pre-wrap'}}>{`function doPost(e) {
+  var folderId = "KLASOR_ID_BURAYA"; // Drive klasor ID'nizi yazin
+  var folder = DriveApp.getFolderById(folderId);
+  var blob = Utilities.newBlob(
+    Utilities.base64Decode(e.parameter.data),
+    e.parameter.mimeType,
+    e.parameter.fileName
+  );
+  var file = folder.createFile(blob);
+  file.setSharing(
+    DriveApp.Access.ANYONE_WITH_LINK,
+    DriveApp.Permission.VIEW
+  );
+  return ContentService
+    .createTextOutput(JSON.stringify({
+      success: true,
+      fileId: file.getId(),
+      url: file.getUrl()
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
+}`}</pre>
+        </details>
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
         <div>
-          <label style={labelStyle}>GitHub Repo</label>
-          <input style={inputStyle} value={form.githubRepo} onChange={e => setForm({ ...form, githubRepo: e.target.value })} placeholder="kullanici/repo-adi" />
+          <label style={labelStyle}>Google Apps Script URL *</label>
+          <input style={inputStyle} value={form.gasDeploymentUrl} onChange={e => setForm({ ...form, gasDeploymentUrl: e.target.value })} placeholder="https://script.google.com/macros/s/.../exec" />
         </div>
         <div>
-          <label style={labelStyle}>Google Apps Script URL</label>
-          <input style={inputStyle} value={form.gasDeploymentUrl} onChange={e => setForm({ ...form, gasDeploymentUrl: e.target.value })} placeholder="https://script.google.com/..." />
+          <label style={labelStyle}>Google Drive Klasor ID *</label>
+          <input style={inputStyle} value={form.driveFolderId} onChange={e => setForm({ ...form, driveFolderId: e.target.value })} placeholder="1aBcDeFgHiJkLmNoPqRsT..." />
         </div>
       </div>
 

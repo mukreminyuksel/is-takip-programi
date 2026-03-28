@@ -42,8 +42,8 @@ export const CompanyProvider = ({ children }) => {
       displayName: 'Avrupa Proje',
       color: '#3b82f6',
       firebaseConfig: AVRUPAPROJE_CONFIG,
-      githubRepo: '',
-      gasDeploymentUrl: '',
+      gasDeploymentUrl: 'https://script.google.com/macros/s/AKfycbxncRte5tnhqc68DIlTzdOpDkEYEywiLwwWtuUq9WJ-VR8gbdJBSc9xSUcWi0NjNyYdmw/exec',
+      driveFolderId: '1nCPx7LbZU15OirK0IC_QCBgc7e7PCdzE',
       createdAt: new Date().toISOString()
     }).catch(e => console.error('Seed error:', e));
   }, [companiesLoading, companies]);

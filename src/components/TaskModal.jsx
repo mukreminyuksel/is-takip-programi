@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTasks } from '../context/TaskContext';
+import { useCompany } from '../context/CompanyContext';
 import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar, History, Paperclip, Download, Loader, ListTodo, Tag, Printer } from 'lucide-react';
-
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxncRte5tnhqc68DIlTzdOpDkEYEywiLwwWtuUq9WJ-VR8gbdJBSc9xSUcWi0NjNyYdmw/exec';
 
 export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, prefillData }) {
   const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor, customersList } = useTasks();
+  const { selectedCompany } = useCompany();
+  const APPS_SCRIPT_URL = selectedCompany?.gasDeploymentUrl || '';
+  const DRIVE_FOLDER_ID = selectedCompany?.driveFolderId || '';
   const [title, setTitle] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerOfficialName, setCustomerOfficialName] = useState('');
@@ -413,6 +415,12 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!APPS_SCRIPT_URL) {
+      alert("Dosya yükleme ayarlanmamış!\n\nYöneticinizden 'Ayarlar > Sistem Ayarları' bölümünden Google Apps Script URL'sini girmesini isteyiniz.");
+      e.target.value = '';
+      return;
+    }
+
     if (file.size > 15 * 1024 * 1024) {
        alert("Dosya boyutu 15MB'dan büyük olamaz!");
        return;
@@ -450,10 +458,11 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
         data = JSON.parse(text);
       } catch {
         // Apps Script redirect may cause parse issues - assume success if request completed
-        data = { success: true, fileId: Date.now().toString(), url: `https://drive.google.com/drive/folders/1nCPx7LbZU15OirK0IC_QCBgc7e7PCdzE` };
+        const fallbackUrl = DRIVE_FOLDER_ID ? `https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}` : '';
+        data = { success: true, fileId: Date.now().toString(), url: fallbackUrl };
       }
 
-      const driveFolder = 'https://drive.google.com/drive/folders/1nCPx7LbZU15OirK0IC_QCBgc7e7PCdzE';
+      const driveFolder = DRIVE_FOLDER_ID ? `https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}` : '';
 
       const newAttachment = {
         id: data?.fileId || Date.now().toString(),
