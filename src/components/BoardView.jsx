@@ -321,10 +321,10 @@ function TaskTable({ title, tasksList, onEdit, onDelete, onStatusChange, usersLi
                 {selectedIds.size} Seçili:
               </span>
             )}
-            <button onClick={handleBulkCalendar} className="btn btn-secondary btn-small" style={{display:'flex', alignItems:'center', gap:'0.2rem', color:'#2563eb', borderColor:'#bfdbfe', background:'#eff6ff', fontSize:'0.7rem', whiteSpace:'nowrap'}}>
+            <button onClick={handleBulkCalendar} className="btn btn-secondary btn-small hide-mobile" style={{display:'flex', alignItems:'center', gap:'0.2rem', color:'#2563eb', borderColor:'#bfdbfe', background:'#eff6ff', fontSize:'0.7rem', whiteSpace:'nowrap'}}>
               <Calendar size={13}/> Google Takvime Ekle
             </button>
-            <button onClick={handleBulkWhatsApp} className="btn btn-secondary btn-small" style={{display:'flex', alignItems:'center', gap:'0.2rem', color:'#16a34a', borderColor:'#bbf7d0', background:'#f0fdf4', fontSize:'0.7rem', whiteSpace:'nowrap'}}>
+            <button onClick={handleBulkWhatsApp} className="btn btn-secondary btn-small hide-mobile" style={{display:'flex', alignItems:'center', gap:'0.2rem', color:'#16a34a', borderColor:'#bbf7d0', background:'#f0fdf4', fontSize:'0.7rem', whiteSpace:'nowrap'}}>
               <MessageCircle size={13}/> WhatsApp Gönder
             </button>
           </div>
@@ -626,7 +626,7 @@ export default function BoardView({ customerTaskData, onCustomerTaskHandled }) {
     <>
       <div className="table-header-actions" style={{display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem'}}>
         <div style={{display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap'}}>
-          <h2 style={{margin:0}}>GÖREV PANELİ (V9.7.6)</h2>
+          <h2 style={{margin:0}}>GÖREV PANELİ (V9.7.7)</h2>
           <div style={{fontSize:'0.85rem', display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--bg-main)', padding:'0.4rem 0.8rem', borderRadius:'20px', border:'1px solid var(--border)'}}>
             <span style={{color:'var(--text-muted)'}}>Üzerinizde:</span>
             <span style={{color:'#ef4444', fontWeight:600}}>{myTodoCount} Yapılacak</span>

@@ -566,14 +566,22 @@ body {
   .icon-btn { padding: 3px; }
   .icon-btn svg { width: 16px; height: 16px; }
 
-  /* Tablo görünümü */
+  /* Tablo üst buton satırı */
   .table-header-actions { flex-direction: column; align-items: stretch; gap: 0.4rem; }
   .table-header-actions h2 { font-size: 0.85rem !important; }
+  .table-header-actions > div { flex-wrap: wrap !important; gap: 0.3rem !important; }
+  .table-header-actions .btn-small { font-size: 0.62rem !important; padding: 0.2rem 0.4rem !important; }
+  .table-header-actions .search-input { min-width: 0 !important; width: 100% !important; font-size: 0.75rem !important; }
+
+  /* Tablo görünümü */
   .compact-table { font-size: 0.7rem; }
   .compact-table th, .compact-table td { padding: 0.25rem 0.2rem; }
   .compact-table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .compact-table .status-select { font-size: 0.65rem !important; padding: 2px 1px !important; min-width: 0 !important; max-width: 75px !important; }
   .compact-table select { font-size: 0.65rem !important; padding: 2px !important; max-width: 75px !important; }
+  /* Mobil kolon: checkbox(1) + görev(2) + durum(3) + kişi(5) göster, öncelik(4) + tarihler(6,7) + işlem(8) gizle */
+  .compact-table th:nth-child(4), .compact-table td:nth-child(4),
+  .compact-table th:nth-child(n+6), .compact-table td:nth-child(n+6) { display: none; }
 
   /* Kanban */
   .kanban-board { flex-direction: column; gap: 0.5rem; }
@@ -607,7 +615,7 @@ body {
   .app-header h1 { font-size: 0.85rem; }
   .view-toggle button { padding: 0.18rem 0.3rem; font-size: 0.62rem; }
   .view-toggle button svg { display: none; }
-  /* Sadece checkbox + görev adı + durum göster */
+  /* Sadece checkbox + görev adı + durum göster (kişi de gizle) */
   .compact-table th:nth-child(n+4), .compact-table td:nth-child(n+4) { display: none; }
   .compact-table .status-select { max-width: 65px !important; font-size: 0.6rem !important; }
   .compact-table select { max-width: 65px !important; font-size: 0.6rem !important; }
