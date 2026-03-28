@@ -392,10 +392,16 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
 
   const handleAddSubtask = () => {
     if (!newSubtask.trim()) return;
-    const st = { id: Date.now().toString(), text: newSubtask, isCompleted: false };
+    const st = { id: Date.now().toString(), text: newSubtask, isCompleted: false, assignee: '' };
     const updated = [...subtasks, st];
     setSubtasks(updated);
     setNewSubtask('');
+    if (editTask) updateTask(editTask.id, { subtasks: updated });
+  };
+
+  const updateSubtaskAssignee = (stId, name) => {
+    const updated = subtasks.map(s => s.id === stId ? { ...s, assignee: name } : s);
+    setSubtasks(updated);
     if (editTask) updateTask(editTask.id, { subtasks: updated });
   };
 
@@ -931,10 +937,14 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
             {subtasks.length > 0 && (
               <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
                 {subtasks.map(st => (
-                  <div key={st.id} style={{display:'flex', alignItems:'center', gap:'0.5rem', background: st.isCompleted ? 'var(--bg-main)' : 'var(--bg-card)', padding:'0.5rem', borderRadius:'6px', border:'1px solid var(--border)'}}>
-                    <input type="checkbox" checked={st.isCompleted} onChange={() => toggleSubtask(st.id)} style={{cursor:'pointer', width:'16px', height:'16px'}} />
-                    <span style={{flex:1, fontSize:'0.85rem', color: st.isCompleted ? 'var(--text-muted)' : 'var(--text-main)', textDecoration: st.isCompleted ? 'line-through' : 'none'}}>{st.text}</span>
-                    <button type="button" className="icon-btn delete-btn" onClick={() => deleteSubtask(st.id)}><X size={14}/></button>
+                  <div key={st.id} style={{display:'flex', alignItems:'center', gap:'0.4rem', background: st.isCompleted ? 'var(--bg-main)' : 'var(--bg-card)', padding:'0.4rem 0.5rem', borderRadius:'6px', border:'1px solid var(--border)', flexWrap:'wrap'}}>
+                    <input type="checkbox" checked={st.isCompleted} onChange={() => toggleSubtask(st.id)} style={{cursor:'pointer', width:'16px', height:'16px', flexShrink:0}} />
+                    <span style={{flex:1, fontSize:'0.85rem', color: st.isCompleted ? 'var(--text-muted)' : 'var(--text-main)', textDecoration: st.isCompleted ? 'line-through' : 'none', minWidth:'80px'}}>{st.text}</span>
+                    <select value={st.assignee || ''} onChange={e => updateSubtaskAssignee(st.id, e.target.value)} onClick={e => e.stopPropagation()} style={{fontSize:'0.72rem', padding:'2px 4px', borderRadius:'4px', border:'1px solid var(--border)', background:'var(--bg-main)', color: st.assignee ? 'var(--primary)' : 'var(--text-muted)', maxWidth:'90px', flexShrink:0}}>
+                      <option value="">Atanmamış</option>
+                      {usersList?.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                    </select>
+                    <button type="button" className="icon-btn delete-btn" onClick={() => deleteSubtask(st.id)} style={{flexShrink:0}}><X size={14}/></button>
                   </div>
                 ))}
               </div>

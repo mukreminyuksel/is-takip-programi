@@ -1114,7 +1114,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
         )}
 
         {!isEditing && activeTab === 'customers' && (
-          <CustomersTab customersList={customersList} addCustomer={addCustomer} editCustomer={editCustomer} deleteCustomer={deleteCustomer} currentUser={useTasks().currentUser} usersList={usersList} onCreateTaskFromCustomer={onCreateTaskFromCustomer} />
+          <CustomersTab customersList={customersList} addCustomer={addCustomer} editCustomer={editCustomer} deleteCustomer={deleteCustomer} currentUser={useTasks().currentUser} usersList={usersList} onCreateTaskFromCustomer={onCreateTaskFromCustomer} tasks={tasks} />
         )}
 
         {!isEditing && activeTab === 'system' && isSuperAdmin && (
@@ -1191,10 +1191,11 @@ function formatPhoneTR(phone) {
   return phone.trim();
 }
 
-function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer, currentUser, usersList, onCreateTaskFromCustomer }) {
+function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer, currentUser, usersList, onCreateTaskFromCustomer, tasks }) {
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [profileId, setProfileId] = useState(null);
   const emptyForm = { customerName: '', customerOfficialName: '', customerPhone: '', customerEmail: '', customerPhone2: '', customerAddress: '', customerTaxNo: '', customerTaxOffice: '', customerTradeRegNo: '' };
   const [form, setForm] = useState(emptyForm);
   const [notes, setNotes] = useState([]);
@@ -1341,6 +1342,85 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
   const inputStyle = { width: '100%', padding: '0.4rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--bg-main)' };
   const labelStyle = { fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.15rem' };
 
+  // Müşteri Profil Görünümü
+  if (profileId) {
+    const customer = customersList.find(c => c.id === profileId);
+    if (!customer) { setProfileId(null); return null; }
+    const customerTasks = (tasks || []).filter(t => t.customerName && t.customerName.trim().toLowerCase() === customer.customerName.trim().toLowerCase() && !t.isDeleted);
+    const doneTasks = customerTasks.filter(t => t.status === 'done');
+    const activeTasks = customerTasks.filter(t => t.status !== 'done');
+    const completionRate = customerTasks.length > 0 ? Math.round((doneTasks.length / customerTasks.length) * 100) : 0;
+    const sMap = { 'todo': 'Yapılacak', 'in-progress': 'Devam Eden', 'done': 'Tamamlandı' };
+    const sColor = { 'todo': '#ef4444', 'in-progress': '#f59e0b', 'done': '#10b981' };
+
+    return (
+      <div className="settings-body">
+        <button onClick={() => setProfileId(null)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.85rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          ← Müşteri Listesine Dön
+        </button>
+
+        <div style={{ background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.2rem', marginBottom: '1rem' }}>
+          <h3 style={{ margin: '0 0 0.3rem', fontSize: '1.1rem' }}>{customer.customerName}</h3>
+          {customer.customerOfficialName && <p style={{ margin: '0 0 0.8rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{customer.customerOfficialName}</p>}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem', fontSize: '0.82rem' }}>
+            {customer.customerPhone && <div><strong>Tel:</strong> {customer.customerPhone}</div>}
+            {customer.customerPhone2 && <div><strong>Tel 2:</strong> {customer.customerPhone2}</div>}
+            {customer.customerEmail && <div><strong>E-posta:</strong> {customer.customerEmail}</div>}
+            {customer.customerAddress && <div><strong>Adres:</strong> {customer.customerAddress}</div>}
+            {customer.customerTaxNo && <div><strong>Vergi No:</strong> {customer.customerTaxNo}</div>}
+            {customer.customerTaxOffice && <div><strong>Vergi Dairesi:</strong> {customer.customerTaxOffice}</div>}
+            {customer.customerTradeRegNo && <div><strong>Ticaret Sicil:</strong> {customer.customerTradeRegNo}</div>}
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.8rem', marginBottom: '1rem' }}>
+          <div style={{ background: '#eff6ff', borderRadius: '8px', padding: '0.8rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#2563eb' }}>{customerTasks.length}</div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Toplam Görev</div>
+          </div>
+          <div style={{ background: '#f0fdf4', borderRadius: '8px', padding: '0.8rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16a34a' }}>{doneTasks.length}</div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Tamamlanan</div>
+          </div>
+          <div style={{ background: '#fef3c7', borderRadius: '8px', padding: '0.8rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#d97706' }}>{activeTasks.length}</div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Aktif</div>
+          </div>
+          <div style={{ background: '#f0f9ff', borderRadius: '8px', padding: '0.8rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0369a1' }}>%{completionRate}</div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Tamamlanma</div>
+          </div>
+        </div>
+
+        <h4 style={{ fontSize: '0.95rem', marginBottom: '0.6rem' }}>Görev Geçmişi ({customerTasks.length})</h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          {customerTasks.length === 0 && <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Bu müşteriye ait görev bulunmuyor.</p>}
+          {customerTasks.sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => (
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.8rem', background: 'var(--bg-main)', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.82rem' }}>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontWeight: 600 }}>{t.title}</span>
+                {t.assignee && <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem', fontSize: '0.75rem' }}>@{t.assignee}</span>}
+              </div>
+              <span style={{ color: sColor[t.status], fontWeight: 600, fontSize: '0.75rem', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>{sMap[t.status]}</span>
+            </div>
+          ))}
+        </div>
+
+        {customer.notes && customer.notes.length > 0 && (
+          <>
+            <h4 style={{ fontSize: '0.95rem', margin: '1rem 0 0.6rem' }}>Notlar ({customer.notes.length})</h4>
+            {customer.notes.sort((a, b) => new Date(b.date) - new Date(a.date)).map(n => (
+              <div key={n.id} style={{ padding: '0.5rem 0.8rem', background: '#fffbeb', borderRadius: '6px', border: '1px solid #fde68a', marginBottom: '0.3rem', fontSize: '0.82rem' }}>
+                <div>{n.text}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{n.author} — {new Date(n.date).toLocaleDateString('tr-TR')}</div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="settings-body">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -1453,7 +1533,7 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
           <tbody>
             {filtered.map(c => (
               <tr key={c.id} style={editingId === c.id ? { background: 'var(--bg-alt)' } : {}}>
-                <td style={{ fontWeight: 600, color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => startEdit(c)}>{c.customerName}</td>
+                <td style={{ fontWeight: 600, color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setProfileId(c.id)}>{c.customerName}</td>
                 <td style={{ fontSize: '0.8rem' }}>
                   {c.customerPhone && <div>{c.customerPhone}</div>}
                   {c.customerPhone2 && <div style={{ color: 'var(--text-muted)' }}>{c.customerPhone2}</div>}
