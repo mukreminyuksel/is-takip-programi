@@ -869,7 +869,7 @@ export const TaskProvider = ({ children }) => {
       tagsList, addTag, editTag, deleteTag,
       getUserColor, updateUserColor,
       hideAllTasksForUsers, toggleHideAllTasks,
-      loginWithGoogle, loginWithEmail, registerWithEmail, publicResetPassword, logout, authLoading,
+      authUser, loginWithGoogle, loginWithEmail, registerWithEmail, publicResetPassword, logout, authLoading,
       changeMyPassword, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin,
       customersList, addCustomer, editCustomer, deleteCustomer,
       deadlineColors, saveDeadlineColors, getDeadlineRowColor, getDeadlineBarColor, getAssignees,

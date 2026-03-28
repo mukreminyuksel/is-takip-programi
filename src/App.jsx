@@ -108,8 +108,9 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
 };
 
 const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onViewChange, onOpenTask }) => {
-  const { currentUser, logout, isAdmin, appNotifications, tasks } = useTasks();
-  const { selectedCompany, selectCompany } = useCompany();
+  const { currentUser, logout, isAdmin, appNotifications, tasks, authUser: headerAuthUser } = useTasks();
+  const { selectedCompany, selectCompany, superAdminEmails } = useCompany();
+  const headerIsSuperAdmin = superAdminEmails.some(e => e.toLowerCase() === (headerAuthUser?.email || '').toLowerCase());
   const [notifOpen, setNotifOpen] = useState(false);
   const [pwModalOpen, setPwModalOpen] = useState(false);
   const notifRef = useRef(null);
@@ -286,9 +287,9 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
           <button className="icon-btn" onClick={logout} title="Çıkış Yap">
             <LogOut size={18} />
           </button>
-          <button className="icon-btn" onClick={handleSwitchCompany} title="Şirket Değiştir">
+          {headerIsSuperAdmin && <button className="icon-btn" onClick={handleSwitchCompany} title="Şirket Değiştir">
             <ArrowLeftRight size={18} />
-          </button>
+          </button>}
 
           <button className="icon-btn" onClick={toggleTheme} title={theme === 'light' ? 'Karanlık Tema' : 'Aydınlık Tema'} style={{display:'flex', alignItems:'center'}}>
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} color="#fbbf24" />}
@@ -324,6 +325,12 @@ const CompanySelector = () => {
   const { companies, companiesLoading, selectCompany } = useCompany();
 
   if (companiesLoading) {
+    return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', background: 'var(--bg-main)'}}>Yükleniyor...</div>;
+  }
+
+  // Tek şirket varsa otomatik seç — seçim ekranını gösterme
+  if (companies.length === 1) {
+    selectCompany(companies[0].id);
     return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', background: 'var(--bg-main)'}}>Yükleniyor...</div>;
   }
 

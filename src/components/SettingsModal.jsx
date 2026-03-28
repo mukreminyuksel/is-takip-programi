@@ -12,7 +12,9 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 
 export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTaskFromCustomer }) {
   const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin, customersList, addCustomer, editCustomer, deleteCustomer, deadlineColors, saveDeadlineColors, getAssignees, companyDb: db } = useTasks();
-  const { companies, addCompany, updateCompany, deleteCompany } = useCompany();
+  const { companies, addCompany, updateCompany, deleteCompany, superAdminEmails } = useCompany();
+  const authEmail = useTasks().authUser?.email || '';
+  const isSuperAdmin = superAdminEmails.some(e => e.toLowerCase() === authEmail.toLowerCase());
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('personnel');
   const [tagForm, setTagForm] = useState({ id: null, label: '', color: '#3b82f6' });
@@ -366,9 +368,11 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
             <h2 onClick={() => {setActiveTab('customers'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'customers' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'customers' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
               <Users size={16}/> Müşteri Listesi
             </h2>
-            <h2 onClick={() => {setActiveTab('system'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'system' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'system' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
-              <Server size={16}/> Sistem Ayarları
-            </h2>
+            {isSuperAdmin && (
+              <h2 onClick={() => {setActiveTab('system'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'system' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'system' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
+                <Server size={16}/> Sistem Ayarları
+              </h2>
+            )}
             <h2 onClick={() => {setActiveTab('email'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'email' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'email' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
               <Mail size={16}/> E-posta
             </h2>
@@ -1113,8 +1117,8 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
           <CustomersTab customersList={customersList} addCustomer={addCustomer} editCustomer={editCustomer} deleteCustomer={deleteCustomer} currentUser={useTasks().currentUser} usersList={usersList} onCreateTaskFromCustomer={onCreateTaskFromCustomer} />
         )}
 
-        {!isEditing && activeTab === 'system' && (
-          <SystemSettingsTab companies={companies} addCompany={addCompany} updateCompany={updateCompany} deleteCompany={deleteCompany} />
+        {!isEditing && activeTab === 'system' && isSuperAdmin && (
+          <SystemSettingsTab companies={companies} addCompany={addCompany} updateCompany={updateCompany} deleteCompany={deleteCompany} isSuperAdmin={isSuperAdmin} superAdminEmails={superAdminEmails} />
         )}
 
         {!isEditing && activeTab === 'email' && (

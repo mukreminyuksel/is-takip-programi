@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { masterDb, initCompanyFirebase, cleanupCompanyFirebase } from '../firebase';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 
 const CompanyContext = createContext();
 
@@ -21,7 +21,35 @@ export const CompanyProvider = ({ children }) => {
   const [companiesLoading, setCompaniesLoading] = useState(true);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [companyFirebase, setCompanyFirebase] = useState(null);
+  const [superAdminEmails, setSuperAdminEmails] = useState([]);
+  const [superAdminLoaded, setSuperAdminLoaded] = useState(false);
   const seeded = useRef(false);
+  const superSeeded = useRef(false);
+
+  // Load super admins from master DB
+  useEffect(() => {
+    const unsub = onSnapshot(doc(masterDb, 'settings', 'superAdmins'), (snap) => {
+      if (snap.exists()) {
+        setSuperAdminEmails(snap.data().emails || []);
+      } else {
+        setSuperAdminEmails([]);
+      }
+      setSuperAdminLoaded(true);
+    });
+    return unsub;
+  }, []);
+
+  // Auto-seed superAdmins doc if missing
+  useEffect(() => {
+    if (!superAdminLoaded || superSeeded.current) return;
+    if (superAdminEmails.length === 0) {
+      superSeeded.current = true;
+      setDoc(doc(masterDb, 'settings', 'superAdmins'), {
+        emails: ['mukreminyuksel@gmail.com'],
+        createdAt: new Date().toISOString()
+      }).catch(e => console.error('SuperAdmin seed error:', e));
+    }
+  }, [superAdminLoaded, superAdminEmails]);
 
   // Load companies from master DB
   useEffect(() => {
@@ -62,7 +90,6 @@ export const CompanyProvider = ({ children }) => {
 
   const selectCompany = (companyId) => {
     if (!companyId) {
-      // Deselect / switch company
       cleanupCompanyFirebase();
       setCompanyFirebase(null);
       setSelectedCompany(null);
@@ -93,10 +120,11 @@ export const CompanyProvider = ({ children }) => {
   const updateCompany = async (id, data) => {
     try {
       await updateDoc(doc(masterDb, 'companies', id), data);
-      // If updating the currently selected company, refresh selection
-      if (selectedCompany && selectedCompany.id === id && data.firebaseConfig) {
-        const firebase = initCompanyFirebase(data.firebaseConfig);
-        setCompanyFirebase(firebase);
+      if (selectedCompany && selectedCompany.id === id) {
+        if (data.firebaseConfig) {
+          const firebase = initCompanyFirebase(data.firebaseConfig);
+          setCompanyFirebase(firebase);
+        }
         setSelectedCompany(prev => ({ ...prev, ...data }));
       }
     } catch (e) {
@@ -115,12 +143,21 @@ export const CompanyProvider = ({ children }) => {
     }
   };
 
+  const updateSuperAdmins = async (emails) => {
+    try {
+      await setDoc(doc(masterDb, 'settings', 'superAdmins'), { emails, updatedAt: new Date().toISOString() });
+    } catch (e) {
+      console.error('Update superAdmins error:', e);
+    }
+  };
+
   return (
     <CompanyContext.Provider value={{
       companies, companiesLoading,
       selectedCompany, companyFirebase,
       selectCompany,
-      addCompany, updateCompany, deleteCompany
+      addCompany, updateCompany, deleteCompany,
+      superAdminEmails, superAdminLoaded, updateSuperAdmins
     }}>
       {children}
     </CompanyContext.Provider>
