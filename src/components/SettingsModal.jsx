@@ -1493,7 +1493,8 @@ function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany
   const emptyForm = {
     name: '', displayName: '', color: '#3b82f6',
     firebaseConfig: { apiKey: '', authDomain: '', projectId: '', storageBucket: '', messagingSenderId: '', appId: '' },
-    gasDeploymentUrl: '', driveFolderId: ''
+    gasDeploymentUrl: '', driveFolderId: '',
+    plan: 'trial', expiresAt: '', maxUsers: 10
   };
   const [form, setForm] = useState(emptyForm);
 
@@ -1505,7 +1506,10 @@ function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany
       color: company.color || '#3b82f6',
       firebaseConfig: company.firebaseConfig || emptyForm.firebaseConfig,
       gasDeploymentUrl: company.gasDeploymentUrl || '',
-      driveFolderId: company.driveFolderId || ''
+      driveFolderId: company.driveFolderId || '',
+      plan: company.plan || 'trial',
+      expiresAt: company.expiresAt || '',
+      maxUsers: company.maxUsers || 10
     });
     setShowAddForm(false);
   };
@@ -1711,6 +1715,32 @@ function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany
           <input style={inputStyle} value={form.driveFolderId} onChange={e => setForm({ ...form, driveFolderId: e.target.value })} placeholder="1aBcDeFgHiJkLmNoPqRsT..." />
         </div>
       </div>
+
+      <h4 style={{ fontSize: '0.9rem', margin: '1rem 0 0.6rem', color: 'var(--text-main)' }}>Lisans Bilgileri</h4>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem' }}>
+        <div>
+          <label style={labelStyle}>Plan</label>
+          <select style={inputStyle} value={form.plan} onChange={e => setForm({ ...form, plan: e.target.value })}>
+            <option value="trial">Deneme (14 gün)</option>
+            <option value="monthly">Aylık</option>
+            <option value="yearly">Yıllık</option>
+            <option value="unlimited">Sınırsız</option>
+          </select>
+        </div>
+        <div>
+          <label style={labelStyle}>Bitiş Tarihi</label>
+          <input type="date" style={inputStyle} value={form.expiresAt ? form.expiresAt.split('T')[0] : ''} onChange={e => setForm({ ...form, expiresAt: e.target.value ? new Date(e.target.value + 'T23:59:59').toISOString() : '' })} />
+        </div>
+        <div>
+          <label style={labelStyle}>Maks. Kullanıcı</label>
+          <input type="number" style={inputStyle} value={form.maxUsers} onChange={e => setForm({ ...form, maxUsers: parseInt(e.target.value) || 5 })} min="1" max="500" />
+        </div>
+      </div>
+      {form.expiresAt && new Date(form.expiresAt) < new Date() && (
+        <div style={{ marginTop: '0.5rem', padding: '0.5rem', borderRadius: '6px', background: '#fef2f2', color: '#991b1b', fontSize: '0.78rem', border: '1px solid #fecaca' }}>
+          Bu şirketin lisansı sona ermiş! Kullanıcılar sisteme giremeyecektir.
+        </div>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.2rem' }}>
         <button className="btn btn-secondary" onClick={cancelEdit} style={{ fontSize: '0.85rem' }}>İptal</button>

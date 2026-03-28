@@ -202,7 +202,7 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
             </button>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Global Search */}
           <div style={{position:'relative'}} ref={searchRef}>
             {!searchOpen ? (
@@ -596,6 +596,36 @@ const AppContent = () => {
             </button>
           </>
         )}
+      </div>
+    );
+  }
+
+  // Lisans kontrolü: süresi dolan şirket engellenir (süper admin muaf)
+  const appIsSuperAdmin = superAdminEmails.some(e => e.toLowerCase() === (appAuthUser?.email || '').toLowerCase());
+  const isExpired = selectedCompany?.expiresAt && new Date(selectedCompany.expiresAt) < new Date();
+
+  if (isExpired && !appIsSuperAdmin) {
+    const expDate = new Date(selectedCompany.expiresAt).toLocaleDateString('tr-TR');
+    return (
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)', padding: '2rem', textAlign: 'center' }}>
+        <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}>
+          <XIcon size={40} style={{ color: '#dc2626' }} />
+        </div>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#dc2626', marginBottom: '0.5rem' }}>Lisans Süresi Doldu</h1>
+        <p style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '0.5rem', maxWidth: '440px' }}>
+          <strong>{selectedCompany?.displayName || selectedCompany?.name}</strong> şirketinin TaskTrack lisansı <strong>{expDate}</strong> tarihinde sona erdi.
+        </p>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '2rem', maxWidth: '440px' }}>
+          Hizmetin devam edebilmesi için lütfen yöneticinizle veya TaskTrack satış ekibiyle iletişime geçin.
+        </p>
+        <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <a href="mailto:info@tasktrack.net" style={{ padding: '0.8rem 1.5rem', borderRadius: '8px', background: '#2563eb', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: '0.95rem' }}>
+            Bize Ulaşın
+          </a>
+          <button onClick={() => { selectCompany(null); }} style={{ padding: '0.8rem 1.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: '0.95rem', color: 'var(--text-main)' }}>
+            Çıkış
+          </button>
+        </div>
       </div>
     );
   }

@@ -104,6 +104,14 @@ export const CompanyProvider = ({ children }) => {
     setCompanyFirebase(firebase);
     setSelectedCompany(company);
     localStorage.setItem('lastCompanyId', companyId);
+
+    // Lisans kontrolü (süper admin muaf)
+    if (company.expiresAt && !superAdminEmails.length) {
+      const expDate = new Date(company.expiresAt);
+      if (expDate < new Date()) {
+        // Seçimi iptal etme — ama uyarı ver, AppContent'te engellenir
+      }
+    }
   };
 
   const addCompany = async (data) => {
