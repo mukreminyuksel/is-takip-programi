@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { masterDb, initCompanyFirebase, cleanupCompanyFirebase } from '../firebase';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, getDocs, query, where } from 'firebase/firestore';
 
 const CompanyContext = createContext();
 
@@ -151,13 +151,75 @@ export const CompanyProvider = ({ children }) => {
     }
   };
 
+  // emailMap: email → companyId eşlemesi (master DB)
+  const registerEmailToCompany = async (email, companyId) => {
+    if (!email) return;
+    const normalizedEmail = email.trim().toLowerCase();
+    try {
+      await setDoc(doc(masterDb, 'emailMap', normalizedEmail), {
+        email: normalizedEmail,
+        companyId,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (e) {
+      console.error('Email map register error:', e);
+    }
+  };
+
+  const removeEmailFromMap = async (email) => {
+    if (!email) return;
+    try {
+      await deleteDoc(doc(masterDb, 'emailMap', email.trim().toLowerCase()));
+    } catch (e) { /* silent */ }
+  };
+
+  const lookupCompanyByEmail = async (email) => {
+    if (!email) return null;
+    const normalizedEmail = email.trim().toLowerCase();
+    try {
+      const snap = await getDoc(doc(masterDb, 'emailMap', normalizedEmail));
+      if (snap.exists()) {
+        return snap.data().companyId;
+      }
+    } catch (e) {
+      console.error('Email lookup error:', e);
+    }
+    return null;
+  };
+
+  // Tüm şirketlerde sırayla auth deneme (fallback)
+  const tryAuthAllCompanies = async (email, password) => {
+    const { signInWithEmailAndPassword, getAuth } = await import('firebase/auth');
+    const { initializeApp, deleteApp } = await import('firebase/app');
+
+    for (const company of companies) {
+      if (!company.firebaseConfig?.apiKey) continue;
+      let tempApp = null;
+      try {
+        tempApp = initializeApp(company.firebaseConfig, 'auth-probe-' + company.id + '-' + Date.now());
+        const tempAuth = getAuth(tempApp);
+        await signInWithEmailAndPassword(tempAuth, email, password);
+        // Başarılı — bu şirket! Email'i kaydet ve temizle
+        await registerEmailToCompany(email, company.id);
+        try { deleteApp(tempApp); } catch(e) {}
+        return company.id;
+      } catch (err) {
+        if (tempApp) { try { deleteApp(tempApp); } catch(e) {} }
+        // auth/user-not-found veya wrong password → sonraki şirketi dene
+        continue;
+      }
+    }
+    return null; // Hiçbir şirkette bulunamadı
+  };
+
   return (
     <CompanyContext.Provider value={{
       companies, companiesLoading,
       selectedCompany, companyFirebase,
       selectCompany,
       addCompany, updateCompany, deleteCompany,
-      superAdminEmails, superAdminLoaded, updateSuperAdmins
+      superAdminEmails, superAdminLoaded, updateSuperAdmins,
+      registerEmailToCompany, removeEmailFromMap, lookupCompanyByEmail, tryAuthAllCompanies
     }}>
       {children}
     </CompanyContext.Provider>

@@ -379,8 +379,8 @@ const CompanySelector = () => {
 };
 
 const AppContent = () => {
-  const { selectedCompany, companyFirebase } = useCompany();
-  const { currentUser, loginWithGoogle, loginWithEmail, registerWithEmail, publicResetPassword, authLoading, tasks, usersList, isAdmin } = useTasks();
+  const { selectedCompany, companyFirebase, companies, companiesLoading, selectCompany, lookupCompanyByEmail, tryAuthAllCompanies, superAdminEmails } = useCompany();
+  const { currentUser, loginWithGoogle, loginWithEmail, registerWithEmail, publicResetPassword, authLoading, tasks, usersList, isAdmin, authUser: appAuthUser } = useTasks();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState(null);
   const [isDeletedOpen, setIsDeletedOpen] = useState(false);
@@ -390,6 +390,8 @@ const AppContent = () => {
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(true);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [showSuperAdminSelector, setShowSuperAdminSelector] = useState(false);
 
   const handleViewChange = (mode) => {
     setViewMode(mode);
@@ -428,62 +430,120 @@ const AppContent = () => {
     }
   }, [currentUser, tasks]);
 
-  // Show company selector if no company selected
-  if (!selectedCompany || !companyFirebase) {
-    return <CompanySelector />;
+  // Birleşik login: email → şirket bul → auth
+  const handleUnifiedLogin = async () => {
+    if (!emailInput.trim() || !passwordInput) return;
+    setLoginLoading(true);
+
+    let processedEmail = emailInput.trim();
+    if (/^0?\d{10}$/.test(processedEmail)) processedEmail += '@tasktrack.net';
+    else if (!processedEmail.includes('@')) processedEmail += '@tasktrack.net';
+
+    try {
+      // 1. Süper admin mi kontrol et
+      const isSA = superAdminEmails.some(e => e.toLowerCase() === processedEmail.toLowerCase());
+
+      if (isSA && !selectedCompany) {
+        // Süper admin: şirket seçici göster
+        setShowSuperAdminSelector(true);
+        setLoginLoading(false);
+        return;
+      }
+
+      // 2. Zaten şirket seçiliyse doğrudan auth
+      if (selectedCompany && companyFirebase) {
+        if (isLoginMode) loginWithEmail(processedEmail, passwordInput);
+        else registerWithEmail(processedEmail, passwordInput);
+        setLoginLoading(false);
+        return;
+      }
+
+      // 3. emailMap'ten şirket bul
+      let companyId = await lookupCompanyByEmail(processedEmail);
+
+      // 4. Bulunamazsa tüm şirketlerde dene
+      if (!companyId) {
+        companyId = await tryAuthAllCompanies(processedEmail, passwordInput);
+      }
+
+      if (companyId) {
+        selectCompany(companyId);
+        // Şirket seçildikten sonra auth otomatik olacak — küçük gecikme ile login'i tekrar çağır
+        setTimeout(() => {
+          loginWithEmail(processedEmail, passwordInput);
+          setLoginLoading(false);
+        }, 1500);
+        return;
+      }
+
+      alert('Bu e-posta adresine kayıtlı bir hesap bulunamadı.\n\nLütfen bilgilerinizi kontrol edin veya yöneticinize başvurun.');
+    } catch (err) {
+      alert('Giriş hatası: ' + (err.message || 'Bilinmeyen hata'));
+    }
+    setLoginLoading(false);
+  };
+
+  // Süper admin Google ile giriş: şirket seçici göster
+  const handleGoogleLogin = () => {
+    if (!selectedCompany) {
+      // Süper admin Google login — önce şirket seçmeli
+      setShowSuperAdminSelector(true);
+      return;
+    }
+    loginWithGoogle();
+  };
+
+  // Loading
+  if (companiesLoading) {
+    return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', background: 'var(--bg-main)'}}>Yükleniyor...</div>;
   }
 
-  if (authLoading) {
+  // Süper admin şirket seçici
+  if (showSuperAdminSelector && !selectedCompany) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
+        <Layout size={48} style={{ color: 'var(--primary)', marginBottom: '0.8rem' }} />
+        <h2 style={{ marginBottom: '0.3rem', fontSize: '1.4rem', color: 'var(--text-main)' }}>Süper Admin Paneli</h2>
+        <p style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Giriş yapmak istediğiniz şirketi seçin</p>
+        <div style={{display:'flex', flexDirection:'column', gap:'0.8rem', width:'320px'}}>
+          {companies.map(c => (
+            <button key={c.id} onClick={() => { selectCompany(c.id); setShowSuperAdminSelector(false); }}
+              style={{ padding:'1rem 1.2rem', borderRadius:'10px', border:`2px solid ${c.color || '#3b82f6'}`, background:'var(--bg-main)', cursor:'pointer', fontSize:'1rem', fontWeight:700, color:c.color || '#3b82f6', display:'flex', alignItems:'center', gap:'0.8rem', transition:'all 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = c.color || '#3b82f6'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-main)'; e.currentTarget.style.color = c.color || '#3b82f6'; }}
+            >
+              <Building2 size={20} />
+              {c.displayName || c.name}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setShowSuperAdminSelector(false)} style={{ marginTop:'1.5rem', background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', fontSize:'0.85rem', textDecoration:'underline' }}>
+          Geri
+        </button>
+      </div>
+    );
+  }
+
+  // Şirket seçili ve auth yükleniyor
+  if (selectedCompany && authLoading) {
     return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)'}}>Uygulama Yükleniyor...</div>;
   }
 
+  // Login ekranı: şirket seçilmemiş veya auth olmamış
   if (!currentUser) {
-    const handleAuth = () => {
-      if (!emailInput.trim() || !passwordInput) return;
-      let processedEmail = emailInput.trim();
-
-      if (/^0?\d{10}$/.test(processedEmail)) {
-        processedEmail = processedEmail + '@tasktrack.net';
-      } else if (!processedEmail.includes('@')) {
-        processedEmail = processedEmail + '@tasktrack.net';
-      }
-
-      if (isLoginMode) loginWithEmail(processedEmail, passwordInput);
-      else registerWithEmail(processedEmail, passwordInput);
-    };
-
     return (
       <div className="login-screen" style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <Building2 size={28} style={{ color: selectedCompany?.color || '#3b82f6' }} />
-          <span style={{ fontSize: '1.1rem', fontWeight: 700, color: selectedCompany?.color || '#3b82f6' }}>{selectedCompany?.displayName || selectedCompany?.name}</span>
-        </div>
         <Layout size={64} style={{ color: 'var(--primary)', marginBottom: '1rem' }} />
         <h1 style={{ marginBottom: '2rem', fontSize: '2rem', color: 'var(--text-main)', textAlign: 'center' }}>TaskTrack</h1>
 
         <div style={{display:'flex', flexDirection:'column', gap:'0.8rem', width:'300px', marginBottom: '1.5rem'}}>
-          <input
-            type="text"
-            placeholder="E-posta veya Telefon Numarası"
-            value={emailInput}
-            onChange={e => setEmailInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAuth()}
-            style={{padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', fontSize:'0.9rem', outline:'none'}}
-          />
-          <input
-            type="password"
-            placeholder="Şifre"
-            value={passwordInput}
-            onChange={e => setPasswordInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAuth()}
-            style={{padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', fontSize:'0.9rem', outline:'none'}}
-          />
+          <input type="text" placeholder="E-posta veya Telefon Numarası" value={emailInput} onChange={e => setEmailInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleUnifiedLogin()} style={{padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', fontSize:'0.9rem', outline:'none'}} />
+          <input type="password" placeholder="Şifre" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleUnifiedLogin()} style={{padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', fontSize:'0.9rem', outline:'none'}} />
 
-          <button
-            onClick={handleAuth}
-            style={{ padding: '0.8rem', borderRadius:'8px', background:'var(--primary)', color:'#fff', cursor:'pointer', fontWeight:600, border:'none', fontSize:'0.95rem', marginTop: '0.4rem' }}
+          <button onClick={handleUnifiedLogin} disabled={loginLoading}
+            style={{ padding: '0.8rem', borderRadius:'8px', background:'var(--primary)', color:'#fff', cursor: loginLoading ? 'wait' : 'pointer', fontWeight:600, border:'none', fontSize:'0.95rem', marginTop: '0.4rem', opacity: loginLoading ? 0.7 : 1 }}
           >
-            {isLoginMode ? 'Giriş Yap' : 'Kayıt Ol'}
+            {loginLoading ? 'Giriş yapılıyor...' : isLoginMode ? 'Giriş Yap' : 'Kayıt Ol'}
           </button>
 
           <div style={{textAlign:'center', fontSize:'0.8rem', color:'var(--text-muted)', marginTop: '0.5rem'}}>
@@ -494,39 +554,48 @@ const AppContent = () => {
           </div>
           {isLoginMode && (
             <div style={{textAlign:'center', marginTop:'0.3rem'}}>
-              <span
-                style={{fontSize:'0.78rem', color:'var(--text-muted)', cursor:'pointer', textDecoration:'underline'}}
+              <span style={{fontSize:'0.78rem', color:'var(--text-muted)', cursor:'pointer', textDecoration:'underline'}}
                 onClick={async () => {
                   let email = emailInput.trim();
                   if (!email) { alert('Lütfen önce e-posta adresinizi veya telefon numaranızı yazın.'); return; }
-                  if (/^0?\d{10}$/.test(email)) email = email + '@tasktrack.net';
-                  else if (!email.includes('@')) email = email + '@tasktrack.net';
-                  const result = await publicResetPassword(email);
-                  if (result.success) alert('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.\n\nGelen kutunuzu (ve spam klasörünü) kontrol edin.');
-                  else alert('Hata: ' + result.error);
+                  if (/^0?\d{10}$/.test(email)) email += '@tasktrack.net';
+                  else if (!email.includes('@')) email += '@tasktrack.net';
+                  // Şifre sıfırlama için şirket bulunmalı
+                  if (!selectedCompany) {
+                    const cId = await lookupCompanyByEmail(email);
+                    if (cId) selectCompany(cId);
+                    else { alert('Bu e-posta adresine kayıtlı bir hesap bulunamadı.'); return; }
+                    setTimeout(async () => {
+                      const result = await publicResetPassword(email);
+                      if (result.success) alert('Şifre sıfırlama bağlantısı gönderildi.\nGelen kutunuzu kontrol edin.');
+                      else alert('Hata: ' + result.error);
+                    }, 1500);
+                  } else {
+                    const result = await publicResetPassword(email);
+                    if (result.success) alert('Şifre sıfırlama bağlantısı gönderildi.\nGelen kutunuzu kontrol edin.');
+                    else alert('Hata: ' + result.error);
+                  }
                 }}
-              >
-                Şifremi Unuttum
-              </span>
+              >Şifremi Unuttum</span>
             </div>
           )}
         </div>
 
-        <div style={{width:'300px', display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1.5rem'}}>
-          <div style={{flex:1, height:'1px', background:'var(--border)'}}></div>
-          <span style={{color:'var(--text-muted)', fontSize:'0.8rem'}}>veya</span>
-          <div style={{flex:1, height:'1px', background:'var(--border)'}}></div>
-        </div>
-
-        <button
-          onClick={loginWithGoogle}
-          style={{ width: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#fff', border: '1px solid #ccc', padding: '0.8rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 600, color: '#333', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', marginBottom: '1rem' }}
-        >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo" style={{ width: '20px', height: '20px' }} />
-          Google ile Giriş Yap
-        </button>
-
-        <BackToCompanySelector />
+        {selectedCompany && (
+          <>
+            <div style={{width:'300px', display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1.5rem'}}>
+              <div style={{flex:1, height:'1px', background:'var(--border)'}}></div>
+              <span style={{color:'var(--text-muted)', fontSize:'0.8rem'}}>veya</span>
+              <div style={{flex:1, height:'1px', background:'var(--border)'}}></div>
+            </div>
+            <button onClick={loginWithGoogle}
+              style={{ width: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#fff', border: '1px solid #ccc', padding: '0.8rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 600, color: '#333', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', marginBottom: '1rem' }}
+            >
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo" style={{ width: '20px', height: '20px' }} />
+              Google ile Giriş Yap
+            </button>
+          </>
+        )}
       </div>
     );
   }

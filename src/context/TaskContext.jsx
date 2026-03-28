@@ -18,7 +18,7 @@ const DEFAULT_DEADLINE_COLORS = [
 ];
 
 export const TaskProvider = ({ children }) => {
-  const { companyFirebase, selectedCompany } = useCompany();
+  const { companyFirebase, selectedCompany, registerEmailToCompany } = useCompany();
   const db = companyFirebase?.db || null;
   const auth = companyFirebase?.auth || null;
   const googleProvider = companyFirebase?.googleProvider || null;
@@ -111,6 +111,7 @@ export const TaskProvider = ({ children }) => {
         };
         try {
           await addDoc(collection(db, 'usersList'), newAdmin);
+          if (authUser.email && selectedCompany?.id) registerEmailToCompany(authUser.email, selectedCompany.id);
         } catch (e) { console.error("Could not create initial admin:", e); }
       } else {
         const activeUsers = dbUsers.filter(u => !u.isDeleted);
@@ -349,11 +350,21 @@ export const TaskProvider = ({ children }) => {
 
   const addUser = async (userData) => {
     if (!db) return;
-    try { await addDoc(collection(db, 'usersList'), userData); } catch (e) { addNotification("Hata"); }
+    try {
+      await addDoc(collection(db, 'usersList'), userData);
+      // emailMap sync
+      if (userData.email && selectedCompany?.id) registerEmailToCompany(userData.email, selectedCompany.id);
+      if (userData.authEmail && selectedCompany?.id) registerEmailToCompany(userData.authEmail, selectedCompany.id);
+    } catch (e) { addNotification("Hata"); }
   };
   const editUser = async (id, updatedData) => {
     if (!db) return;
-    try { await updateDoc(doc(db, 'usersList', id), updatedData); } catch (e) { addNotification("Hata"); }
+    try {
+      await updateDoc(doc(db, 'usersList', id), updatedData);
+      // emailMap sync
+      if (updatedData.email && selectedCompany?.id) registerEmailToCompany(updatedData.email, selectedCompany.id);
+      if (updatedData.authEmail && selectedCompany?.id) registerEmailToCompany(updatedData.authEmail, selectedCompany.id);
+    } catch (e) { addNotification("Hata"); }
   };
   const deleteUser = async (id) => {
     if (!db) return;
