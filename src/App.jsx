@@ -526,21 +526,37 @@ const AppContent = () => {
           )}
         </div>
 
-        {selectedCompany && (
-          <>
-            <div style={{width:'300px', display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1.5rem'}}>
-              <div style={{flex:1, height:'1px', background:'var(--border)'}}></div>
-              <span style={{color:'var(--text-muted)', fontSize:'0.8rem'}}>veya</span>
-              <div style={{flex:1, height:'1px', background:'var(--border)'}}></div>
-            </div>
-            <button onClick={loginWithGoogle}
-              style={{ width: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#fff', border: '1px solid #ccc', padding: '0.8rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 600, color: '#333', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', marginBottom: '1rem' }}
-            >
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo" style={{ width: '20px', height: '20px' }} />
-              Google ile Giriş Yap
-            </button>
-          </>
-        )}
+        <div style={{width:'300px', display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1.5rem'}}>
+          <div style={{flex:1, height:'1px', background:'var(--border)'}}></div>
+          <span style={{color:'var(--text-muted)', fontSize:'0.8rem'}}>veya</span>
+          <div style={{flex:1, height:'1px', background:'var(--border)'}}></div>
+        </div>
+        <button onClick={async () => {
+          // Google login: şirket otomatik bul
+          if (selectedCompany && companyFirebase) {
+            loginWithGoogle();
+            return;
+          }
+          // Tek şirket varsa direkt kullan
+          if (companies.length === 1) {
+            selectCompany(companies[0].id);
+            setTimeout(() => loginWithGoogle(), 1500);
+            return;
+          }
+          // Son kullanılan şirket varsa onu kullan
+          const lastId = localStorage.getItem('lastCompanyId');
+          if (lastId && companies.find(c => c.id === lastId)) {
+            selectCompany(lastId);
+            setTimeout(() => loginWithGoogle(), 1500);
+            return;
+          }
+          alert('Birden fazla şirket kayıtlı.\n\nGoogle ile giriş yapmak için lütfen önce e-posta ve şifre ile giriş yapın. Sonraki girişlerde Google otomatik çalışacaktır.');
+        }}
+          style={{ width: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#fff', border: '1px solid #ccc', padding: '0.8rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 600, color: '#333', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', marginBottom: '1rem' }}
+        >
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo" style={{ width: '20px', height: '20px' }} />
+          Google ile Giriş Yap
+        </button>
       </div>
     );
   }
