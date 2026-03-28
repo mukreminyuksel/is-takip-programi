@@ -573,17 +573,19 @@ body {
   .table-header-actions .btn-small { font-size: 0.62rem !important; padding: 0.2rem 0.4rem !important; }
   .table-header-actions .search-input { min-width: 0 !important; width: 120px !important; flex: 1 !important; font-size: 0.65rem !important; padding: 0.25rem 0.4rem !important; }
 
-  /* Tablo görünümü */
-  .compact-table { font-size: 0.7rem; width: 100%; }
-  .compact-table th, .compact-table td { padding: 0.2rem 0.1rem; }
+  /* Tablo görünümü — mobil sabit oranlar */
+  .compact-table { font-size: 0.7rem; width: 100%; table-layout: fixed; }
+  .compact-table th, .compact-table td { padding: 0.2rem 0.1rem; overflow: hidden; }
   .compact-table-container { overflow-x: hidden; }
-  /* Durum ve kişi sütunları içeriğe sıkı yapışsın */
-  .compact-table th:nth-child(1), .compact-table td:nth-child(1) { width: 24px; padding: 0 2px; }
-  .compact-table th:nth-child(3), .compact-table td:nth-child(3) { width: 1%; white-space: nowrap; }
-  .compact-table th:nth-child(5), .compact-table td:nth-child(5) { width: 1%; white-space: nowrap; }
-  .compact-table td:nth-child(3) select { font-size: 0.6rem !important; padding: 1px 2px !important; }
-  .compact-table td:nth-child(5) select { font-size: 0.58rem !important; padding: 1px 2px !important; }
-  .compact-table td:nth-child(5) span { font-size: 0.58rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60px; display: inline-block; }
+  /* Checkbox %4, Görev %52, Durum %22, Kişi %22 */
+  .compact-table th:nth-child(1), .compact-table td:nth-child(1) { width: 4% !important; padding: 0 !important; text-align: center; }
+  .compact-table th:nth-child(1) input, .compact-table td:nth-child(1) input { width: 14px; height: 14px; }
+  .compact-table th:nth-child(2), .compact-table td:nth-child(2) { width: 52% !important; }
+  .compact-table th:nth-child(3), .compact-table td:nth-child(3) { width: 22% !important; }
+  .compact-table th:nth-child(5), .compact-table td:nth-child(5) { width: 22% !important; }
+  .compact-table td:nth-child(3) select { font-size: 0.6rem !important; padding: 1px !important; width: 100% !important; }
+  .compact-table td:nth-child(5) select { font-size: 0.58rem !important; padding: 1px !important; width: 100% !important; }
+  .compact-table td:nth-child(5) span { font-size: 0.58rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
   /* Mobil kolon: checkbox(1) + görev(2) + durum(3) + kişi(5) göster, öncelik(4) + tarihler(6,7) + işlem(8) gizle */
   .compact-table th:nth-child(4), .compact-table td:nth-child(4),
   .compact-table th:nth-child(n+6), .compact-table td:nth-child(n+6) { display: none !important; }
