@@ -232,12 +232,42 @@
       border: 1px solid #e2e8f0;
       background: #f8fafc;
       transition: all 0.2s;
+      position: relative;
     }
 
     .feature-card:hover {
       transform: translateY(-3px);
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
       border-color: #bfdbfe;
+    }
+
+    .feature-card .feature-preview {
+      display: none;
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: 10px;
+      width: 420px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.18);
+      overflow: hidden;
+      z-index: 50;
+      background: #fff;
+    }
+
+    .feature-card .feature-preview img {
+      width: 100%;
+      display: block;
+    }
+
+    .feature-card:hover .feature-preview {
+      display: block;
+    }
+
+    @media (max-width: 768px) {
+      .feature-card .feature-preview { display: none !important; }
     }
 
     .feature-icon {
@@ -480,54 +510,63 @@
     <p class="subtitle">K&#252;&#231;&#252;k ekiplerden kurumsal firmalara kadar herkes i&#231;in</p>
     <div class="features-grid">
       <div class="feature-card">
+        <div class="feature-preview"><img src="1.png" alt="G&#246;rev Y&#246;netimi"></div>
         <div class="feature-icon" style="background:#dbeafe">&#128203;</div>
         <h3>G&#246;rev Y&#246;netimi</h3>
         <p>G&#246;rev olu&#351;turun, atay&#305;n, &#246;ncelik ve deadline belirleyin. Alt g&#246;revler, notlar ve
           dosya ekleri ile detaylan d&#305;r&#305;n.</p>
       </div>
       <div class="feature-card">
+        <div class="feature-preview"><img src="2.png" alt="Kanban Panosu"></div>
         <div class="feature-icon" style="background:#dcfce7">&#128202;</div>
         <h3>Kanban Panosu</h3>
         <p>S&#252;r&#252;kle-b&#305;rak ile g&#246;revleri y&#246;netin. Yap&#305;lacak, Devam Eden, Tamamland&#305;
           kolonlar&#305; ile g&#246;r&#252;n&#252;rl&#252;k.</p>
       </div>
       <div class="feature-card">
+        <div class="feature-preview"><img src="3.png" alt="Gantt &#350;emas&#305;"></div>
         <div class="feature-icon" style="background:#fef3c7">&#128197;</div>
         <h3>Gantt &#350;emas&#305;</h3>
         <p>Projenizin zaman &#231;izelgesini g&#246;r&#252;n. Ba&#351;lang&#305;&#231;-biti&#351; tarihleri, gecikme
           takibi ve tooltip detaylar&#305;.</p>
       </div>
       <div class="feature-card">
+        <div class="feature-preview"><img src="4.png" alt="&#214;zet Dashboard"></div>
         <div class="feature-icon" style="background:#ede9fe">&#128200;</div>
         <h3>&#214;zet Dashboard</h3>
         <p>KPI kartlar&#305;, ekip performans&#305;, g&#246;rev da&#287;&#305;l&#305;mlar&#305; ve trend grafikleri ile
           b&#252;y&#252;k resmi g&#246;r&#252;n.</p>
       </div>
       <div class="feature-card">
+        <div class="feature-preview"><img src="5.png" alt="&#199;oklu &#350;irket"></div>
         <div class="feature-icon" style="background:#fce7f3">&#128101;</div>
         <h3>&#199;oklu &#350;irket</h3>
         <p>Birden fazla &#351;irket/&#351;ube y&#246;netin. Her &#351;irketin kendi veritaban&#305;,
           kullan&#305;c&#305;lar&#305; ve ayarlar&#305;.</p>
       </div>
       <div class="feature-card">
+        <div class="feature-preview"><img src="6.png" alt="Rol Bazl&#305; Eri&#351;im"></div>
         <div class="feature-icon" style="background:#ccfbf1">&#128274;</div>
         <h3>Rol Bazl&#305; Eri&#351;im</h3>
         <p>S&#252;per Admin, &#350;irket Admin ve Kullan&#305;c&#305; rolleri. Herkes sadece yetkisi d&#226;hilindekini
           g&#246;r&#252;r.</p>
       </div>
       <div class="feature-card">
+        <div class="feature-preview"><img src="7.png" alt="E-posta Bildirimleri"></div>
         <div class="feature-icon" style="background:#fee2e2">&#128231;</div>
         <h3>E-posta Bildirimleri</h3>
         <p>G&#246;rev atand&#305;&#287;&#305;nda, durum de&#287;i&#351;ti&#287;inde otomatik e-posta. Gmail entegrasyonu
           ile kolay kurulum.</p>
       </div>
       <div class="feature-card">
+        <div class="feature-preview"><img src="8.png" alt="Yedekleme"></div>
         <div class="feature-icon" style="background:#e0e7ff">&#128190;</div>
         <h3>Yedekleme</h3>
         <p>Tek t&#305;kla JSON yedek al&#305;n. Ba&#351;ka Firebase projesine ta&#351;&#305;y&#305;n. Verileriniz her
           zaman g&#252;vende.</p>
       </div>
       <div class="feature-card">
+        <div class="feature-preview"><img src="9.png" alt="Bulut Tabanl&#305;"></div>
         <div class="feature-icon" style="background:#f1f5f9">&#127760;</div>
         <h3>Bulut Tabanl&#305;</h3>
         <p>Kurulum gerektirmez. Taray&#305;c&#305;n&#305;zdan eri&#351;in &#8212; masa&#252;st&#252;, tablet veya
@@ -560,6 +599,7 @@
         <p style="color:#64748b;font-size:0.85rem">B&#252;y&#252;yen ekipler i&#231;in</p>
         <ul>
           <li>10 kullan&#305;c&#305;ya kadar</li>
+          <li>(Kullan&#305;c&#305; ba&#351;ına 50&#8378;)</li>
           <li>T&#252;m &#246;zellikler</li>
           <li>&#214;ncelikli destek</li>
           <li>Dosya y&#252;kleme (10GB)</li>
