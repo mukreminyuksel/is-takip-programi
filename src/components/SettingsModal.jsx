@@ -1484,7 +1484,10 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
   );
 }
 
-function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany }) {
+function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany, isSuperAdmin, superAdminEmails }) {
+  const { updateSuperAdmins } = useCompany();
+  const [newSuperEmail, setNewSuperEmail] = useState('');
+
   const [editingId, setEditingId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const emptyForm = {
@@ -1716,8 +1719,57 @@ function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany
     </div>
   );
 
+  const handleAddSuperAdmin = async () => {
+    const email = newSuperEmail.trim().toLowerCase();
+    if (!email || !email.includes('@')) { alert('Geçerli bir e-posta adresi girin.'); return; }
+    if (superAdminEmails.includes(email)) { alert('Bu e-posta zaten süper admin.'); return; }
+    await updateSuperAdmins([...superAdminEmails, email]);
+    setNewSuperEmail('');
+  };
+
+  const handleRemoveSuperAdmin = async (email) => {
+    if (superAdminEmails.length <= 1) { alert('En az bir süper admin olmalıdır!'); return; }
+    if (!window.confirm(`"${email}" adresini süper admin listesinden çıkarmak istediğinize emin misiniz?`)) return;
+    await updateSuperAdmins(superAdminEmails.filter(e => e !== email));
+  };
+
+  const saInputStyle = { width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--bg-main)', color: 'var(--text-main)' };
+
   return (
     <div className="settings-body">
+
+      {/* Süper Admin Yönetimi */}
+      <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: '10px', padding: '1.2rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.8rem' }}>
+          <ShieldAlert size={20} style={{ color: '#b45309' }} />
+          <h3 style={{ fontSize: '1rem', margin: 0, color: '#92400e' }}>Süper Admin Yönetimi</h3>
+        </div>
+        <p style={{ fontSize: '0.8rem', color: '#78350f', marginBottom: '0.8rem', lineHeight: '1.4' }}>
+          Süper adminler tüm şirketlere erişebilir, yeni şirket ekleyebilir ve sistem ayarlarını yönetebilir.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.8rem' }}>
+          {superAdminEmails.map((email, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.8rem', background: 'var(--bg-main)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <ShieldAlert size={14} style={{ color: '#b45309' }} />
+                <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>{email}</span>
+              </div>
+              <button onClick={() => handleRemoveSuperAdmin(email)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: '2px', display: 'flex' }} title="Kaldır">
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <input style={{ ...saInputStyle, flex: 1 }} value={newSuperEmail} onChange={e => setNewSuperEmail(e.target.value)} placeholder="yeni.admin@email.com" onKeyDown={e => e.key === 'Enter' && handleAddSuperAdmin()} />
+          <button onClick={handleAddSuperAdmin} className="btn btn-primary" style={{ fontSize: '0.82rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <Plus size={14} /> Ekle
+          </button>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
         <h3 style={{ fontSize: '1rem', margin: 0 }}>Kayıtlı Şirketler ({companies.length})</h3>
         {!showAddForm && !editingId && (
