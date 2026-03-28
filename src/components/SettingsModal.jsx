@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
 import { useCompany } from '../context/CompanyContext';
-import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server, Users, Calendar, MessageCircle, Maximize, Minimize, CheckCircle, XCircle, Loader } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server, Users, Calendar, MessageCircle, Maximize, Minimize, CheckCircle, XCircle, Loader, Download, Upload, Database, Mail, Key } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getFirestore, collection, getDocs } from 'firebase/firestore';
-import { doc, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
 
@@ -369,6 +368,12 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
             </h2>
             <h2 onClick={() => {setActiveTab('system'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'system' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'system' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
               <Server size={16}/> Sistem Ayarları
+            </h2>
+            <h2 onClick={() => {setActiveTab('email'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'email' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'email' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
+              <Mail size={16}/> E-posta
+            </h2>
+            <h2 onClick={() => {setActiveTab('backup'); setIsEditing(false);}} style={{cursor:'pointer', paddingBottom:'0.8rem', margin:0, fontSize:'1.1rem', color: activeTab === 'backup' ? 'var(--text-main)' : 'var(--text-muted)', borderBottom: activeTab === 'backup' ? '2px solid var(--primary)' : '2px solid transparent', display:'flex', alignItems:'center', gap:'0.4rem'}}>
+              <Download size={16}/> Yedekleme
             </h2>
           </div>
           <div onMouseDown={e => e.stopPropagation()} style={{paddingBottom:'0.8rem', display:'flex', alignItems:'center', gap:'0.3rem'}}>
@@ -1112,6 +1117,14 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
           <SystemSettingsTab companies={companies} addCompany={addCompany} updateCompany={updateCompany} deleteCompany={deleteCompany} />
         )}
 
+        {!isEditing && activeTab === 'email' && (
+          <EmailSettingsTab />
+        )}
+
+        {!isEditing && activeTab === 'backup' && (
+          <BackupTab />
+        )}
+
         {isEditing && (
           <form className="modal-form" onSubmit={handleSave} style={{padding:'1.5rem'}}>
             <h3 style={{marginBottom:'1.5rem', fontSize:'1.1rem', color: 'var(--primary)'}}>{formData.id ? 'Kurumsal Çalışan Düzenle' : 'Yeni Kurumsal Çalışan Kaydı'}</h3>
@@ -1749,6 +1762,309 @@ function SystemSettingsTab({ companies, addCompany, updateCompany, deleteCompany
         3. Firestore Database oluşturun (production mode)<br />
         4. Proje ayarlarından Firebase config bilgilerini kopyalayın<br />
         5. Yukarıdaki "Yeni Şirket Ekle" butonuna tıklayarak bilgileri girin
+      </div>
+    </div>
+  );
+}
+
+function BackupTab() {
+  const { tasks, usersList, tagsList, customersList, appNotifications } = useTasks();
+  const { selectedCompany, companyFirebase } = useCompany();
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const db = companyFirebase?.db || null;
+
+  const handleExport = () => {
+    const backup = {
+      exportDate: new Date().toISOString(),
+      company: selectedCompany?.name || 'unknown',
+      version: 'V9.6.0',
+      collections: {
+        tasks: tasks,
+        usersList: usersList,
+        tagsList: tagsList,
+        customers: customersList,
+        appNotifications: appNotifications
+      }
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `TaskTrack_Yedek_${selectedCompany?.name || 'backup'}_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !db) return;
+
+    if (!window.confirm('DİKKAT: Bu işlem mevcut verilerin üzerine yazacaktır!\n\nDevam etmek istiyor musunuz?')) {
+      e.target.value = '';
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+
+      if (!backup.collections) throw new Error('Geçersiz yedek dosyası formatı');
+
+      let totalImported = 0;
+
+      for (const [colName, docs] of Object.entries(backup.collections)) {
+        if (!Array.isArray(docs) || docs.length === 0) continue;
+
+        const existing = await getDocs(collection(db, colName));
+        for (const d of existing.docs) {
+          await deleteDoc(doc(db, colName, d.id));
+        }
+
+        for (const docData of docs) {
+          const { id: _id, ...data } = docData;
+          await addDoc(collection(db, colName), data);
+          totalImported++;
+        }
+      }
+
+      setImportResult({ success: true, message: `${totalImported} kayıt başarıyla geri yüklendi.` });
+    } catch (err) {
+      setImportResult({ success: false, message: 'Geri yükleme hatası: ' + err.message });
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
+  const sectionStyle = { background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.2rem', marginBottom: '1rem' };
+
+  return (
+    <div className="settings-body">
+      <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Veritabanı Yedekleme ve Geri Yükleme</h3>
+
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.8rem' }}>
+          <Download size={20} style={{ color: '#16a34a' }} />
+          <div>
+            <h4 style={{ margin: 0, fontSize: '0.95rem' }}>Yedek Al (Export)</h4>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tüm görevler, personel, etiketler, müşteriler ve bildirimleri JSON dosyasına indir</p>
+          </div>
+        </div>
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.8rem' }}>
+          Mevcut kayıtlar: {tasks.length} görev, {usersList.length} personel, {tagsList.length} etiket, {customersList.length} müşteri
+        </div>
+        <button onClick={handleExport} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
+          <Download size={15} /> JSON Olarak İndir
+        </button>
+      </div>
+
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.8rem' }}>
+          <Upload size={20} style={{ color: '#dc2626' }} />
+          <div>
+            <h4 style={{ margin: 0, fontSize: '0.95rem' }}>Geri Yükle (Import)</h4>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Daha önce alınmış bir yedek dosyasından verileri geri yükle</p>
+          </div>
+        </div>
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '0.6rem 0.8rem', fontSize: '0.78rem', color: '#991b1b', marginBottom: '0.8rem' }}>
+          <strong>Uyarı:</strong> Geri yükleme mevcut tüm verilerin üzerine yazacaktır. Önce mevcut verilerinizin yedeğini alın!
+        </div>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid var(--border)', cursor: importing ? 'wait' : 'pointer', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+          <Upload size={15} />
+          {importing ? 'Geri yükleniyor...' : 'JSON Dosyası Seç'}
+          <input type="file" accept=".json" onChange={handleImport} disabled={importing} style={{ display: 'none' }} />
+        </label>
+        {importResult && (
+          <div style={{ marginTop: '0.8rem', padding: '0.6rem 0.8rem', borderRadius: '6px', fontSize: '0.82rem', background: importResult.success ? '#f0fdf4' : '#fef2f2', color: importResult.success ? '#166534' : '#991b1b', border: `1px solid ${importResult.success ? '#bbf7d0' : '#fecaca'}` }}>
+            {importResult.message}
+          </div>
+        )}
+      </div>
+
+      <div style={{ ...sectionStyle, background: '#f0f9ff', borderColor: '#bfdbfe' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.5rem' }}>
+          <Database size={20} style={{ color: '#2563eb' }} />
+          <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#1e40af' }}>Başka Firebase'e Taşıma</h4>
+        </div>
+        <p style={{ fontSize: '0.8rem', color: '#334155', lineHeight: '1.5', margin: 0 }}>
+          Veritabanını farklı bir Firebase projesine taşımak için:<br/>
+          1. Yukarıdan mevcut yedeği indirin<br/>
+          2. Sistem Ayarları'ndan yeni Firebase config bilgilerini girin<br/>
+          3. Yeni projeye geçtikten sonra bu yedek dosyasını geri yükleyin
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function EmailSettingsTab() {
+  const { selectedCompany, companyFirebase, updateCompany } = useCompany();
+  const { usersList } = useTasks();
+  const [emailGasUrl, setEmailGasUrl] = useState(selectedCompany?.emailGasUrl || '');
+  const [emailNotifyOnAssign, setEmailNotifyOnAssign] = useState(selectedCompany?.emailNotifyOnAssign !== false);
+  const [emailNotifyOnDeadline, setEmailNotifyOnDeadline] = useState(selectedCompany?.emailNotifyOnDeadline !== false);
+  const [emailNotifyOnStatusChange, setEmailNotifyOnStatusChange] = useState(selectedCompany?.emailNotifyOnStatusChange !== false);
+  const [emailNotifyOnNote, setEmailNotifyOnNote] = useState(selectedCompany?.emailNotifyOnNote || false);
+  const [testEmail, setTestEmail] = useState('');
+  const [testStatus, setTestStatus] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await updateCompany(selectedCompany.id, {
+      emailGasUrl,
+      emailNotifyOnAssign,
+      emailNotifyOnDeadline,
+      emailNotifyOnStatusChange,
+      emailNotifyOnNote
+    });
+    setSaving(false);
+    alert('E-posta ayarları kaydedildi.');
+  };
+
+  const handleTest = async () => {
+    if (!emailGasUrl) { alert('Önce Google Apps Script URL girin ve kaydedin.'); return; }
+    if (!testEmail) { alert('Test e-posta adresi girin.'); return; }
+    setTestStatus('sending');
+    try {
+      const params = new URLSearchParams();
+      params.append('action', 'sendEmail');
+      params.append('to', testEmail);
+      params.append('subject', 'TaskTrack - Test E-postası');
+      params.append('body', `<h2>TaskTrack E-posta Testi Başarılı!</h2><p>Bu e-posta <strong>${selectedCompany?.displayName || selectedCompany?.name}</strong> şirketi için e-posta entegrasyonunun doğru çalıştığını test etmek amacıyla gönderilmiştir.</p><p style="color:#64748b;font-size:0.85em;">Gönderim tarihi: ${new Date().toLocaleString('tr-TR')}</p>`);
+      const res = await fetch(emailGasUrl, { method: 'POST', body: params, redirect: 'follow' });
+      setTestStatus('success');
+    } catch (err) {
+      setTestStatus('error');
+      alert('Test e-postası gönderilemedi: ' + err.message);
+    }
+  };
+
+  const sectionStyle = { background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.2rem', marginBottom: '1rem' };
+  const inputStyle = { width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--bg-main)', color: 'var(--text-main)' };
+  const labelStyle = { fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' };
+  const checkboxRowStyle = { display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.88rem', color: 'var(--text-main)', padding: '0.4rem 0' };
+
+  return (
+    <div className="settings-body">
+      <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>E-posta Bildirim Entegrasyonu</h3>
+
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.8rem' }}>
+          <Mail size={20} style={{ color: '#2563eb' }} />
+          <div>
+            <h4 style={{ margin: 0, fontSize: '0.95rem' }}>Google Apps Script E-posta Servisi</h4>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Admin'in Gmail hesabı üzerinden otomatik e-posta gönderimi</p>
+          </div>
+        </div>
+
+        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '0.8rem', marginBottom: '0.8rem', fontSize: '0.78rem', color: '#1e40af', lineHeight: '1.5' }}>
+          <strong>Kurulum Rehberi:</strong><br/>
+          1. <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" style={{color:'#2563eb'}}>Google Apps Script</a>'e admin'in Google hesabiyla giriş yapin<br/>
+          2. Yeni proje oluturun (ornegin: "TaskTrack E-posta")<br/>
+          3. Asagidaki kodu yapistirin, "Dagit" {">"} "Web uygulamasi" olarak dagitin<br/>
+          4. Erisim: "Herkes" secin. Ilk calistirmada Gmail erisim izni isteyecek — onaylayin<br/>
+          5. Olusturulan URL'yi asagiya yapiştirin
+
+          <details style={{marginTop:'0.5rem'}}>
+            <summary style={{cursor:'pointer', fontWeight:600, color:'#1d4ed8'}}>Google Apps Script E-posta Kodu (tiklayin)</summary>
+            <pre style={{background:'#1e293b', color:'#e2e8f0', padding:'0.8rem', borderRadius:'6px', fontSize:'0.72rem', overflow:'auto', marginTop:'0.4rem', whiteSpace:'pre-wrap'}}>{`function doPost(e) {
+  var action = e.parameter.action;
+
+  if (action === 'sendEmail') {
+    var to = e.parameter.to;
+    var subject = e.parameter.subject;
+    var body = e.parameter.body;
+
+    try {
+      MailApp.sendEmail({
+        to: to,
+        subject: subject,
+        htmlBody: body
+      });
+      return ContentService
+        .createTextOutput(JSON.stringify({ success: true }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ success: false, error: 'Bilinmeyen aksiyon' }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet(e) {
+  return ContentService
+    .createTextOutput("TaskTrack E-posta Servisi aktif.")
+    .setMimeType(ContentService.MimeType.TEXT);
+}`}</pre>
+          </details>
+        </div>
+
+        <div style={{ marginBottom: '0.8rem' }}>
+          <label style={labelStyle}>Google Apps Script E-posta URL'si</label>
+          <input style={inputStyle} value={emailGasUrl} onChange={e => setEmailGasUrl(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" />
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input style={{ ...inputStyle, flex: 1 }} value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="test@ornek.com" />
+          <button onClick={handleTest} disabled={testStatus === 'sending'} className="btn btn-secondary" style={{ fontSize: '0.82rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            {testStatus === 'sending' ? <Loader size={13} style={{animation:'spin 1s linear infinite'}} /> : testStatus === 'success' ? <CheckCircle size={13} style={{color:'#16a34a'}} /> : <Mail size={13} />}
+            Test Gonder
+          </button>
+        </div>
+        {testStatus === 'success' && (
+          <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#16a34a' }}>Test e-postasi basariyla gonderildi! Gelen kutusunu kontrol edin.</div>
+        )}
+      </div>
+
+      <div style={sectionStyle}>
+        <h4 style={{ margin: '0 0 0.8rem', fontSize: '0.95rem' }}>Otomatik E-posta Tetikleyicileri</h4>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.8rem' }}>
+          Hangi durumlarda personele otomatik e-posta gönderilsin?
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+          <label style={checkboxRowStyle}>
+            <input type="checkbox" checked={emailNotifyOnAssign} onChange={e => setEmailNotifyOnAssign(e.target.checked)} />
+            Görev atandığında (atanan kişiye e-posta gönder)
+          </label>
+          <label style={checkboxRowStyle}>
+            <input type="checkbox" checked={emailNotifyOnDeadline} onChange={e => setEmailNotifyOnDeadline(e.target.checked)} />
+            Deadline yaklaştığında (1 gün kala hatırlatma)
+          </label>
+          <label style={checkboxRowStyle}>
+            <input type="checkbox" checked={emailNotifyOnStatusChange} onChange={e => setEmailNotifyOnStatusChange(e.target.checked)} />
+            Görev durumu değiştiğinde (atanan kişiye bilgi)
+          </label>
+          <label style={checkboxRowStyle}>
+            <input type="checkbox" checked={emailNotifyOnNote} onChange={e => setEmailNotifyOnNote(e.target.checked)} />
+            Göreve not eklendiğinde (ilgili kişilere bilgi)
+          </label>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={handleSave} disabled={saving} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}>
+          {saving ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
+        </button>
+      </div>
+
+      <div style={{ ...sectionStyle, background: '#f0f9ff', borderColor: '#bfdbfe', marginTop: '1rem' }}>
+        <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.9rem', color: '#1e40af' }}>Nasıl Çalışır?</h4>
+        <p style={{ fontSize: '0.8rem', color: '#334155', lineHeight: '1.6', margin: 0 }}>
+          E-postalar, admin'in Google hesabi uzerinden Google Apps Script araciligiyla gonderilir.
+          Gmail'in gunluk 100 e-posta limiti vardir (Workspace hesaplarinda 1500).<br/>
+          Personelin e-posta adresi "Personel Listesi"nde kayitli olmalidir.<br/>
+          E-postalar HTML formatinda gonderilir ve gorev basligi, durumu, deadline gibi bilgileri icerir.
+        </p>
       </div>
     </div>
   );

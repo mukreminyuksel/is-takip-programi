@@ -295,6 +295,19 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
+  const publicResetPassword = async (email) => {
+    if (!auth) return { success: false, error: 'Firebase bağlantısı yok' };
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return { success: true };
+    } catch (err) {
+      let msg = err.message;
+      if (err.code === 'auth/user-not-found') msg = 'Bu e-posta adresine ait hesap bulunamadı.';
+      else if (err.code === 'auth/invalid-email') msg = 'Geçersiz e-posta adresi.';
+      return { success: false, error: msg };
+    }
+  };
+
   const logout = async () => {
     if (!auth || !db) return;
     try {
@@ -303,6 +316,28 @@ export const TaskProvider = ({ children }) => {
       await signOut(auth);
     } catch (e) {}
   };
+
+  // Tarayıcı kapanınca / sayfa değişince isOnline false yap
+  useEffect(() => {
+    if (!db || !currentUser) return;
+    const handleOffline = () => {
+      const me = usersList.find(u => u.name === currentUser);
+      if (me?.id) {
+        // sendBeacon ile güvenilir — tarayıcı kapansa bile gönderilir
+        navigator.sendBeacon?.('https://firestore.googleapis.com/');
+        updateDoc(doc(db, 'usersList', me.id), { isOnline: false }).catch(() => {});
+      }
+    };
+    window.addEventListener('beforeunload', handleOffline);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') handleOffline();
+      else if (document.visibilityState === 'visible' && currentUser) {
+        const me = usersList.find(u => u.name === currentUser);
+        if (me?.id) updateDoc(doc(db, 'usersList', me.id), { isOnline: true, lastLogin: new Date().toISOString() }).catch(() => {});
+      }
+    });
+    return () => window.removeEventListener('beforeunload', handleOffline);
+  }, [db, currentUser, usersList]);
 
   const addNotification = (message) => {
     const id = Date.now().toString() + Math.random().toString();
@@ -392,8 +427,30 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
+  const sendEmailNotification = async (toName, subject, htmlBody) => {
+    const emailGasUrl = selectedCompany?.emailGasUrl;
+    if (!emailGasUrl) return;
+    const user = usersList.find(u => u.name === toName);
+    const email = user?.email;
+    if (!email) return;
+    try {
+      const params = new URLSearchParams();
+      params.append('action', 'sendEmail');
+      params.append('to', email);
+      params.append('subject', subject);
+      params.append('body', htmlBody);
+      fetch(emailGasUrl, { method: 'POST', body: params, redirect: 'follow' }).catch(() => {});
+    } catch (e) { /* silent fail */ }
+  };
+
   const triggerCommunicationSimulations = (assigneeName, taskTitle) => {
-    return;
+    if (selectedCompany?.emailNotifyOnAssign !== false) {
+      sendEmailNotification(
+        assigneeName,
+        `TaskTrack - Yeni Görev: ${taskTitle}`,
+        `<div style="font-family:sans-serif;max-width:600px;margin:0 auto"><h2 style="color:#2563eb">Yeni Görev Atandı</h2><p><strong>${assigneeName}</strong>, size yeni bir görev atandı:</p><div style="background:#f1f5f9;border-radius:8px;padding:1rem;margin:1rem 0"><h3 style="margin:0 0 0.5rem">${taskTitle}</h3><p style="margin:0;color:#64748b">Atayan: ${currentUser}</p></div><p style="color:#64748b;font-size:0.85em">Bu e-posta TaskTrack tarafından otomatik gönderilmiştir.</p></div>`
+      );
+    }
   };
 
   const markAppNotificationAsRead = async (id) => {
@@ -609,6 +666,17 @@ export const TaskProvider = ({ children }) => {
       } else if (updatedData.status && oldTask.status !== updatedData.status) {
         const sM = {'todo':'Yapılacak','in-progress':'Devam Eden','done':'Tamamlandı'};
         logAppEvent(`'${updatedData.title || oldTask.title}' görevinin durumunu '${sM[updatedData.status]}' yaptı.`, oldTask.assignee);
+        // E-posta: durum değişikliği bildirimi
+        if (selectedCompany?.emailNotifyOnStatusChange !== false) {
+          const taskTitle = updatedData.title || oldTask.title;
+          getAssignees(oldTask).forEach(name => {
+            if (name !== currentUser) {
+              sendEmailNotification(name, `TaskTrack - Durum Değişti: ${taskTitle}`,
+                `<div style="font-family:sans-serif;max-width:600px;margin:0 auto"><h2 style="color:#2563eb">Görev Durumu Değişti</h2><p><strong>${taskTitle}</strong> görevinin durumu değiştirildi:</p><div style="background:#f1f5f9;border-radius:8px;padding:1rem;margin:1rem 0"><p style="margin:0"><strong>${sM[oldTask.status]}</strong> → <strong>${sM[updatedData.status]}</strong></p><p style="margin:0.5rem 0 0;color:#64748b">Değiştiren: ${currentUser}</p></div></div>`
+              );
+            }
+          });
+        }
       } else if (updatedData.deadline !== undefined && oldTask.deadline !== updatedData.deadline) {
         logAppEvent(`'${updatedData.title || oldTask.title}' görevinin hedefini güncelledi.`, oldTask.assignee);
       }
@@ -710,6 +778,21 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
+  const changeMyPassword = async (currentPassword, newPassword) => {
+    if (!auth || !authUser) return { success: false, error: 'Giriş yapmış olmalısınız.' };
+    try {
+      const cred = await signInWithEmailAndPassword(auth, authUser.email, currentPassword);
+      await updatePassword(cred.user, newPassword);
+      addNotification('Şifreniz başarıyla değiştirildi.');
+      return { success: true };
+    } catch (err) {
+      let msg = err.message;
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') msg = 'Mevcut şifre yanlış.';
+      else if (err.code === 'auth/weak-password') msg = 'Yeni şifre en az 6 karakter olmalıdır.';
+      return { success: false, error: msg };
+    }
+  };
+
   const adminChangePassword = async (authEmail, currentPassword, newPassword) => {
     if (!secondaryAuth || !db) return { success: false, error: 'Firebase bağlantısı yok' };
     if (!isAdmin) {
@@ -786,8 +869,8 @@ export const TaskProvider = ({ children }) => {
       tagsList, addTag, editTag, deleteTag,
       getUserColor, updateUserColor,
       hideAllTasksForUsers, toggleHideAllTasks,
-      loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading,
-      adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin,
+      loginWithGoogle, loginWithEmail, registerWithEmail, publicResetPassword, logout, authLoading,
+      changeMyPassword, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin,
       customersList, addCustomer, editCustomer, deleteCustomer,
       deadlineColors, saveDeadlineColors, getDeadlineRowColor, getDeadlineBarColor, getAssignees,
       companyDb: db

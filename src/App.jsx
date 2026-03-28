@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { CompanyProvider, useCompany } from './context/CompanyContext'
 import { TaskProvider, useTasks } from './context/TaskContext'
+import ErrorBoundary from './components/ErrorBoundary'
 import BoardView from './components/BoardView'
 import KanbanView from './components/KanbanView'
 import GanttView from './components/GanttView'
@@ -8,7 +9,7 @@ import DashboardView from './components/DashboardView'
 import SettingsModal from './components/SettingsModal'
 import DeletedTasksModal from './components/DeletedTasksModal'
 import TaskModal from './components/TaskModal'
-import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart, Building2, ArrowLeftRight, Users, Search, X as XIcon, BarChart3 } from 'lucide-react'
+import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart, Building2, ArrowLeftRight, Users, Search, X as XIcon, BarChart3, KeyRound } from 'lucide-react'
 
 const NotificationContainer = () => {
   const { notifications } = useTasks();
@@ -61,10 +62,56 @@ const NotificationDropdown = ({ isOpen, onClose }) => {
   );
 };
 
+const ChangePasswordModal = ({ isOpen, onClose }) => {
+  const { changeMyPassword } = useTasks();
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async () => {
+    if (!currentPw || !newPw) return;
+    if (newPw !== confirmPw) { alert('Yeni şifreler eşleşmiyor!'); return; }
+    if (newPw.length < 6) { alert('Yeni şifre en az 6 karakter olmalıdır.'); return; }
+    setLoading(true);
+    const result = await changeMyPassword(currentPw, newPw);
+    setLoading(false);
+    if (result.success) {
+      alert('Şifreniz başarıyla değiştirildi.');
+      setCurrentPw(''); setNewPw(''); setConfirmPw('');
+      onClose();
+    } else {
+      alert('Hata: ' + result.error);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
+      <div style={{ background: 'var(--bg-main)', borderRadius: '12px', padding: '2rem', width: '360px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+        <h3 style={{ margin: '0 0 1.2rem', fontSize: '1.1rem' }}>Şifre Değiştir</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+          <input type="password" placeholder="Mevcut Şifre" value={currentPw} onChange={e => setCurrentPw(e.target.value)} style={{ padding: '0.7rem', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem', outline: 'none' }} />
+          <input type="password" placeholder="Yeni Şifre (min 6 karakter)" value={newPw} onChange={e => setNewPw(e.target.value)} style={{ padding: '0.7rem', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem', outline: 'none' }} />
+          <input type="password" placeholder="Yeni Şifre (Tekrar)" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmit()} style={{ padding: '0.7rem', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem', outline: 'none' }} />
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.2rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: '0.85rem' }}>İptal</button>
+          <button onClick={handleSubmit} disabled={loading} style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', border: 'none', background: 'var(--primary)', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
+            {loading ? 'Değiştiriliyor...' : 'Değiştir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onViewChange, onOpenTask }) => {
   const { currentUser, logout, isAdmin, appNotifications, tasks } = useTasks();
   const { selectedCompany, selectCompany } = useCompany();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [pwModalOpen, setPwModalOpen] = useState(false);
   const notifRef = useRef(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -130,6 +177,7 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
   };
 
   return (
+    <>
     <header className="app-header">
       <div className="header-content">
         <div className="logo-title">
@@ -232,6 +280,9 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
             <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{currentUser}</span>
             {isAdmin && <span style={{ fontSize: '0.7rem', background: '#fef08a', color: '#854d0e', padding: '2px 6px', borderRadius: '4px' }}>Admin</span>}
           </div>
+          <button className="icon-btn" onClick={() => setPwModalOpen(true)} title="Şifre Değiştir">
+            <KeyRound size={18} />
+          </button>
           <button className="icon-btn" onClick={logout} title="Çıkış Yap">
             <LogOut size={18} />
           </button>
@@ -264,6 +315,8 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
         </div>
       </div>
     </header>
+    <ChangePasswordModal isOpen={pwModalOpen} onClose={() => setPwModalOpen(false)} />
+    </>
   );
 };
 
@@ -320,7 +373,7 @@ const CompanySelector = () => {
 
 const AppContent = () => {
   const { selectedCompany, companyFirebase } = useCompany();
-  const { currentUser, loginWithGoogle, loginWithEmail, registerWithEmail, authLoading, tasks } = useTasks();
+  const { currentUser, loginWithGoogle, loginWithEmail, registerWithEmail, publicResetPassword, authLoading, tasks, usersList, isAdmin } = useTasks();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState(null);
   const [isDeletedOpen, setIsDeletedOpen] = useState(false);
@@ -432,6 +485,24 @@ const AppContent = () => {
               {isLoginMode ? 'Kayıt Ol' : 'Giriş Yap'}
             </span>
           </div>
+          {isLoginMode && (
+            <div style={{textAlign:'center', marginTop:'0.3rem'}}>
+              <span
+                style={{fontSize:'0.78rem', color:'var(--text-muted)', cursor:'pointer', textDecoration:'underline'}}
+                onClick={async () => {
+                  let email = emailInput.trim();
+                  if (!email) { alert('Lütfen önce e-posta adresinizi veya telefon numaranızı yazın.'); return; }
+                  if (/^0?\d{10}$/.test(email)) email = email + '@tasktrack.net';
+                  else if (!email.includes('@')) email = email + '@tasktrack.net';
+                  const result = await publicResetPassword(email);
+                  if (result.success) alert('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.\n\nGelen kutunuzu (ve spam klasörünü) kontrol edin.');
+                  else alert('Hata: ' + result.error);
+                }}
+              >
+                Şifremi Unuttum
+              </span>
+            </div>
+          )}
         </div>
 
         <div style={{width:'300px', display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1.5rem'}}>
@@ -449,6 +520,41 @@ const AppContent = () => {
         </button>
 
         <BackToCompanySelector />
+      </div>
+    );
+  }
+
+  // Onboarding: ilk giriş — usersList henüz oluşuyor
+  if (currentUser && usersList.length <= 1 && isAdmin && !localStorage.getItem('onboarding-done-' + selectedCompany?.id)) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)', padding: '2rem', textAlign: 'center' }}>
+        <Layout size={56} style={{ color: 'var(--primary)', marginBottom: '1rem' }} />
+        <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '0.3rem' }}>TaskTrack'e Hos Geldiniz!</h1>
+        <p style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '2rem', maxWidth: '500px' }}>
+          <strong>{selectedCompany?.displayName || selectedCompany?.name}</strong> sirketi icin kurulum tamamlandi.
+          Siz bu sirketin ilk yoneticisisiniz ({currentUser}).
+        </p>
+        <div style={{ background: '#f0f9ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '1.5rem', maxWidth: '480px', textAlign: 'left', marginBottom: '2rem' }}>
+          <h3 style={{ margin: '0 0 0.8rem', fontSize: '1rem', color: '#1e40af' }}>Siradaki Adimlar:</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.9rem', color: '#334155' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}><span style={{ fontWeight: 700, color: '#2563eb' }}>1.</span> Ayarlar'dan personellerinizi ekleyin</div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}><span style={{ fontWeight: 700, color: '#2563eb' }}>2.</span> Etiketleri (Web, Tasarim vb.) ozellestirin</div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}><span style={{ fontWeight: 700, color: '#2563eb' }}>3.</span> Ilk gorevinizi olusturun</div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}><span style={{ fontWeight: 700, color: '#2563eb' }}>4.</span> Dosya yukleme icin Google Drive ayarlarini yapin (Sistem Ayarlari)</div>
+          </div>
+        </div>
+        <button
+          onClick={() => { localStorage.setItem('onboarding-done-' + selectedCompany?.id, 'true'); setIsSettingsOpen(true); }}
+          style={{ padding: '0.9rem 2rem', borderRadius: '10px', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }}
+        >
+          Basla — Personel Ekle
+        </button>
+        <button
+          onClick={() => localStorage.setItem('onboarding-done-' + selectedCompany?.id, 'true')}
+          style={{ marginTop: '0.8rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline' }}
+        >
+          Sonra yaparim, direkt panele git
+        </button>
       </div>
     );
   }
@@ -488,11 +594,13 @@ const BackToCompanySelector = () => {
 
 function App() {
   return (
-    <CompanyProvider>
-      <TaskProvider>
-        <AppContent />
-      </TaskProvider>
-    </CompanyProvider>
+    <ErrorBoundary>
+      <CompanyProvider>
+        <TaskProvider>
+          <AppContent />
+        </TaskProvider>
+      </CompanyProvider>
+    </ErrorBoundary>
   )
 }
 
