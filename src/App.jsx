@@ -321,62 +321,7 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
   );
 };
 
-const CompanySelector = () => {
-  const { companies, companiesLoading, selectCompany } = useCompany();
-
-  if (companiesLoading) {
-    return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', background: 'var(--bg-main)'}}>Yükleniyor...</div>;
-  }
-
-  // Tek şirket varsa otomatik seç — seçim ekranını gösterme
-  if (companies.length === 1) {
-    selectCompany(companies[0].id);
-    return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', background: 'var(--bg-main)'}}>Yükleniyor...</div>;
-  }
-
-  return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
-      <Building2 size={64} style={{ color: 'var(--primary, #3b82f6)', marginBottom: '1rem' }} />
-      <h1 style={{ marginBottom: '0.5rem', fontSize: '2rem', color: 'var(--text-main)', textAlign: 'center' }}>TaskTrack</h1>
-      <p style={{ marginBottom: '2rem', fontSize: '1rem', color: 'var(--text-muted)', textAlign: 'center' }}>Giriş yapmak istediğiniz şirketi seçin</p>
-
-      <div style={{display:'flex', flexDirection:'column', gap:'1rem', width:'320px'}}>
-        {companies.map(c => (
-          <button
-            key={c.id}
-            onClick={() => selectCompany(c.id)}
-            style={{
-              padding:'1.2rem 1.5rem',
-              borderRadius:'12px',
-              border: `2px solid ${c.color || '#3b82f6'}`,
-              background:'var(--bg-main, #fff)',
-              cursor:'pointer',
-              fontSize:'1.1rem',
-              fontWeight: 700,
-              color: c.color || '#3b82f6',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.8rem',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-            }}
-            onMouseEnter={e => { e.target.style.background = c.color || '#3b82f6'; e.target.style.color = '#fff'; }}
-            onMouseLeave={e => { e.target.style.background = 'var(--bg-main, #fff)'; e.target.style.color = c.color || '#3b82f6'; }}
-          >
-            <Building2 size={22} />
-            {c.displayName || c.name}
-          </button>
-        ))}
-      </div>
-
-      {companies.length === 0 && (
-        <p style={{color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '1rem'}}>
-          Henüz şirket tanımlanmamış. Sayfa yenileniyor...
-        </p>
-      )}
-    </div>
-  );
-};
+// CompanySelector kaldırıldı — birleşik login sistemi kullanılıyor (v9.6.2+)
 
 const AppContent = () => {
   const { selectedCompany, companyFirebase, companies, companiesLoading, selectCompany, lookupCompanyByEmail, tryAuthAllCompanies, superAdminEmails } = useCompany();
@@ -686,17 +631,7 @@ const AppContent = () => {
   );
 };
 
-const BackToCompanySelector = () => {
-  const { selectCompany } = useCompany();
-  return (
-    <button
-      onClick={() => selectCompany(null)}
-      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline', marginTop: '0.5rem' }}
-    >
-      ← Şirket Seçimine Geri Dön
-    </button>
-  );
-};
+// BackToCompanySelector kaldırıldı — birleşik login sistemi kullanılıyor (v9.6.2+)
 
 function App() {
   return (
