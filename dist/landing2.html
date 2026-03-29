@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskTrack - Profesyonel Görev ve Proje Yönetimi</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <style>
+    /* Reset & Base Variables */
+    :root {
+      --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --color-bg: #ffffff;
+      --color-text: #1d1d1f;
+      --color-text-muted: #86868b;
+      --color-primary: #0066cc;
+      /* Apple-esque blue */
+      --color-primary-hover: #005bb5;
+      --color-border: #d2d2d7;
+      --color-card-bg: #fbfbfd;
+      --max-width: 1200px;
+      --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    ul {
+      list-style: none;
+    }
+
+    /* Utility Classes */
+    .container {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+    }
+
+    .reveal.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Navbar */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      z-index: 1000;
+      transition: var(--transition);
+    }
+
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--color-text);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2.5rem;
+      align-items: center;
+    }
+
+    .nav-links a {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--color-text);
+    }
+
+    .nav-actions .btn-login {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--color-text);
+      margin-right: 1.5rem;
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: #fff !important;
+      padding: 0.6rem 1.4rem;
+      border-radius: 980px;
+      /* pill shape */
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: background 0.3s;
+      display: inline-block;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-primary:hover {
+      background: var(--color-primary-hover);
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 10rem 2rem 5rem;
+      text-align: center;
+      background: linear-gradient(180deg, #f5f5f7 0%, #ffffff 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      padding: 0.4rem 1rem;
+      background: #e8f2ff;
+      color: var(--color-primary);
+      border-radius: 980px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.5px;
+    }
+
+    .hero h1 {
+      font-size: clamp(3rem, 6vw, 4.5rem);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+      margin-bottom: 1.5rem;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero h1 span {
+      background: -webkit-linear-gradient(45deg, var(--color-primary), #3388ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      font-size: clamp(1.1rem, 2vw, 1.4rem);
+      color: var(--color-text-muted);
+      max-width: 650px;
+      margin: 0 auto 3rem;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-bottom: 4rem;
+    }
+
+    .btn-large {
+      padding: 1rem 2.5rem;
+      font-size: 1.05rem;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--color-text);
+      padding: 1rem 2.5rem;
+      border-radius: 980px;
+      font-size: 1.05rem;
+      font-weight: 500;
+      transition: var(--transition);
+      display: inline-block;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(0, 0, 0, 0.03);
+    }
+
+    /* Abstract UI Mockup in Hero */
+    .hero-mockup-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      position: relative;
+      perspective: 1000px;
+    }
+
+    .hero-mockup {
+      width: 100%;
+      height: 600px;
+      background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.03);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transform: rotateX(5deg);
+      transition: transform 0.5s ease-out;
+    }
+
+    .hero-mockup:hover {
+      transform: rotateX(0deg);
+    }
+
+    .mockup-header {
+      height: 48px;
+      background: #fbfbfd;
+      border-bottom: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      padding: 0 1.5rem;
+      gap: 8px;
+    }
+
+    .mockup-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .dot-r {
+      background: #ff5f56;
+    }
+
+    .dot-y {
+      background: #ffbd2e;
+    }
+
+    .dot-g {
+      background: #27c93f;
+    }
+
+    .mockup-body {
+      flex: 1;
+      display: flex;
+      background: #f4f4f5;
+    }
+
+    .mockup-sidebar {
+      width: 220px;
+      background: #ffffff;
+      border-right: 1px solid var(--color-border);
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .mockup-line {
+      height: 12px;
+      background: #e4e4e7;
+      border-radius: 4px;
+    }
+
+    .mockup-line.short {
+      width: 60%;
+    }
+
+    .mockup-line.long {
+      width: 100%;
+    }
+
+    .mockup-content {
+      flex: 1;
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+
+    .mockup-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    /* Trusted By */
+    .trusted {
+      padding: 5rem 0;
+      text-align: center;
+      border-bottom: 1px solid #f2f2f2;
+    }
+
+    .trusted p {
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 2rem;
+    }
+
+    .trusted-logos {
+      display: flex;
+      justify-content: center;
+      gap: 4rem;
+      opacity: 0.5;
+      filter: grayscale(100%);
+      font-weight: 700;
+      font-size: 1.2rem;
+      letter-spacing: -0.5px;
+      flex-wrap: wrap;
+    }
+
+    /* Bento Grid (Features) */
+    .features {
+      padding: 8rem 0;
+      background: #ffffff;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 5rem;
+    }
+
+    .section-header h2 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 1rem;
+    }
+
+    .section-header p {
+      font-size: 1.2rem;
+      color: var(--color-text-muted);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-auto-rows: 320px;
+      gap: 1.5rem;
+    }
+
+    .bento-card {
+      background: var(--color-card-bg);
+      border-radius: 24px;
+      padding: 2.5rem;
+      overflow: hidden;
+      position: relative;
+      transition: var(--transition);
+      border: 1px solid rgba(0, 0, 0, 0.03);
+    }
+
+    .bento-card:hover {
+      transform: scale(1.02);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06);
+    }
+
+    .bento-card.wide {
+      grid-column: span 2;
+    }
+
+    .bento-icon {
+      width: 48px;
+      height: 48px;
+      background: #e8f2ff;
+      color: var(--color-primary);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .bento-card h3 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.8rem;
+    }
+
+    .bento-card p {
+      color: var(--color-text-muted);
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+
+    /* Pricing */
+    .pricing {
+      padding: 8rem 0;
+      background: #fbfbfd;
+    }
+
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 4rem;
+    }
+
+    .toggle-label {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      transition: color 0.3s;
+    }
+
+    .toggle-label.active {
+      color: var(--color-text);
+      font-weight: 600;
+    }
+
+    .switch {
+      position: relative;
+      background: #d2d2d7;
+      width: 52px;
+      height: 32px;
+      border-radius: 32px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 28px;
+      height: 28px;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s;
+    }
+
+    .switch.yearly {
+      background: var(--color-primary);
+    }
+
+    .switch.yearly::after {
+      transform: translateX(20px);
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+    }
+
+    .price-tier {
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 3rem 2.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+      border: 1px solid rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: var(--transition);
+    }
+
+    .price-tier:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+    }
+
+    .price-tier.featured {
+      background: var(--color-text);
+      color: #fff;
+    }
+
+    .price-tier.featured .tier-desc,
+    .price-tier.featured .tier-period {
+      color: #a1a1aa;
+    }
+
+    .price-tier.featured .price-amount {
+      color: #fff;
+    }
+
+    .tier-name {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+    }
+
+    .tier-desc {
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+      margin-bottom: 1.5rem;
+      height: 40px;
+    }
+
+    .price-box {
+      margin-bottom: 2rem;
+    }
+
+    .price-amount {
+      font-size: 3.2rem;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      color: var(--color-text);
+    }
+
+    .tier-period {
+      font-size: 0.95rem;
+      color: var(--color-text-muted);
+      font-weight: 500;
+    }
+
+    .price-tier ul {
+      margin-bottom: 2rem;
+      flex: 1;
+    }
+
+    .price-tier ul li {
+      padding: 0.6rem 0;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.8rem;
+    }
+
+    .price-tier.featured ul li {
+      color: #e4e4e7;
+    }
+
+    .price-tier ul li svg {
+      fill: var(--color-text);
+      width: 18px;
+      margin-top: 3px;
+      flex-shrink: 0;
+    }
+
+    .price-tier.featured ul li svg {
+      fill: #fff;
+    }
+
+    .btn-block {
+      width: 100%;
+      text-align: center;
+    }
+
+    .badge-save {
+      position: absolute;
+      top: -14px;
+      right: 24px;
+      background: #34c759;
+      color: #fff;
+      padding: 0.3rem 0.8rem;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .badge-save.visible {
+      opacity: 1;
+    }
+
+    /* Bottom CTA */
+    .bottom-cta {
+      padding: 8rem 2rem;
+      text-align: center;
+      background: linear-gradient(135deg, #1d1d1f 0%, #000000 100%);
+      color: #fff;
+    }
+
+    .bottom-cta h2 {
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.5rem;
+    }
+
+    .bottom-cta p {
+      font-size: 1.2rem;
+      color: #a1a1aa;
+      margin-bottom: 3rem;
+    }
+
+    /* Footer */
+    footer {
+      padding: 3rem 2rem;
+      background: #f5f5f7;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+    }
+
+    footer a {
+      transition: color 0.2s;
+    }
+
+    footer a:hover {
+      color: var(--color-text);
+    }
+
+    @media (max-width: 900px) {
+      .bento-grid {
+        flex-direction: column;
+        display: flex;
+      }
+
+      .pricing-grid {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+        margin: 0 auto;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .hero-mockup {
+        height: 400px;
+        transform: rotateX(0);
+      }
+
+      .mockup-content {
+        grid-template-columns: 1fr;
+      }
+
+      .mockup-sidebar {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <nav class="navbar">
+    <a href="#" class="logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
+        <line x1="3" y1="9" x2="21" y2="9"></line>
+        <line x1="9" y1="21" x2="9" y2="9"></line>
+      </svg>
+      TaskTrack
+    </a>
+    <div class="nav-links">
+      <a href="#ozellikler">Özellikler</a>
+      <a href="#fiyatlandirma">Fiyatlar</a>
+      <a href="mailto:info@tasktrack.net">İletişim</a>
+    </div>
+    <div class="nav-actions">
+      <a href="https://avrupa-proje-istakip.web.app" class="btn-login">Giriş Yap</a>
+      <a href="https://avrupa-proje-istakip.web.app" class="btn-primary">Başlayın</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="container reveal">
+      <div class="hero-badge">TaskTrack V9.7 Yayında</div>
+      <h1>İşlerinizi düzenlemenin en kolay ve <br><span>en zarif yolu.</span></h1>
+      <p>Gelişmiş Kanban panosu, detaylı Gantt şeması ve güçlü görev özellikleriyle takımınızın verimliliğini tamamen
+        baştan tasarlayın.</p>
+
+      <div class="hero-buttons">
+        <a href="https://avrupa-proje-istakip.web.app" class="btn-primary btn-large">Ücretsiz Deneyin</a>
+        <a href="#ozellikler" class="btn-secondary">Özellikleri Keşfet</a>
+      </div>
+
+      <!-- Abstract Mockup -->
+      <div class="hero-mockup-container reveal">
+        <div class="hero-mockup">
+          <div class="mockup-header">
+            <div class="mockup-dot dot-r"></div>
+            <div class="mockup-dot dot-y"></div>
+            <div class="mockup-dot dot-g"></div>
+          </div>
+          <div class="mockup-body">
+            <div class="mockup-sidebar">
+              <div class="mockup-line long" style="margin-bottom: 2rem;"></div>
+              <div class="mockup-line short"></div>
+              <div class="mockup-line long"></div>
+              <div class="mockup-line short"></div>
+              <div class="mockup-line short"></div>
+            </div>
+            <div class="mockup-content">
+              <div class="mockup-card">
+                <div class="mockup-line long" style="height: 16px; background:#e8f2ff;"></div>
+                <div class="mockup-line long"></div>
+                <div class="mockup-line short"></div>
+                <div class="mockup-line long" style="margin-top:auto;"></div>
+              </div>
+              <div class="mockup-card">
+                <div class="mockup-line long" style="height: 16px; background:#fef3c7;"></div>
+                <div class="mockup-line long"></div>
+                <div class="mockup-line short"></div>
+              </div>
+              <div class="mockup-card">
+                <div class="mockup-line long" style="height: 16px; background:#e6f4ea;"></div>
+                <div class="mockup-line long"></div>
+                <div class="mockup-line long"></div>
+                <div class="mockup-line short"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="trusted reveal">
+    <div class="container">
+      <p>Önde Gelen Takımların Güvenilir Tercihi</p>
+      <div class="trusted-logos">
+        <span>ACME CORP</span>
+        <span>GLOBEX</span>
+        <span>SOYENT</span>
+        <span>INITECH</span>
+        <span>UMBRELLA</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="features" id="ozellikler">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2>Her şey kontrol altında.</h2>
+        <p>İş takibi, Görev atamaları, Proje Yönetimi, Müşteri Takibi ve ihtiyaç duyduğunuz tüm modern
+          araçlar tek
+          bir platformda, en akıcı deneyimle karşınızda.
+        </p>
+      </div>
+
+      <div class="bento-grid">
+        <div class="bento-card wide reveal">
+          <div class="bento-icon">
+            <svg viewBox="0 0 24 24" fill="none" width="24" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+          </div>
+          <h3>Dinamik Kanban Panosu</h3>
+          <p>Sürükle bırak kolaylığıyla iş akışınızı görselleştirin. Yapılacak, Devam Eden ve Tamamlanan işleri takip
+            etmek hiç bu kadar pratik olmamıştı. Ekip içi mesajlaşmaları doğrudan görev kartlarından sağlayın.</p>
+        </div>
+
+        <div class="bento-card reveal">
+          <div class="bento-icon" style="background:#fef3c7; color:#d97706;">
+            <svg viewBox="0 0 24 24" fill="none" width="24" stroke="currentColor" stroke-width="2">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </div>
+          <h3>Alt Görevler ve Checklists</h3>
+          <p>Karmaşık projeleri küçük adımlara bölün. Her bir alt göreve farklı bir ekip arkadaşı atayarak detayları
+            hassasiyetle yönetin.</p>
+        </div>
+
+        <div class="bento-card reveal">
+          <div class="bento-icon" style="background:#e0e7ff; color:#4f46e5;">
+            <svg viewBox="0 0 24 24" fill="none" width="24" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <h3>Akıllı Önceliklendirme</h3>
+          <p>İşlerinizi zaman ve önem sırasına göre sıralayın. Yaklaşan teslim tarihlerini ve kritik görevleri renk kodlu uyarılarla takip ederek hiçbir detayı atlamayın.</p>
+        </div>
+
+        <div class="bento-card wide reveal">
+          <div class="bento-icon" style="background:#ede9fe; color:#7c3aed;">
+            <svg viewBox="0 0 24 24" fill="none" width="24" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <h3>Kesintisiz Ekip Koordinasyonu</h3>
+          <p>Görevleri oluşturun ve sorumlularını belirleyin. Takımınıza işler atayarak süreçlerin zamanında tamamlandığından emin olun. İhtiyaç hâlinde sorumluları güncelleyin veya ek görevler oluşturun.</p>
+        </div>
+
+        <div class="bento-card wide reveal">
+          <div class="bento-icon" style="background:#e6f4ea; color:#16a34a;">
+            <svg viewBox="0 0 24 24" fill="none" width="24" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
+          <h3>Gantt Çizelgesi Seti</h3>
+          <p>Projelerinizin takvimsel planlarını oluşturun. Görevler arası bağlantı kurallarıyla gecikmeleri engelleyin ve zaman çizelgesini yatay düzlemde tam ekran kolayca yönetin.</p>
+        </div>
+
+        <div class="bento-card reveal">
+          <div class="bento-icon" style="background:#fce7f3; color:#db2777;">
+            <svg viewBox="0 0 24 24" fill="none" width="24" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+              <path d="M9 22v-4h6v4"></path>
+              <path d="M8 6h.01"></path>
+              <path d="M16 6h.01"></path>
+              <path d="M12 6h.01"></path>
+              <path d="M12 10h.01"></path>
+              <path d="M12 14h.01"></path>
+              <path d="M16 10h.01"></path>
+              <path d="M16 14h.01"></path>
+              <path d="M8 10h.01"></path>
+              <path d="M8 14h.01"></path>
+            </svg>
+          </div>
+          <h3>Çoklu Şirket Yönetimi</h3>
+          <p>Farklı müşterilerinizi, departmanları veya şubelerinizi tek bir panelden tamamen izole edilmiş veri tabanları ile yönetin.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pricing" id="fiyatlandirma">
+    <div class="container reveal">
+      <div class="section-header" style="margin-bottom: 3rem;">
+        <h2>Büyümeye Hazır Mısınız?</h2>
+        <p>Ekibinizin boyutuna ve ihtiyaçlarına uygun esnek paketler.</p>
+      </div>
+
+      <div class="toggle-container">
+        <span class="toggle-label active" id="label-monthly">Aylık</span>
+        <div class="switch" id="pricing-switch" onclick="togglePricing()"></div>
+        <span class="toggle-label" id="label-yearly" style="display:flex; align-items:center; gap:0.5rem;">Yıllık <span
+            style="font-size:0.7rem; background:#e8f2ff; color:#0066cc; padding:2px 6px; border-radius:10px; font-weight:700;">%20
+            İndirim</span></span>
+      </div>
+
+      <div class="pricing-grid">
+        <!-- Starter Tier -->
+        <div class="price-tier">
+          <div class="tier-name">Başlangıç</div>
+          <div class="tier-desc">Küçük ekipler ve bireysel kullanım için.</div>
+          <div class="price-box">
+            <span class="price-amount" id="price-starter">0 ₺</span><span class="tier-period">/ay</span>
+          </div>
+          <ul>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> 3 Kullanıcıya Kadar</li>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> Temel Kanban Panosu</li>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> 1 GB Depolama</li>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> E-posta Bildirimleri</li>
+          </ul>
+          <a href="#" class="btn-secondary btn-block">Ücretsiz Başla</a>
+        </div>
+
+        <!-- Pro Tier -->
+        <div class="price-tier featured">
+          <div class="badge-save" id="badge-pro">Tasarruf Ettiniz</div>
+          <div class="tier-name">Profesyonel</div>
+          <div class="tier-desc">Hızla büyüyen iş yerleri ve ekipler için ideal paket.</div>
+          <div class="price-box">
+            <span class="price-amount" id="price-pro">499 ₺</span><span class="tier-period">/ay</span>
+            <div id="price-pro-sub" style="font-size:0.75rem; color:#a1a1aa; margin-top:0.3rem;">(Kullanıcı hesabı başına aylık 49,90 ₺)</div>
+          </div>
+          <ul>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> 10 Kullanıcı Hesabı</li>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> Sınırsız Proje ve Müşteri</li>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> Gantt ve Görev Bağımlılıkları</li>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> 10 GB Ortak Depolama</li>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> SLA & Öncelikli Destek</li>
+          </ul>
+          <a href="#" class="btn-primary btn-block">Hemen Seç</a>
+        </div>
+
+        <!-- Enterprise Tier -->
+        <div class="price-tier">
+          <div class="tier-name">Kurumsal</div>
+          <div class="tier-desc">Özel altyapı ve tam izolasyona ihtiyaç duyan dev yapılar.</div>
+          <div class="price-box">
+            <span class="price-amount" style="font-size:2.5rem;">Özel Fiyat</span>
+          </div>
+          <ul>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> Sınırsız Kullanıcı Kapasitesi</li>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> Kendi Markanız (Whitelabel)</li>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> Dedicated Server & İzole Veri</li>
+            <li><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg> Özel Yazılım Entegrasyonları</li>
+          </ul>
+          <a href="#" class="btn-secondary btn-block">Teklif İste</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bottom-cta reveal">
+    <div class="container">
+      <h2>İş akışınızı bugünden hızlandırın.</h2>
+      <p>Kredi kartı gerektirmeden, tüm özellikleri 14 gün ücretsiz deneyin.</p>
+      <a href="https://avrupa-proje-istakip.web.app" class="btn-primary btn-large">Ücretsiz Başlayın</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="logo" style="font-size: 1rem; gap: 0.2rem;">
+        TaskTrack &copy; 2026
+      </div>
+      <div>
+        <a href="mailto:info@tasktrack.net">info@tasktrack.net</a>
+        <span style="margin: 0 10px; color:#d2d2d7;">|</span>
+        <a href="#">Gizlilik</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Scroll Reveal Animation Script
+    function reveal() {
+      var reveals = document.querySelectorAll(".reveal");
+      for (var i = 0; i < reveals.length; i++) {
+        var windowHeight = window.innerHeight;
+        var elementTop = reveals[i].getBoundingClientRect().top;
+        var elementVisible = 50;
+        if (elementTop < windowHeight - elementVisible) {
+          reveals[i].classList.add("active");
+        }
+      }
+    }
+    window.addEventListener("scroll", reveal);
+    reveal();
+
+    // Pricing Toggle Script
+    let isYearly = false;
+    function togglePricing() {
+      const switcher = document.getElementById('pricing-switch');
+      const labelM = document.getElementById('label-monthly');
+      const labelY = document.getElementById('label-yearly');
+      const badge = document.getElementById('badge-pro');
+
+      const priceStarter = document.getElementById('price-starter');
+      const pricePro = document.getElementById('price-pro');
+      const priceProSub = document.getElementById('price-pro-sub');
+
+      isYearly = !isYearly;
+
+      if (isYearly) {
+        switcher.classList.add('yearly');
+        labelM.classList.remove('active');
+        labelY.classList.add('active');
+        badge.classList.add('visible');
+
+        priceStarter.innerText = '0 ₺';
+        pricePro.innerText = '399 ₺'; // discounted
+        priceProSub.innerText = '(Kullanıcı hesabı başına aylık 39,90 ₺)';
+      } else {
+        switcher.classList.remove('yearly');
+        labelM.classList.add('active');
+        labelY.classList.remove('active');
+        badge.classList.remove('visible');
+
+        priceStarter.innerText = '0 ₺';
+        pricePro.innerText = '499 ₺';
+        priceProSub.innerText = '(Kullanıcı hesabı başına aylık 49,90 ₺)';
+      }
+    }
+  </script>
+</body>
+
+</html>

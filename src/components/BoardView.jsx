@@ -12,7 +12,7 @@ const STATUSES = [
 const priorityValue = { 'low': 1, 'medium': 2, 'high': 3 };
 
 const TaskTitleCell = ({ task, onEdit }) => {
-  const { tagsList } = useTasks();
+  const { tagsList, isBlocked, getBlockingTasks } = useTasks();
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const showTimerRef = useRef(null);
@@ -82,6 +82,11 @@ const TaskTitleCell = ({ task, onEdit }) => {
     >
       <div style={{display:'inline-flex', alignItems: 'center', flexWrap:'wrap', gap:'6px'}}>
         <span>{task.title}</span>
+        {isBlocked(task) && (
+          <span title={`Engelleyen: ${getBlockingTasks(task).map(t => t.title).join(', ')}`} style={{fontSize:'0.6rem', padding:'0.1rem 0.35rem', borderRadius:'8px', background:'rgba(239,68,68,0.1)', color:'#ef4444', fontWeight:600, border:'1px solid rgba(239,68,68,0.3)', cursor:'default'}}>
+            🔒 Engelli
+          </span>
+        )}
         {task.recurrence && task.recurrence !== 'none' && (
           <span title={{'daily':'Her Gün','weekly':'Her Hafta','monthly':'Her Ay','yearly':'Her Yıl'}[task.recurrence]} style={{fontSize:'0.75rem', cursor:'default'}}>🔄</span>
         )}
@@ -626,7 +631,7 @@ export default function BoardView({ customerTaskData, onCustomerTaskHandled }) {
     <>
       <div className="table-header-actions" style={{display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem'}}>
         <div style={{display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap'}}>
-          <h2 style={{margin:0}}>GÖREV PANELİ (V9.9.1)</h2>
+          <h2 style={{margin:0}}>GÖREV PANELİ (V9.9.2)</h2>
           <div style={{fontSize:'0.85rem', display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--bg-main)', padding:'0.4rem 0.8rem', borderRadius:'20px', border:'1px solid var(--border)'}}>
             <span style={{color:'var(--text-muted)'}}>Üzerinizde:</span>
             <span style={{color:'#ef4444', fontWeight:600}}>{myTodoCount} Yapılacak</span>

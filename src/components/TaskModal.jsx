@@ -4,7 +4,7 @@ import { useCompany } from '../context/CompanyContext';
 import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar, History, Paperclip, Download, Loader, ListTodo, Tag, Printer } from 'lucide-react';
 
 export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, prefillData }) {
-  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor, customersList } = useTasks();
+  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor, customersList, tasks: allTasks, wouldCreateCycle } = useTasks();
   const { selectedCompany } = useCompany();
   const APPS_SCRIPT_URL = selectedCompany?.gasDeploymentUrl || '';
   const DRIVE_FOLDER_ID = selectedCompany?.driveFolderId || '';
@@ -28,6 +28,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
   const [attachments, setAttachments] = useState([]);
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtask, setNewSubtask] = useState('');
+  const [dependencies, setDependencies] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [notePriority, setNotePriority] = useState('normal');
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -78,6 +79,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
         setNotes(editTask.notes || []);
         setAttachments(editTask.attachments || []);
         setSubtasks(editTask.subtasks || []);
+        setDependencies(editTask.dependencies || []);
         setTags(editTask.tags || []);
         setRecurrence(editTask.recurrence || 'none');
         setRecurrenceDay(editTask.recurrenceDay || 1);
@@ -106,6 +108,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
         setNotes([]);
         setAttachments([]);
         setSubtasks([]);
+        setDependencies([]);
         setTags([]);
         setRecurrence('none');
         setRecurrenceDay(1);
@@ -534,7 +537,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
       description, priority, assignees, assignee: assignees[0] || '',
       startDate: startDate ? new Date(startDate).toISOString() : null,
       deadline: deadline ? new Date(deadline).toISOString() : null,
-      notes, attachments, subtasks, tags, recurrence,
+      notes, attachments, subtasks, tags, dependencies, recurrence,
       recurrenceDay: recurrence === 'monthly' ? recurrenceDay : null,
       recurrenceCount: recurrence !== 'none' ? recurrenceCount : null,
       recurrenceRemaining: recurrence !== 'none' ? (recurrenceRemaining != null ? recurrenceRemaining : recurrenceCount) : null
@@ -925,6 +928,59 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
               })}
             </div>
           </div>
+
+          {/* Bağımlılıklar */}
+          {editTask && (
+            <div style={{ marginBottom: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
+              <h3 style={{marginBottom: '0.4rem', display:'flex', alignItems:'center', gap:'0.4rem', color:'var(--text-main)', fontSize:'0.85rem'}}>
+                <span style={{fontSize:'1rem'}}>&#128279;</span> Bağımlılıklar
+                {dependencies.length > 0 && <span style={{fontSize:'0.75rem', color:'var(--text-muted)'}}>({dependencies.length})</span>}
+              </h3>
+              <p style={{fontSize:'0.72rem', color:'var(--text-muted)', marginBottom:'0.4rem'}}>Bu görev, seçilen görevler tamamlanmadan başlatılamaz.</p>
+              <select
+                onChange={e => {
+                  const depId = e.target.value;
+                  if (!depId || dependencies.includes(depId)) return;
+                  if (editTask && wouldCreateCycle(editTask.id, depId)) {
+                    alert('Döngüsel bağımlılık! Bu görev zaten seçtiğiniz göreve bağımlı.');
+                    return;
+                  }
+                  const updated = [...dependencies, depId];
+                  setDependencies(updated);
+                  if (editTask) updateTask(editTask.id, { dependencies: updated });
+                  e.target.value = '';
+                }}
+                style={{width:'100%', padding:'0.35rem', borderRadius:'4px', border:'1px solid var(--border)', fontSize:'0.8rem', marginBottom:'0.4rem', background:'var(--bg-main)', color:'var(--text-main)'}}
+              >
+                <option value="">Bağımlı görev ekle...</option>
+                {(allTasks || []).filter(t => !t.isDeleted && t.id !== (editTask?.id) && !dependencies.includes(t.id)).map(t => (
+                  <option key={t.id} value={t.id}>{t.title} {t.status === 'done' ? '✓' : ''}</option>
+                ))}
+              </select>
+              {dependencies.length > 0 && (
+                <div style={{display:'flex', flexDirection:'column', gap:'0.3rem'}}>
+                  {dependencies.map(depId => {
+                    const depTask = (allTasks || []).find(t => t.id === depId);
+                    if (!depTask) return null;
+                    const isDone = depTask.status === 'done';
+                    return (
+                      <div key={depId} style={{display:'flex', alignItems:'center', gap:'0.4rem', padding:'0.35rem 0.5rem', borderRadius:'6px', border:'1px solid var(--border)', background: isDone ? '#f0fdf4' : '#fef2f2', fontSize:'0.8rem'}}>
+                        <span style={{color: isDone ? '#16a34a' : '#dc2626', fontWeight:700, fontSize:'0.9rem'}}>{isDone ? '✓' : '⏳'}</span>
+                        <span style={{flex:1, color: isDone ? '#166534' : '#991b1b'}}>{depTask.title}</span>
+                        <button type="button" onClick={() => {
+                          const updated = dependencies.filter(id => id !== depId);
+                          setDependencies(updated);
+                          if (editTask) updateTask(editTask.id, { dependencies: updated });
+                        }} style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8', padding:'2px'}}>
+                          <X size={14}/>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="subtasks-section" style={{ marginBottom: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
             <h3 style={{marginBottom: '0.4rem', display:'flex', alignItems:'center', gap:'0.4rem', color:'var(--text-main)', fontSize:'0.85rem'}}><ListTodo size={14}/> Alt Görevler (Checklist) {subtasks.length > 0 && <span style={{fontSize:'0.75rem', color:'var(--text-muted)'}}>({subtasks.filter(s=>s.isCompleted).length}/{subtasks.length})</span>}</h3>

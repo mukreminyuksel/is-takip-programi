@@ -10,7 +10,7 @@ const COLUMNS = [
 ];
 
 const KanbanCard = ({ task, onEdit, onDragStart }) => {
-  const { tagsList, getUserColor, getDeadlineRowColor, getAssignees } = useTasks();
+  const { tagsList, getUserColor, getDeadlineRowColor, getAssignees, isBlocked, getBlockingTasks } = useTasks();
   const taskAssignees = getAssignees(task);
   const prioColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
   const prioLabels = { low: 'Düşük', medium: 'Orta', high: 'Yüksek' };
@@ -26,6 +26,8 @@ const KanbanCard = ({ task, onEdit, onDragStart }) => {
 
   const subtasksDone = task.subtasks?.filter(s => s.isCompleted).length || 0;
   const subtasksTotal = task.subtasks?.length || 0;
+  const blocked = isBlocked(task);
+  const blockers = blocked ? getBlockingTasks(task) : [];
 
   return (
     <div
@@ -33,8 +35,13 @@ const KanbanCard = ({ task, onEdit, onDragStart }) => {
       onDragStart={(e) => { e.dataTransfer.setData('taskId', task.id); onDragStart(task.id); }}
       onClick={() => onEdit(task)}
       className="kanban-card"
-      style={{ cursor: 'grab', background: cardBg !== 'transparent' ? cardBg : undefined }}
+      style={{ cursor: 'grab', background: cardBg !== 'transparent' ? cardBg : undefined, opacity: blocked ? 0.55 : 1, position: 'relative' }}
     >
+      {blocked && (
+        <div style={{ display:'flex', alignItems:'center', gap:'0.3rem', marginBottom:'0.3rem', padding:'0.15rem 0.4rem', background:'rgba(239,68,68,0.12)', borderRadius:'4px', fontSize:'0.65rem', color:'#ef4444', fontWeight:600 }}>
+          🔒 Engelli — {blockers.map(t => t.title).join(', ')}
+        </div>
+      )}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'0.4rem' }}>
         <span style={{ fontWeight:600, fontSize:'0.8rem', color:'var(--text-main)', lineHeight:'1.3', flex:1 }}>{task.title}</span>
         <span className="prio-dot" style={{ width:8, height:8, borderRadius:'50%', background: prioColors[task.priority], flexShrink:0, marginTop:'0.3rem', marginLeft:'0.4rem' }}></span>

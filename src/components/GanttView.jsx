@@ -245,6 +245,8 @@ export default function GanttView() {
 
   // --- Drag to resize bars ---
   const pxPerDay = totalDays > 0 ? totalWidth / totalDays : 1;
+  const [localDragTask, setLocalDragTask] = useState(null); // { id, origStart, origEnd, currentStart, currentEnd }
+  const dragDataRef = useRef(null);
 
   const handleEdgeDragStart = (e, taskId, edge) => {
     e.stopPropagation();
@@ -254,29 +256,60 @@ export default function GanttView() {
 
     const origDate = edge === 'left' ? task.startDate : task.deadline;
     setDragInfo({ taskId, edge, startX: e.clientX, origDate });
+    
+    dragDataRef.current = {
+      taskId, edge, origDate,
+      currentDate: origDate,
+      taskStart: task.startDate,
+      taskEnd: task.deadline
+    };
+
+    setLocalDragTask({
+      id: taskId,
+      currentStart: task.startDate,
+      currentEnd: task.deadline
+    });
 
     const handleMove = (ev) => {
       const dx = ev.clientX - e.clientX;
       const daysDelta = Math.round(dx / pxPerDay);
-      if (daysDelta === 0) return;
       
       const orig = new Date(origDate);
       orig.setDate(orig.getDate() + daysDelta);
       const newDateStr = orig.toISOString();
 
+      dragDataRef.current.currentDate = newDateStr;
+
+      let newStart = dragDataRef.current.taskStart;
+      let newEnd = dragDataRef.current.taskEnd;
+
       if (edge === 'left') {
-        if (new Date(newDateStr) < new Date(task.deadline)) {
-          updateTask(taskId, { startDate: newDateStr });
-        }
+        if (new Date(newDateStr) < new Date(task.deadline)) newStart = newDateStr;
       } else {
-        if (new Date(newDateStr) > new Date(task.startDate)) {
-          updateTask(taskId, { deadline: newDateStr });
-        }
+        if (new Date(newDateStr) > new Date(task.startDate)) newEnd = newDateStr;
       }
+
+      setLocalDragTask({
+        id: taskId,
+        currentStart: newStart,
+        currentEnd: newEnd
+      });
     };
 
     const handleUp = () => {
+      const { taskId, edge, origDate, currentDate, taskStart, taskEnd } = dragDataRef.current;
+      
+      if (currentDate !== origDate) {
+         if (edge === 'left' && new Date(currentDate) < new Date(taskEnd)) {
+            updateTask(taskId, { startDate: currentDate });
+         } else if (edge === 'right' && new Date(currentDate) > new Date(taskStart)) {
+            updateTask(taskId, { deadline: currentDate });
+         }
+      }
+
       setDragInfo(null);
+      setLocalDragTask(null);
+      dragDataRef.current = null;
       document.removeEventListener('mousemove', handleMove);
       document.removeEventListener('mouseup', handleUp);
     };
@@ -319,6 +352,34 @@ export default function GanttView() {
     if (timelineRef.current) {
       timelineRef.current.scrollTop = e.target.scrollTop;
     }
+  };
+
+  // --- Resizable Left Panel ---
+  const [leftWidth, setLeftWidth] = useState(460);
+  const [isResizingPanel, setIsResizingPanel] = useState(false);
+
+  const handlePanelResizeStart = (e) => {
+    e.preventDefault();
+    setIsResizingPanel(true);
+    const startX = e.clientX;
+    const startWidth = leftWidth;
+
+    const handleMove = (ev) => {
+      const dx = ev.clientX - startX;
+      let newWidth = startWidth + dx;
+      if (newWidth < 300) newWidth = 300;
+      if (newWidth > 800) newWidth = 800;
+      setLeftWidth(newWidth);
+    };
+
+    const handleUp = () => {
+      setIsResizingPanel(false);
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
   };
 
   return (
@@ -401,12 +462,12 @@ export default function GanttView() {
         </div>
       </div>
 
-      <div className="gantt-container" style={{ display:'flex', border:'1px solid var(--border)', borderRadius:'6px', overflow:'hidden', background:'var(--bg-main)', maxHeight: 'calc(100vh - 200px)' }}>
+      <div className="gantt-container" style={{ display:'flex', position: 'relative', border:'1px solid var(--border)', borderRadius:'6px', overflow:'hidden', background:'var(--bg-main)', maxHeight: 'calc(100vh - 200px)', cursor: isResizingPanel ? 'col-resize' : 'default' }}>
         {/* Left: Task info columns */}
         <div
           ref={leftPanelRef}
           onScroll={handleLeftPanelScroll}
-          style={{ minWidth:'460px', maxWidth:'520px', borderRight:'2px solid var(--border)', flexShrink:0, overflowY:'auto', overflowX:'hidden', scrollbarWidth:'none' }}
+          style={{ width: `${leftWidth}px`, minWidth: `${leftWidth}px`, maxWidth: `${leftWidth}px`, flexShrink:0, overflowY:'auto', overflowX:'hidden', scrollbarWidth:'none' }}
         >
           {/* Header */}
           <div style={{ height:'40px', display:'flex', alignItems:'center', background:'var(--bg-alt)', borderBottom:'1px solid var(--border)', position:'sticky', top:0, zIndex:2, fontSize:'0.7rem', fontWeight:600, color:'var(--text-main)' }}>
@@ -475,6 +536,23 @@ export default function GanttView() {
           ))}
         </div>
 
+        {/* Resizer Handle */}
+        <div
+          onMouseDown={handlePanelResizeStart}
+          style={{
+            width: '6px',
+            background: isResizingPanel ? 'var(--primary)' : 'var(--bg-alt)',
+            borderLeft: '1px solid var(--border)',
+            borderRight: '1px solid var(--border)',
+            cursor: 'col-resize',
+            zIndex: 10,
+            transition: 'background 0.2s',
+            flexShrink: 0
+          }}
+          onMouseEnter={(e) => { if (!isResizingPanel) e.target.style.background = '#e2e8f0'; }}
+          onMouseLeave={(e) => { if (!isResizingPanel) e.target.style.background = 'var(--bg-alt)'; }}
+        />
+
         {/* Right: Timeline */}
         <div
           ref={timelineRef}
@@ -483,6 +561,7 @@ export default function GanttView() {
           style={{
             flex:1, overflowX:'scroll', overflowY:'auto', position:'relative',
             cursor: isPanning ? 'grabbing' : 'grab',
+            pointerEvents: isResizingPanel ? 'none' : 'auto'
           }}
         >
           {/* Column headers */}
@@ -527,18 +606,23 @@ export default function GanttView() {
 
             {/* Task bars */}
             {sortedTasks.map((task, i) => {
-              const { left, width } = getBarPosition(task);
-              const isDone = task.status === 'done';
+              // Override dates if this task is being dragged locally
+              const effectiveTask = (localDragTask && localDragTask.id === task.id) 
+                ? { ...task, startDate: localDragTask.currentStart, deadline: localDragTask.currentEnd } 
+                : task;
 
-              let barColor = statusColors[task.status];
+              const { left, width } = getBarPosition(effectiveTask);
+              const isDone = effectiveTask.status === 'done';
+
+              let barColor = statusColors[effectiveTask.status];
               const now = new Date(); now.setHours(0,0,0,0);
-              const dl = task.deadline ? new Date(task.deadline) : null;
+              const dl = effectiveTask.deadline ? new Date(effectiveTask.deadline) : null;
               let daysLeft = null;
               if (dl) { dl.setHours(0,0,0,0); daysLeft = Math.ceil((dl - now) / (1000*60*60*24)); }
               const barBg = getDeadlineBarColor(daysLeft, isDone, barColor);
 
               return (
-                <GanttBarTooltip key={task.id} task={task} tagsList={tagsList}>
+                <GanttBarTooltip key={effectiveTask.id} task={effectiveTask} tagsList={tagsList}>
                   <div style={{ height: ROW_HEIGHT, position:'relative', borderBottom:'1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--bg-alt)' }}>
                     {/* Main bar */}
                     <div

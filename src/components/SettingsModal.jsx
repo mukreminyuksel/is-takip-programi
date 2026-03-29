@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTasks } from '../context/TaskContext';
 import { useCompany } from '../context/CompanyContext';
-import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server, Users, Calendar, MessageCircle, Maximize, Minimize, CheckCircle, XCircle, Loader, Download, Upload, Database, Mail, Key } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, ShieldAlert, Tag, Palette, KeyRound, Server, Users, Calendar, MessageCircle, Maximize, Minimize, CheckCircle, XCircle, Loader, Download, Upload, Database, Mail, Key, ExternalLink } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
@@ -10,7 +10,7 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
-export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTaskFromCustomer }) {
+export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTaskFromCustomer, onOpenTask }) {
   const { tasks, usersList, addUser, editUser, deleteUser, isAdmin, tagsList, addTag, editTag, deleteTag, getUserColor, updateUserColor, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin, customersList, addCustomer, editCustomer, deleteCustomer, deadlineColors, saveDeadlineColors, getAssignees, companyDb: db } = useTasks();
   const { companies, addCompany, updateCompany, deleteCompany, superAdminEmails } = useCompany();
   const authEmail = useTasks().authUser?.email || '';
@@ -1114,7 +1114,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab, onCreateTas
         )}
 
         {!isEditing && activeTab === 'customers' && (
-          <CustomersTab customersList={customersList} addCustomer={addCustomer} editCustomer={editCustomer} deleteCustomer={deleteCustomer} currentUser={useTasks().currentUser} usersList={usersList} onCreateTaskFromCustomer={onCreateTaskFromCustomer} tasks={tasks} />
+          <CustomersTab customersList={customersList} addCustomer={addCustomer} editCustomer={editCustomer} deleteCustomer={deleteCustomer} currentUser={useTasks().currentUser} usersList={usersList} onCreateTaskFromCustomer={onCreateTaskFromCustomer} onOpenTask={onOpenTask} tasks={tasks} />
         )}
 
         {!isEditing && activeTab === 'system' && isSuperAdmin && (
@@ -1191,7 +1191,7 @@ function formatPhoneTR(phone) {
   return phone.trim();
 }
 
-function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer, currentUser, usersList, onCreateTaskFromCustomer, tasks }) {
+function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer, currentUser, usersList, onCreateTaskFromCustomer, onOpenTask, tasks }) {
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -1360,8 +1360,15 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
         </button>
 
         <div style={{ background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.2rem', marginBottom: '1rem' }}>
-          <h3 style={{ margin: '0 0 0.3rem', fontSize: '1.1rem' }}>{customer.customerName}</h3>
-          {customer.customerOfficialName && <p style={{ margin: '0 0 0.8rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{customer.customerOfficialName}</p>}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.8rem' }}>
+            <div>
+              <h3 style={{ margin: '0 0 0.3rem', fontSize: '1.1rem' }}>{customer.customerName}</h3>
+              {customer.customerOfficialName && <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>{customer.customerOfficialName}</p>}
+            </div>
+            <button className="icon-btn" onClick={() => { setProfileId(null); startEdit(customer); }} title="Müşteriyi Düzenle" style={{ background: '#fff', border: '1px solid var(--border)' }}>
+              <Edit2 size={16} />
+            </button>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem', fontSize: '0.82rem' }}>
             {customer.customerPhone && <div><strong>Tel:</strong> {customer.customerPhone}</div>}
             {customer.customerPhone2 && <div><strong>Tel 2:</strong> {customer.customerPhone2}</div>}
@@ -1393,22 +1400,43 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
         </div>
 
         <h4 style={{ fontSize: '0.95rem', marginBottom: '0.6rem' }}>Görev Geçmişi ({customerTasks.length})</h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
           {customerTasks.length === 0 && <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Bu müşteriye ait görev bulunmuyor.</p>}
-          {customerTasks.sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.8rem', background: 'var(--bg-main)', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.82rem' }}>
-              <div style={{ flex: 1 }}>
-                <span style={{ fontWeight: 600 }}>{t.title}</span>
-                {t.assignee && <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem', fontSize: '0.75rem' }}>@{t.assignee}</span>}
+          {customerTasks.sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => {
+            const hasSubtasks = t.subtasks && t.subtasks.length > 0;
+            return (
+              <div key={t.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.6rem 0.8rem', background: 'var(--bg-main)', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.82rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600 }}>{t.title}</span>
+                    {t.status !== 'done' && onOpenTask && (
+                      <button className="icon-btn" onClick={() => onOpenTask(t)} title="Bu Görevi Aç" style={{ padding: '0px', color: 'var(--primary)', height: 'auto', width: 'auto' }}>
+                        <ExternalLink size={14} />
+                      </button>
+                    )}
+                    {t.assignee && <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>@{t.assignee}</span>}
+                  </div>
+                  <span style={{ color: sColor[t.status], fontWeight: 600, fontSize: '0.75rem', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>{sMap[t.status]}</span>
+                </div>
+                
+                {hasSubtasks && (
+                  <div style={{ marginTop: '0.6rem', padding: '0.5rem', background: 'var(--bg-alt)', borderRadius: '4px' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>Alt Görevler ({t.subtasks.filter(s => s.isCompleted).length}/{t.subtasks.length})</div>
+                    {t.subtasks.map((s, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: s.isCompleted ? 'var(--text-muted)' : 'var(--text-main)', textDecoration: s.isCompleted ? 'line-through' : 'none', marginBottom: '0.15rem' }}>
+                         • {s.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <span style={{ color: sColor[t.status], fontWeight: 600, fontSize: '0.75rem', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>{sMap[t.status]}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {customer.notes && customer.notes.length > 0 && (
           <>
-            <h4 style={{ fontSize: '0.95rem', margin: '1rem 0 0.6rem' }}>Notlar ({customer.notes.length})</h4>
+            <h4 style={{ fontSize: '0.95rem', margin: '1rem 0 0.6rem' }}>Müşteri Notları ({customer.notes.length})</h4>
             {customer.notes.sort((a, b) => new Date(b.date) - new Date(a.date)).map(n => (
               <div key={n.id} style={{ padding: '0.5rem 0.8rem', background: '#fffbeb', borderRadius: '6px', border: '1px solid #fde68a', marginBottom: '0.3rem', fontSize: '0.82rem' }}>
                 <div>{n.text}</div>

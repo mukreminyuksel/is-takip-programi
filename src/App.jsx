@@ -9,7 +9,7 @@ import DashboardView from './components/DashboardView'
 import SettingsModal from './components/SettingsModal'
 import DeletedTasksModal from './components/DeletedTasksModal'
 import TaskModal from './components/TaskModal'
-import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart, Building2, ArrowLeftRight, Users, Search, X as XIcon, BarChart3, KeyRound } from 'lucide-react'
+import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon, LayoutGrid, Columns, GanttChart, Building2, ArrowLeftRight, Users, Search, X as XIcon, BarChart3, KeyRound, CheckCheck, Trash2 } from 'lucide-react'
 
 const NotificationContainer = () => {
   const { notifications } = useTasks();
@@ -28,17 +28,40 @@ const NotificationContainer = () => {
 };
 
 const NotificationDropdown = ({ isOpen, onClose }) => {
-  const { appNotifications, currentUser, markAppNotificationAsRead } = useTasks();
+  const { appNotifications, currentUser, usersList, markAppNotificationAsRead, clearAllAppNotifications } = useTasks();
 
   if (!isOpen) return null;
 
-  const safeAppNotifications = appNotifications || [];
+  const currentUserObj = usersList.find(u => u.name === currentUser) || {};
+  const clearDate = currentUserObj.notificationsClearedAt ? new Date(currentUserObj.notificationsClearedAt) : new Date(0);
+  
+  const safeAppNotifications = (appNotifications || []).filter(n => new Date(n.date) > clearDate);
   const unreadCount = safeAppNotifications.filter(n => !(n.readBy || []).includes(currentUser)).length;
 
+  const markAllAsRead = () => {
+    safeAppNotifications.forEach(n => {
+      if (!(n.readBy || []).includes(currentUser)) {
+        markAppNotificationAsRead(n.id);
+      }
+    });
+  };
+
   return (
-    <div style={{position:'absolute', top:'100%', right:'0', marginTop:'10px', background:'var(--bg-main)', border:'1px solid var(--border)', borderRadius:'8px', width:'320px', boxShadow:'0 10px 25px -5px rgba(0,0,0,0.2)', zIndex:1000, display:'flex', flexDirection:'column', maxHeight:'400px'}}>
-      <div style={{padding:'1rem', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+    <div style={{position:'absolute', top:'100%', right:'0', marginTop:'10px', background:'var(--bg-main)', border:'1px solid var(--border)', borderRadius:'8px', width:'340px', boxShadow:'0 10px 25px -5px rgba(0,0,0,0.2)', zIndex:1000, display:'flex', flexDirection:'column', maxHeight:'400px'}}>
+      <div style={{padding:'1rem', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'0.5rem'}}>
         <h3 style={{margin:0, fontSize:'0.9rem', color:'var(--text-main)'}}>Bildirimler ({unreadCount} yeni)</h3>
+        <div style={{display:'flex', gap:'0.6rem'}}>
+          {unreadCount > 0 && (
+            <button onClick={markAllAsRead} title="Tümünü Okundu İşaretle" style={{background:'transparent', border:'none', color:'var(--primary)', cursor:'pointer', display:'flex', alignItems:'center', padding:0}}>
+              <CheckCheck size={16}/>
+            </button>
+          )}
+          {safeAppNotifications.length > 0 && (
+            <button onClick={clearAllAppNotifications} title="Tümünü Listeden Temizle" style={{background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', display:'flex', alignItems:'center', padding:0}}>
+              <Trash2 size={15}/>
+            </button>
+          )}
+        </div>
       </div>
       <div style={{flex:1, overflowY:'auto', padding:'0.5rem'}}>
         {safeAppNotifications.length === 0 ? (
@@ -108,7 +131,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
 };
 
 const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onViewChange, onOpenTask }) => {
-  const { currentUser, logout, isAdmin, appNotifications, tasks, authUser: headerAuthUser } = useTasks();
+  const { currentUser, logout, isAdmin, appNotifications, tasks, authUser: headerAuthUser, usersList } = useTasks();
   const { selectedCompany, selectCompany, superAdminEmails } = useCompany();
   const headerIsSuperAdmin = superAdminEmails.some(e => e.toLowerCase() === (headerAuthUser?.email || '').toLowerCase());
   const [notifOpen, setNotifOpen] = useState(false);
@@ -169,7 +192,9 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  const safeAppNotifications = appNotifications || [];
+  const currentUserObj = usersList.find(u => u.name === currentUser) || {};
+  const clearDate = currentUserObj.notificationsClearedAt ? new Date(currentUserObj.notificationsClearedAt) : new Date(0);
+  const safeAppNotifications = (appNotifications || []).filter(n => new Date(n.date) > clearDate);
   const unreadCount = safeAppNotifications.filter(n => !(n.readBy || []).includes(currentUser)).length;
 
   const handleSwitchCompany = async () => {
@@ -647,7 +672,7 @@ const AppContent = () => {
         {viewMode === 'dashboard' ? <DashboardView /> : viewMode === 'kanban' ? <KanbanView /> : viewMode === 'gantt' ? <GanttView /> : <BoardView customerTaskData={customerTaskData} onCustomerTaskHandled={() => setCustomerTaskData(null)} />}
       </main>
       <NotificationContainer />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} initialTab={settingsTab} onCreateTaskFromCustomer={(data) => { setCustomerTaskData(data); setIsSettingsOpen(false); }} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} initialTab={settingsTab} onOpenTask={(task) => { setIsSettingsOpen(false); setSearchEditTask(task); }} onCreateTaskFromCustomer={(data) => { setCustomerTaskData(data); setIsSettingsOpen(false); }} />
       <DeletedTasksModal isOpen={isDeletedOpen} onClose={() => setIsDeletedOpen(false)} />
       {searchEditTask && (
         <TaskModal

@@ -237,6 +237,32 @@ export const TaskProvider = ({ children }) => {
     return [];
   };
 
+  // Bağımlılık helper'ları
+  const getDependencies = (task) => {
+    if (!task || !Array.isArray(task.dependencies)) return [];
+    return task.dependencies;
+  };
+
+  const getBlockingTasks = (task) => {
+    const deps = getDependencies(task);
+    if (deps.length === 0) return [];
+    return deps.map(id => tasks.find(t => t.id === id)).filter(t => t && t.status !== 'done' && !t.isDeleted);
+  };
+
+  const isBlocked = (task) => {
+    return getBlockingTasks(task).length > 0;
+  };
+
+  // Döngüsel bağımlılık kontrolü
+  const wouldCreateCycle = (taskId, newDepId, visited = new Set()) => {
+    if (taskId === newDepId) return true;
+    if (visited.has(newDepId)) return false;
+    visited.add(newDepId);
+    const depTask = tasks.find(t => t.id === newDepId);
+    if (!depTask || !Array.isArray(depTask.dependencies)) return false;
+    return depTask.dependencies.some(id => wouldCreateCycle(taskId, id, visited));
+  };
+
   const sortedDeadlineColors = useMemo(() => [...deadlineColors].sort((a, b) => a.days - b.days), [deadlineColors]);
 
   const getDeadlineRowColor = (daysLeft, isDone) => {
@@ -479,6 +505,13 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
+  const clearAllAppNotifications = async () => {
+    if (!db || !currentUserObj?.id) return;
+    try {
+      await updateDoc(doc(db, 'usersList', currentUserObj.id), { notificationsClearedAt: new Date().toISOString() });
+    } catch (e) {}
+  };
+
   const logAppEvent = async (text, author = null) => {
     if (!db) return;
     try {
@@ -611,6 +644,12 @@ export const TaskProvider = ({ children }) => {
     if (!db) return;
     const oldTask = tasks.find(t => t.id === id);
     if (!oldTask) return;
+    // Bağımlılık kontrolü: "todo" dışına çıkarken engelle
+    if (newStatus !== 'todo' && isBlocked(oldTask)) {
+      const blockers = getBlockingTasks(oldTask).map(t => t.title).join(', ');
+      alert(`Bu görev başlatılamaz!\n\nÖnce şu görevlerin tamamlanması gerekiyor:\n${blockers}`);
+      return;
+    }
     try {
       let logs = oldTask.logs || [];
       if (oldTask.status !== newStatus) {
@@ -877,7 +916,7 @@ export const TaskProvider = ({ children }) => {
   return (
     <TaskContext.Provider value={{
       tasks, addTask, updateTaskStatus, updateTask, deleteTask, permanentDeleteTask, restoreTask,
-      notifications, appNotifications, markAppNotificationAsRead, currentUser, setCurrentUser, usersList,
+      notifications, appNotifications, markAppNotificationAsRead, clearAllAppNotifications, currentUser, setCurrentUser, usersList,
       addUser, editUser, deleteUser, isAdmin,
       tagsList, addTag, editTag, deleteTag,
       getUserColor, updateUserColor,
@@ -886,6 +925,7 @@ export const TaskProvider = ({ children }) => {
       changeMyPassword, adminCreateAuthUser, adminSendPasswordReset, adminChangePassword, adminUpdateAuthLogin,
       customersList, addCustomer, editCustomer, deleteCustomer,
       deadlineColors, saveDeadlineColors, getDeadlineRowColor, getDeadlineBarColor, getAssignees,
+      getDependencies, getBlockingTasks, isBlocked, wouldCreateCycle,
       companyDb: db
     }}>
       {children}
