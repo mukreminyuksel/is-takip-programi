@@ -31,11 +31,14 @@ const KanbanCard = ({ task, onEdit, onDragStart }) => {
 
   return (
     <div
-      draggable
-      onDragStart={(e) => { e.dataTransfer.setData('taskId', task.id); onDragStart(task.id); }}
+      draggable={!blocked}
+      onDragStart={(e) => { 
+        if (blocked) return; 
+        e.dataTransfer.setData('taskId', task.id); onDragStart(task.id); 
+      }}
       onClick={() => onEdit(task)}
       className="kanban-card"
-      style={{ cursor: 'grab', background: cardBg !== 'transparent' ? cardBg : undefined, opacity: blocked ? 0.55 : 1, position: 'relative' }}
+      style={{ cursor: blocked ? 'not-allowed' : 'grab', background: cardBg !== 'transparent' ? cardBg : undefined, opacity: blocked ? 0.55 : 1, position: 'relative' }}
     >
       {blocked && (
         <div style={{ display:'flex', alignItems:'center', gap:'0.3rem', marginBottom:'0.3rem', padding:'0.15rem 0.4rem', background:'rgba(239,68,68,0.12)', borderRadius:'4px', fontSize:'0.65rem', color:'#ef4444', fontWeight:600 }}>

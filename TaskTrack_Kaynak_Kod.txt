@@ -1,0 +1,1489 @@
+================================================================================
+TASKTRACK - PROJE YÖNETİMİ, MÜŞTERİ YÖNETİMİ VE İŞ TAKİP PROGRAMI
+KAYNAK KOD DÖKÜMANI
+================================================================================
+Telif Hakkı Tescil Başvurusu için hazırlanmıştır.
+Eser Adı   : TaskTrack
+Versiyon   : GÖREV PANELİ (V9.5.0)
+Teknoloji  : React 18 + Firebase (Firestore / Auth / Storage) + Vite
+Üretim Yeri: Türkiye
+Tarih      : 2026-03-23
+
+NOT: Bu belgede yer alan tüm Firebase API anahtarları, proje kimlikleri ve
+     ticari sır içerebilecek yapılandırma verileri [GİZLİ_VERİ] ile
+     değiştirilmiştir.
+================================================================================
+
+
+################################################################################
+# DOSYA 1: src/main.jsx
+################################################################################
+
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
+
+
+################################################################################
+# DOSYA 2: src/firebase.js
+################################################################################
+
+import { initializeApp, deleteApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getStorage } from "firebase/storage";
+
+// Master Firebase (Ana Şirket) - companies koleksiyonunu yönetir
+const masterConfig = {
+  apiKey: "[GİZLİ_VERİ]",
+  authDomain: "[GİZLİ_VERİ]",
+  projectId: "[GİZLİ_VERİ]",
+  storageBucket: "[GİZLİ_VERİ]",
+  messagingSenderId: "[GİZLİ_VERİ]",
+  appId: "[GİZLİ_VERİ]",
+  measurementId: "[GİZLİ_VERİ]"
+};
+
+const masterApp = initializeApp(masterConfig, "master");
+export const masterDb = getFirestore(masterApp);
+
+// Dinamik şirket Firebase instance'ları
+let companyApp = null;
+let companySecondaryApp = null;
+
+export function initCompanyFirebase(config) {
+  if (companyApp) { try { deleteApp(companyApp); } catch(e){} }
+  if (companySecondaryApp) { try { deleteApp(companySecondaryApp); } catch(e){} }
+
+  companyApp = initializeApp(config, "company");
+  companySecondaryApp = initializeApp(config, "company-secondary");
+
+  return {
+    db: getFirestore(companyApp),
+    auth: getAuth(companyApp),
+    googleProvider: new GoogleAuthProvider(),
+    storage: getStorage(companyApp),
+    secondaryAuth: getAuth(companySecondaryApp),
+  };
+}
+
+export function cleanupCompanyFirebase() {
+  if (companyApp) { try { deleteApp(companyApp); } catch(e){} companyApp = null; }
+  if (companySecondaryApp) { try { deleteApp(companySecondaryApp); } catch(e){} companySecondaryApp = null; }
+}
+
+
+################################################################################
+# DOSYA 3: src/context/CompanyContext.jsx
+################################################################################
+
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { masterDb, initCompanyFirebase, cleanupCompanyFirebase } from '../firebase';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+
+const CompanyContext = createContext();
+
+export const useCompany = () => useContext(CompanyContext);
+
+// Varsayılan şirket yapılandırması (otomatik seed için)
+const AVRUPAPROJE_CONFIG = {
+  apiKey: "[GİZLİ_VERİ]",
+  authDomain: "[GİZLİ_VERİ]",
+  projectId: "[GİZLİ_VERİ]",
+  storageBucket: "[GİZLİ_VERİ]",
+  messagingSenderId: "[GİZLİ_VERİ]",
+  appId: "[GİZLİ_VERİ]",
+};
+
+export const CompanyProvider = ({ children }) => {
+  const [companies, setCompanies] = useState([]);
+  const [companiesLoading, setCompaniesLoading] = useState(true);
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [companyFirebase, setCompanyFirebase] = useState(null);
+  const seeded = useRef(false);
+
+  // Master DB'den şirketleri dinle
+  useEffect(() => {
+    const unsub = onSnapshot(collection(masterDb, 'companies'), (snapshot) => {
+      const list = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+      setCompanies(list);
+      setCompaniesLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  // Şirket koleksiyonu boşsa otomatik seed
+  useEffect(() => {
+    if (companiesLoading || companies.length > 0 || seeded.current) return;
+    seeded.current = true;
+    addDoc(collection(masterDb, 'companies'), {
+      name: 'AVRUPAPROJE',
+      displayName: 'Avrupa Proje',
+      color: '#3b82f6',
+      firebaseConfig: AVRUPAPROJE_CONFIG,
+      githubRepo: '',
+      gasDeploymentUrl: '',
+      createdAt: new Date().toISOString()
+    }).catch(e => console.error('Seed error:', e));
+  }, [companiesLoading, companies]);
+
+  // localStorage'dan son seçili şirketi geri yükle
+  useEffect(() => {
+    if (companiesLoading || companies.length === 0 || selectedCompany) return;
+    const lastId = localStorage.getItem('lastCompanyId');
+    if (lastId) {
+      const found = companies.find(c => c.id === lastId);
+      if (found) selectCompany(found.id);
+    }
+  }, [companiesLoading, companies]);
+
+  const selectCompany = (companyId) => {
+    if (!companyId) {
+      cleanupCompanyFirebase();
+      setCompanyFirebase(null);
+      setSelectedCompany(null);
+      localStorage.removeItem('lastCompanyId');
+      return;
+    }
+    const company = companies.find(c => c.id === companyId);
+    if (!company || !company.firebaseConfig) return;
+
+    const firebase = initCompanyFirebase(company.firebaseConfig);
+    setCompanyFirebase(firebase);
+    setSelectedCompany(company);
+    localStorage.setItem('lastCompanyId', companyId);
+  };
+
+  const addCompany = async (data) => {
+    try {
+      await addDoc(collection(masterDb, 'companies'), {
+        ...data, createdAt: new Date().toISOString()
+      });
+    } catch (e) { console.error('Add company error:', e); }
+  };
+
+  const updateCompany = async (id, data) => {
+    try {
+      await updateDoc(doc(masterDb, 'companies', id), data);
+      if (selectedCompany && selectedCompany.id === id && data.firebaseConfig) {
+        const firebase = initCompanyFirebase(data.firebaseConfig);
+        setCompanyFirebase(firebase);
+        setSelectedCompany(prev => ({ ...prev, ...data }));
+      }
+    } catch (e) { console.error('Update company error:', e); }
+  };
+
+  const deleteCompany = async (id) => {
+    try {
+      await deleteDoc(doc(masterDb, 'companies', id));
+      if (selectedCompany && selectedCompany.id === id) selectCompany(null);
+    } catch (e) { console.error('Delete company error:', e); }
+  };
+
+  return (
+    <CompanyContext.Provider value={{
+      companies, companiesLoading,
+      selectedCompany, companyFirebase,
+      selectCompany,
+      addCompany, updateCompany, deleteCompany
+    }}>
+      {children}
+    </CompanyContext.Provider>
+  );
+};
+
+
+################################################################################
+# DOSYA 4: src/context/TaskContext.jsx
+################################################################################
+
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { useCompany } from './CompanyContext';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword,
+         createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword,
+         deleteUser as deleteAuthUser } from 'firebase/auth';
+
+const TaskContext = createContext();
+
+export const useTasks = () => useContext(TaskContext);
+
+const DEFAULT_DEADLINE_COLORS = [
+  { days: 7,  color: 'rgba(253, 224, 71, 0.15)',  label: '7 gün',  hex: '#fde047', alpha: 0.15 },
+  { days: 5,  color: 'rgba(250, 204, 21, 0.18)',  label: '5 gün',  hex: '#facc15', alpha: 0.18 },
+  { days: 3,  color: 'rgba(245, 158, 11, 0.20)',  label: '3 gün',  hex: '#f59e0b', alpha: 0.20 },
+  { days: 2,  color: 'rgba(239, 68, 68, 0.20)',   label: '2 gün',  hex: '#ef4444', alpha: 0.20 },
+  { days: 1,  color: 'rgba(185, 28, 28, 0.25)',   label: '1 gün',  hex: '#b91c1c', alpha: 0.25 },
+  { days: 0,  color: 'rgba(168, 85, 247, 0.22)',  label: 'Son gün',hex: '#a855f7', alpha: 0.22 },
+  { days: -1, color: 'rgba(124, 58, 237, 0.25)',  label: 'Gecikmiş',hex:'#7c3aed', alpha: 0.25 },
+];
+
+export const TaskProvider = ({ children }) => {
+  const { companyFirebase, selectedCompany } = useCompany();
+  const db             = companyFirebase?.db || null;
+  const auth           = companyFirebase?.auth || null;
+  const googleProvider = companyFirebase?.googleProvider || null;
+  const secondaryAuth  = companyFirebase?.secondaryAuth || null;
+
+  const [tasks, setTasks]                     = useState([]);
+  const [usersList, setUsersList]             = useState([]);
+  const [tagsList, setTagsList]               = useState([]);
+  const [notifications, setNotifications]     = useState([]);
+  const [appNotifications, setAppNotifications] = useState([]);
+  const [hideAllTasksForUsers, setHideAllTasksForUsers] = useState(false);
+  const [customersList, setCustomersList]     = useState([]);
+  const [deadlineColors, setDeadlineColors]   = useState(DEFAULT_DEADLINE_COLORS);
+  const [authUser, setAuthUser]               = useState(null);
+  const [currentUser, setCurrentUser]         = useState(null);
+  const [authLoading, setAuthLoading]         = useState(true);
+
+  const companyId = selectedCompany?.id || null;
+
+  // Şirket değiştiğinde state sıfırla
+  useEffect(() => {
+    setTasks([]); setUsersList([]); setTagsList([]); setAppNotifications([]);
+    setCustomersList([]); setHideAllTasksForUsers(false);
+    setAuthUser(null); setCurrentUser(null); setAuthLoading(!!companyId);
+  }, [companyId]);
+
+  // Auth dinleyicisi
+  useEffect(() => {
+    if (!auth) { setAuthLoading(false); return; }
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setAuthUser(user);
+      if (!user) setCurrentUser(null);
+      setAuthLoading(false);
+    });
+    return unsub;
+  }, [companyId]);
+
+  // Firestore veri dinleyicileri (tasks, users, tags, settings, customers, notifications)
+  useEffect(() => {
+    if (!authUser || !db) { setTasks([]); setUsersList([]); return; }
+
+    const unsubTasks = onSnapshot(collection(db, 'tasks'), (snapshot) => {
+      setTasks(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+
+    const unsubTags = onSnapshot(collection(db, 'tagsList'), async (snapshot) => {
+      const dbTags = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      if (dbTags.length === 0) {
+        const defaults = [
+          { label: 'Web',      color: '#3b82f6', order: 0 },
+          { label: 'Tasarım',  color: '#8b5cf6', order: 1 },
+          { label: 'Mobil',    color: '#06b6d4', order: 2 },
+          { label: 'Acil',     color: '#ef4444', order: 3 },
+          { label: 'Müşteri',  color: '#f59e0b', order: 4 },
+          { label: 'Bakım',    color: '#10b981', order: 5 },
+          { label: 'Rapor',    color: '#6366f1', order: 6 },
+          { label: 'Toplantı', color: '#ec4899', order: 7 },
+        ];
+        for (const t of defaults) {
+          try { await addDoc(collection(db, 'tagsList'), t); } catch(e) {}
+        }
+      } else {
+        setTagsList(dbTags.sort((a,b) => (a.order||0) - (b.order||0)));
+      }
+    });
+
+    const unsubUsers = onSnapshot(collection(db, 'usersList'), async (snapshot) => {
+      const dbUsers = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      if (dbUsers.length === 0 && authUser) {
+        const newAdmin = {
+          name: authUser.displayName || authUser.email, role: 'admin',
+          email: authUser.email || '', phone: '', whatsapp: '', finance: '',
+          isOnline: true, lastLogin: new Date().toISOString()
+        };
+        try { await addDoc(collection(db, 'usersList'), newAdmin); } catch (e) {}
+      } else {
+        const activeUsers = dbUsers.filter(u => !u.isDeleted);
+        setUsersList(activeUsers);
+        if (authUser) {
+          let match = activeUsers.find(u => u.email && authUser.email &&
+            u.email.trim().toLowerCase() === authUser.email.trim().toLowerCase());
+          if (!match && authUser.email && authUser.email.includes('@tasktrack.net')) {
+            const phonePrefix = authUser.email.split('@')[0];
+            if (phonePrefix.length >= 10) {
+              const purePhone = phonePrefix.slice(-10);
+              match = activeUsers.find(u => {
+                const dbPhone = (u.phone || '').replace(/\D/g, '');
+                const dbWp    = (u.whatsapp || '').replace(/\D/g, '');
+                return (dbPhone && dbPhone.endsWith(purePhone)) || (dbWp && dbWp.endsWith(purePhone));
+              });
+            }
+          }
+          if (!match && authUser.displayName) {
+            match = activeUsers.find(u =>
+              u.name.trim().toLowerCase() === authUser.displayName.trim().toLowerCase());
+          }
+          if (match) {
+            setCurrentUser(match.name);
+            if (!match.isOnline) {
+              updateDoc(doc(db, 'usersList', match.id),
+                { isOnline: true, lastLogin: new Date().toISOString() }).catch(()=>{});
+            }
+          } else {
+            const fallbackName = authUser.displayName || authUser.email;
+            setCurrentUser(fallbackName);
+            if (!window.sessionStorage.getItem('ghostWarned_' + fallbackName)) {
+              window.sessionStorage.setItem('ghostWarned_' + fallbackName, 'true');
+              alert(`DİKKAT: Giriş yaptığınız hesap (${fallbackName}) sistemdeki hiçbir 'Personel Kartı' ile eşleşmedi!`);
+            }
+          }
+        }
+      }
+    });
+
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setHideAllTasksForUsers(data.hideAllTasksForUsers || false);
+        if (data.deadlineColors && Array.isArray(data.deadlineColors))
+          setDeadlineColors(data.deadlineColors);
+      }
+    });
+
+    const unsubCustomers = onSnapshot(collection(db, 'customers'), (snapshot) => {
+      setCustomersList(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
+    const unsubAppNotifs = onSnapshot(collection(db, 'appNotifications'), (snapshot) => {
+      const notifs = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+      notifs.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setAppNotifications(notifs);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      notifs.forEach(n => {
+        if (n.date && new Date(n.date) < sevenDaysAgo)
+          deleteDoc(doc(db, 'appNotifications', n.id)).catch(() => {});
+      });
+    });
+
+    return () => { unsubTasks(); unsubUsers(); unsubTags(); unsubSettings(); unsubCustomers(); unsubAppNotifs(); };
+  }, [authUser, companyId]);
+
+  const currentUserObj = usersList.find(u => u.name === currentUser) || { role: 'user' };
+  const isAdmin = currentUserObj.role === 'admin';
+
+  // --- Yardımcı fonksiyonlar ---
+
+  const getUserColor = (userName) => {
+    if (!userName) return null;
+    const user = usersList.find(u => u.name === userName);
+    return user?.color || null;
+  };
+
+  // Çoklu atanan kişileri normalize eder: eski (string) ve yeni (array) formatı destekler
+  const getAssignees = (task) => {
+    if (!task) return [];
+    if (Array.isArray(task.assignees) && task.assignees.length > 0) return task.assignees;
+    if (task.assignee) return [task.assignee];
+    return [];
+  };
+
+  const sortedDeadlineColors = useMemo(() =>
+    [...deadlineColors].sort((a, b) => a.days - b.days), [deadlineColors]);
+
+  const getDeadlineRowColor = (daysLeft, isDone) => {
+    if (isDone || daysLeft === null) return 'transparent';
+    if (daysLeft < 0) {
+      const overdue = sortedDeadlineColors.find(c => c.days === -1);
+      return overdue ? overdue.color : 'rgba(124, 58, 237, 0.25)';
+    }
+    for (const entry of sortedDeadlineColors) {
+      if (entry.days < 0) continue;
+      if (daysLeft <= entry.days) return entry.color;
+    }
+    return 'transparent';
+  };
+
+  const getDeadlineBarColor = (daysLeft, isDone, defaultColor) => {
+    if (isDone) return `${defaultColor}60`;
+    if (daysLeft === null) return `${defaultColor}cc`;
+    if (daysLeft < 0) {
+      const overdue = sortedDeadlineColors.find(c => c.days === -1);
+      return overdue ? overdue.hex + 'cc' : '#7c3aedcc';
+    }
+    if (daysLeft <= 1) {
+      const lastDay = sortedDeadlineColors.find(c => c.days === 0 || c.days === 1);
+      return lastDay ? lastDay.hex + 'cc' : '#a855f7cc';
+    }
+    return `${defaultColor}cc`;
+  };
+
+  // --- Kimlik Doğrulama ---
+
+  const loginWithGoogle = async () => {
+    if (!auth || !googleProvider) return;
+    try { await signInWithPopup(auth, googleProvider); }
+    catch (err) { console.error(err); alert("HATA: " + err.message); }
+  };
+
+  const loginWithEmail = async (email, password) => {
+    if (!auth) return;
+    try { await signInWithEmailAndPassword(auth, email, password); }
+    catch (err) { console.error(err); alert("Giriş Hatalı: Lütfen bilgilerinizi kontrol ediniz."); }
+  };
+
+  const registerWithEmail = async (email, password) => {
+    if (!auth) return;
+    try { await createUserWithEmailAndPassword(auth, email, password); }
+    catch (err) { console.error(err); alert("Kayıt Olma Hatası: " + err.message); }
+  };
+
+  const logout = async () => {
+    if (!auth || !db) return;
+    try {
+      const me = usersList.find(u => u.name === currentUser);
+      if (me && me.id) await updateDoc(doc(db, 'usersList', me.id), { isOnline: false }).catch(()=>{});
+      await signOut(auth);
+    } catch (e) {}
+  };
+
+  // --- Bildirim Sistemi ---
+
+  const addNotification = (message) => {
+    const id = Date.now().toString() + Math.random().toString();
+    setNotifications(prev => [...prev, { id, message }]);
+    setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 4500);
+  };
+
+  const markAppNotificationAsRead = async (id) => {
+    if (!db) return;
+    const notif = appNotifications.find(n => n.id === id);
+    if (!notif) return;
+    const newReadBy = [...(notif.readBy || []), currentUser];
+    try { await updateDoc(doc(db, 'appNotifications', id), { readBy: newReadBy }); }
+    catch (e) { setAppNotifications(prev => prev.map(n => n.id === id ? { ...n, readBy: newReadBy } : n)); }
+  };
+
+  const logAppEvent = async (text, author = null) => {
+    if (!db) return;
+    try {
+      await addDoc(collection(db, 'appNotifications'), {
+        text, author: author || currentUser || 'Sistem',
+        date: new Date().toISOString(), readBy: []
+      });
+    } catch (e) { console.error(e); }
+  };
+
+  // --- Kullanıcı Yönetimi ---
+
+  const addUser    = async (userData)        => { if (!db) return; try { await addDoc(collection(db, 'usersList'), userData); } catch (e) {} };
+  const editUser   = async (id, updatedData) => { if (!db) return; try { await updateDoc(doc(db, 'usersList', id), updatedData); } catch (e) {} };
+  const deleteUser = async (id) => {
+    if (!db) return;
+    const user = usersList.find(u => u.id === id);
+    if (!user) return;
+    const activeTasks = tasks.filter(t => getAssignees(t).includes(user.name) && !t.isDeleted && t.status !== 'done');
+    if (activeTasks.length > 0) {
+      alert(`"${user.name}" üzerinde ${activeTasks.length} adet aktif görev bulunmaktadır! Önce görevleri yeniden atayın.`);
+      return;
+    }
+    if (!window.confirm(`"${user.name}" adlı kullanıcıyı silmek istediğinize emin misiniz?`)) return;
+    try {
+      await updateDoc(doc(db, 'usersList', id), { isDeleted: true, deletedAt: new Date().toISOString() });
+      addNotification(`"${user.name}" kullanıcısı silindi.`);
+      logAppEvent(`"${user.name}" kullanıcısı silindi.`);
+    } catch (e) {}
+  };
+
+  const updateUserColor = async (userId, color) => {
+    if (!db) return;
+    try { await updateDoc(doc(db, 'usersList', userId), { color }); }
+    catch (e) { addNotification('Renk güncellenemedi.'); }
+  };
+
+  // --- Etiket Yönetimi ---
+  const addTag    = async (tagData) => { if (!db) return; try { await addDoc(collection(db, 'tagsList'), { ...tagData, order: tagsList.length }); } catch (e) {} };
+  const editTag   = async (id, data) => { if (!db) return; try { await updateDoc(doc(db, 'tagsList', id), data); } catch (e) {} };
+  const deleteTag = async (id) => { if (!db) return; try { await deleteDoc(doc(db, 'tagsList', id)); } catch (e) {} };
+
+  // --- Müşteri Yönetimi ---
+  const addCustomer    = async (customerData)     => { if (!db) return; try { await addDoc(collection(db, 'customers'), { ...customerData, createdAt: new Date().toISOString() }); } catch (e) {} };
+  const editCustomer   = async (id, updatedData)  => { if (!db) return; try { await updateDoc(doc(db, 'customers', id), { ...updatedData, updatedAt: new Date().toISOString() }); } catch (e) {} };
+  const deleteCustomer = async (id) => { if (!db) return; if (!window.confirm('Silmek istediğinize emin misiniz?')) return; try { await deleteDoc(doc(db, 'customers', id)); } catch (e) {} };
+
+  const saveCustomerFromTask = async (taskData) => {
+    if (!db || !taskData.customerName) return;
+    const existing = customersList.find(c =>
+      c.customerName && c.customerName.trim().toLowerCase() === taskData.customerName.trim().toLowerCase());
+    const custFields = {
+      customerName: taskData.customerName || '', customerOfficialName: taskData.customerOfficialName || taskData.customerName || '',
+      customerPhone: taskData.customerPhone || '', customerEmail: taskData.customerEmail || '',
+      customerPhone2: taskData.customerPhone2 || '', customerAddress: taskData.customerAddress || '',
+      customerTaxNo: taskData.customerTaxNo || '', customerTaxOffice: taskData.customerTaxOffice || '',
+      customerTradeRegNo: taskData.customerTradeRegNo || ''
+    };
+    if (existing) await updateDoc(doc(db, 'customers', existing.id), { ...custFields, updatedAt: new Date().toISOString() });
+    else await addDoc(collection(db, 'customers'), { ...custFields, createdAt: new Date().toISOString() });
+  };
+
+  // --- Görev CRUD ---
+
+  const addTask = async (task) => {
+    if (!db) return;
+    try {
+      const assigneesList = Array.isArray(task.assignees) ? task.assignees : (task.assignee ? [task.assignee] : []);
+      const primaryAssignee = assigneesList[0] || '';
+      const normalizedTask = { ...task, assignees: assigneesList, assignee: primaryAssignee };
+      const logs = [{ id: Date.now().toString(), text: `Görev oluşturuldu.`, user: currentUser, date: new Date().toISOString() }];
+      await addDoc(collection(db, 'tasks'), {
+        ...normalizedTask, date: new Date().toISOString(), isDeleted: false,
+        isNewForAssignee: assigneesList.length > 0, logs
+      });
+      if (task.customerName) saveCustomerFromTask(task);
+      if (assigneesList.length > 0) {
+        const names = assigneesList.join(', ');
+        addNotification(`${names} adlı kullanıcıya yeni iş atandı.`);
+        logAppEvent(`Yeni iş atandı: '${task.title}'`, names);
+      } else {
+        logAppEvent(`Yeni görev oluşturuldu: '${task.title}'`);
+      }
+    } catch (e) { addNotification("Kayıt başarısız."); }
+  };
+
+  const updateTaskStatus = async (id, newStatus) => {
+    if (!db) return;
+    const oldTask = tasks.find(t => t.id === id);
+    if (!oldTask) return;
+    try {
+      let logs = oldTask.logs || [];
+      if (oldTask.status !== newStatus) {
+        const sm = {'todo':'Yapılacak','in-progress':'Devam Eden','done':'Tamamlandı'};
+        logs.push({ id: Date.now().toString()+Math.random(),
+          text: `Durum değiştirildi: '${sm[oldTask.status]}' -> '${sm[newStatus]}'`,
+          user: currentUser, date: new Date().toISOString() });
+        logAppEvent(`'${oldTask.title}' görevinin durumunu '${sm[newStatus]}' yaptı.`, oldTask.assignee);
+      }
+      await updateDoc(doc(db, 'tasks', id), { status: newStatus, logs });
+      if (newStatus === 'done' && oldTask.recurrence && oldTask.recurrence !== 'none')
+        await createNextRecurringTask(oldTask);
+    } catch (e) {}
+  };
+
+  const updateTask = async (id, updatedData) => {
+    if (!db) return;
+    const oldTask = tasks.find(t => t.id === id);
+    if (!oldTask) return;
+    try {
+      let finalData = { ...updatedData };
+      let logs = oldTask.logs || [];
+      const pMap = {'low':'Düşük','medium':'Orta','high':'Yüksek'};
+      const sMap = {'todo':'Yapılacak','in-progress':'Devam Eden','done':'Tamamlandı'};
+      if (updatedData.title && oldTask.title !== updatedData.title)
+        logs.push({ id: Date.now()+Math.random(), text: `Başlık değiştirildi: '${oldTask.title}' -> '${updatedData.title}'`, user: currentUser, date: new Date().toISOString() });
+      if (updatedData.priority && oldTask.priority !== updatedData.priority)
+        logs.push({ id: Date.now()+Math.random(), text: `Öncelik değiştirildi: '${pMap[oldTask.priority]}' -> '${pMap[updatedData.priority]}'`, user: currentUser, date: new Date().toISOString() });
+      if (updatedData.deadline !== undefined && oldTask.deadline !== updatedData.deadline)
+        logs.push({ id: Date.now()+Math.random(), text: `Bitiş Tarihi değiştirildi: '${oldTask.deadline?.split('T')[0] || '-'}' -> '${updatedData.deadline?.split('T')[0] || '-'}'`, user: currentUser, date: new Date().toISOString() });
+      if (updatedData.status && oldTask.status !== updatedData.status)
+        logs.push({ id: Date.now()+Math.random(), text: `Durum güncellendi: '${sMap[oldTask.status]}' -> '${sMap[updatedData.status]}'`, user: currentUser, date: new Date().toISOString() });
+      finalData.logs = logs;
+      if (updatedData.assignees !== undefined) {
+        const assigneesList = updatedData.assignees;
+        finalData.assignees = assigneesList;
+        finalData.assignee = assigneesList[0] || '';
+        const oldList = getAssignees(oldTask);
+        const newNames = assigneesList.filter(n => !oldList.includes(n));
+        if (newNames.length > 0) {
+          addNotification(`${newNames.join(', ')} adlı kullanıcıya iş atandı.`);
+          finalData.isNewForAssignee = true;
+          logAppEvent(`'${updatedData.title || oldTask.title}' görevi ${assigneesList.join(', ')} adlı kullanıcıya atandı.`, assigneesList.join(', '));
+        }
+      }
+      await updateDoc(doc(db, 'tasks', id), finalData);
+      if (updatedData.customerName) saveCustomerFromTask({ ...oldTask, ...updatedData });
+      if (updatedData.status === 'done' && oldTask.status !== 'done' && oldTask.recurrence && oldTask.recurrence !== 'none')
+        await createNextRecurringTask({ ...oldTask, ...updatedData });
+    } catch (e) {}
+  };
+
+  const deleteTask = async (id) => {
+    if (!db) return;
+    if (!window.confirm('Bu görevi silmek istediğinize emin misiniz? (Çöp kutusuna taşınacaktır.)')) return;
+    try { await updateDoc(doc(db, 'tasks', id), { isDeleted: true }); addNotification('Görev silinenler kutusuna taşındı.'); }
+    catch (e) {}
+  };
+
+  const permanentDeleteTask = async (id) => {
+    if (!db || !isAdmin) return;
+    if (!window.confirm('Bu görevi KALICI olarak silmek istediğinize emin misiniz?')) return;
+    try { await deleteDoc(doc(db, 'tasks', id)); addNotification('Görev kalıcı olarak silindi.'); }
+    catch (e) {}
+  };
+
+  const restoreTask = async (id) => {
+    if (!db) return;
+    try { await updateDoc(doc(db, 'tasks', id), { isDeleted: false }); addNotification('Görev başarıyla geri yüklendi.'); }
+    catch (e) {}
+  };
+
+  // --- Tekrarlayan Görev Sistemi ---
+
+  const createNextRecurringTask = async (completedTask) => {
+    if (!db) return;
+    try {
+      const remaining = completedTask.recurrenceRemaining;
+      if (remaining != null && remaining <= 0) {
+        const shouldRenew = window.confirm(`"${completedTask.title}" görevinin tekrar süresi doldu. Yeniden başlatmak ister misiniz?`);
+        if (shouldRenew) completedTask.recurrenceRemaining = completedTask.recurrenceCount || 3;
+        else { addNotification(`"${completedTask.title}" tekrarlayan görevi sona erdi.`); return; }
+      }
+      const newRemaining = (completedTask.recurrenceRemaining != null) ? completedTask.recurrenceRemaining - 1 : null;
+      const now = new Date();
+      let nextStart   = completedTask.startDate ? new Date(completedTask.startDate) : now;
+      let nextDeadline = completedTask.deadline  ? new Date(completedTask.deadline)  : null;
+      const duration = (nextDeadline && completedTask.startDate)
+        ? (nextDeadline - new Date(completedTask.startDate)) : 7 * 24 * 60 * 60 * 1000;
+      switch (completedTask.recurrence) {
+        case 'daily':   nextStart = new Date(Math.max(now.getTime(), nextStart.getTime())); nextStart.setDate(nextStart.getDate() + 1); break;
+        case 'weekly':  nextStart = new Date(Math.max(now.getTime(), nextStart.getTime())); nextStart.setDate(nextStart.getDate() + 7); break;
+        case 'monthly': nextStart = new Date(Math.max(now.getTime(), nextStart.getTime())); nextStart.setMonth(nextStart.getMonth() + 1);
+          if (completedTask.recurrenceDay) nextStart.setDate(Math.min(completedTask.recurrenceDay, new Date(nextStart.getFullYear(), nextStart.getMonth() + 1, 0).getDate()));
+          break;
+        case 'yearly':  nextStart = new Date(Math.max(now.getTime(), nextStart.getTime())); nextStart.setFullYear(nextStart.getFullYear() + 1); break;
+        default: return;
+      }
+      nextDeadline = new Date(nextStart.getTime() + duration);
+      const newTask = {
+        title: completedTask.title, customerName: completedTask.customerName || '',
+        description: completedTask.description || '', priority: completedTask.priority || 'medium',
+        assignees: getAssignees(completedTask), assignee: completedTask.assignee || '',
+        startDate: nextStart.toISOString(), deadline: nextDeadline.toISOString(),
+        notes: [], attachments: [],
+        subtasks: (completedTask.subtasks || []).map(s => ({ ...s, isCompleted: false })),
+        tags: completedTask.tags || [], recurrence: completedTask.recurrence,
+        recurrenceDay: completedTask.recurrenceDay || null,
+        recurrenceCount: completedTask.recurrenceCount || null,
+        recurrenceRemaining: newRemaining,
+        status: 'todo', date: new Date().toISOString(), isDeleted: false, isNewForAssignee: true,
+        logs: [{ id: Date.now().toString(), text: `Tekrarlayan görev otomatik oluşturuldu. (Kalan: ${newRemaining ?? '∞'})`, user: 'Sistem', date: new Date().toISOString() }]
+      };
+      await addDoc(collection(db, 'tasks'), newTask);
+      addNotification(`Tekrarlayan görev oluşturuldu: "${completedTask.title}"`);
+      logAppEvent(`Tekrarlayan görev otomatik oluşturuldu: '${completedTask.title}'`, completedTask.assignee);
+    } catch (e) { console.error('Tekrarlayan görev oluşturulamadı:', e); }
+  };
+
+  // --- Admin Hesap Yönetimi ---
+
+  const toAuthEmail = (input) => {
+    const trimmed = (input || '').trim();
+    if (/^0?\d{10,11}$/.test(trimmed)) return trimmed + '@tasktrack.net';
+    if (!trimmed.includes('@')) return trimmed + '@tasktrack.net';
+    return trimmed;
+  };
+
+  const adminCreateAuthUser = async (loginInput, password, linkedUserId) => {
+    if (!secondaryAuth || !db) return { success: false, error: 'Firebase bağlantısı yok' };
+    if (!isAdmin) return { success: false, error: 'Yetki yok' };
+    try {
+      const authEmail = toAuthEmail(loginInput);
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, authEmail, password);
+      await signOut(secondaryAuth);
+      if (linkedUserId) await updateDoc(doc(db, 'usersList', linkedUserId), { authEmail, authLogin: loginInput.trim(), authPassword: password });
+      addNotification(`Yeni hesap oluşturuldu: ${loginInput}`);
+      logAppEvent(`Yeni Firebase hesabı oluşturuldu: ${loginInput}`);
+      return { success: true, uid: userCredential.user.uid };
+    } catch (err) {
+      let msg = err.message;
+      if (err.code === 'auth/email-already-in-use') msg = 'Bu kullanıcı adı zaten kullanımda.';
+      else if (err.code === 'auth/weak-password') msg = 'Şifre en az 6 karakter olmalıdır.';
+      return { success: false, error: msg };
+    }
+  };
+
+  const adminSendPasswordReset = async (email) => {
+    if (!auth || !isAdmin) return { success: false, error: 'Yetki yok' };
+    try { await sendPasswordResetEmail(auth, email); return { success: true }; }
+    catch (err) { return { success: false, error: err.message }; }
+  };
+
+  const adminChangePassword = async (authEmail, currentPassword, newPassword) => {
+    if (!secondaryAuth || !isAdmin) return { success: false, error: 'Yetki yok' };
+    try {
+      const cred = await signInWithEmailAndPassword(secondaryAuth, authEmail, currentPassword);
+      await updatePassword(cred.user, newPassword);
+      await signOut(secondaryAuth);
+      const linkedUser = usersList.find(u => u.authEmail === authEmail || u.email === authEmail);
+      if (linkedUser) await updateDoc(doc(db, 'usersList', linkedUser.id), { authPassword: newPassword });
+      addNotification(`Şifre başarıyla değiştirildi: ${authEmail}`);
+      return { success: true };
+    } catch (err) {
+      try { await signOut(secondaryAuth); } catch(e) {}
+      return { success: false, error: err.message };
+    }
+  };
+
+  // --- Ayarlar ---
+  const toggleHideAllTasks = async (value) => {
+    if (!db) return;
+    try { await setDoc(doc(db, 'settings', 'general'), { hideAllTasksForUsers: value }, { merge: true }); }
+    catch (e) { addNotification('Ayar güncellenemedi.'); }
+  };
+
+  const saveDeadlineColors = async (colors) => {
+    if (!db) return;
+    try {
+      setDeadlineColors(colors);
+      await setDoc(doc(db, 'settings', 'general'), { deadlineColors: colors }, { merge: true });
+    } catch (e) { addNotification('Renk ayarları kaydedilemedi.'); }
+  };
+
+  return (
+    <TaskContext.Provider value={{
+      tasks, addTask, updateTaskStatus, updateTask, deleteTask, permanentDeleteTask, restoreTask,
+      notifications, appNotifications, markAppNotificationAsRead, currentUser, setCurrentUser, usersList,
+      addUser, editUser, deleteUser, isAdmin,
+      tagsList, addTag, editTag, deleteTag,
+      getUserColor, updateUserColor,
+      hideAllTasksForUsers, toggleHideAllTasks,
+      loginWithGoogle, loginWithEmail, registerWithEmail, logout, authLoading,
+      adminCreateAuthUser, adminSendPasswordReset, adminChangePassword,
+      customersList, addCustomer, editCustomer, deleteCustomer,
+      deadlineColors, saveDeadlineColors, getDeadlineRowColor, getDeadlineBarColor, getAssignees,
+      companyDb: db
+    }}>
+      {children}
+    </TaskContext.Provider>
+  );
+};
+
+
+################################################################################
+# DOSYA 5: src/App.jsx
+################################################################################
+
+import React, { useState, useEffect, useRef } from 'react'
+import { CompanyProvider, useCompany } from './context/CompanyContext'
+import { TaskProvider, useTasks } from './context/TaskContext'
+import BoardView from './components/BoardView'
+import KanbanView from './components/KanbanView'
+import GanttView from './components/GanttView'
+import DashboardView from './components/DashboardView'
+import SettingsModal from './components/SettingsModal'
+import DeletedTasksModal from './components/DeletedTasksModal'
+import TaskModal from './components/TaskModal'
+import { Layout, Bell, UserCircle, Settings, Trash, LogOut, Sun, Moon,
+         LayoutGrid, Columns, GanttChart, Building2, ArrowLeftRight,
+         Users, Search, X as XIcon, BarChart3 } from 'lucide-react'
+
+// Geçici toast bildirim konteyneri
+const NotificationContainer = () => {
+  const { notifications } = useTasks();
+  if (notifications.length === 0) return null;
+  return (
+    <div className="notification-container">
+      {notifications.map(n => (
+        <div key={n.id} className="toast-notification">
+          <Bell size={14} /><span>{n.message}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Kalıcı bildirim açılır paneli
+const NotificationDropdown = ({ isOpen, onClose }) => {
+  const { appNotifications, currentUser, markAppNotificationAsRead } = useTasks();
+  if (!isOpen) return null;
+  const safeAppNotifications = appNotifications || [];
+  const unreadCount = safeAppNotifications.filter(n => !(n.readBy || []).includes(currentUser)).length;
+  return (
+    <div style={{position:'absolute', top:'100%', right:'0', marginTop:'10px', background:'var(--bg-main)',
+      border:'1px solid var(--border)', borderRadius:'8px', width:'320px', boxShadow:'0 10px 25px -5px rgba(0,0,0,0.2)',
+      zIndex:1000, display:'flex', flexDirection:'column', maxHeight:'400px'}}>
+      <div style={{padding:'1rem', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <h3 style={{margin:0, fontSize:'0.9rem', color:'var(--text-main)'}}>Bildirimler ({unreadCount} yeni)</h3>
+      </div>
+      <div style={{flex:1, overflowY:'auto', padding:'0.5rem'}}>
+        {safeAppNotifications.length === 0 ? (
+          <div style={{padding:'1rem', textAlign:'center', color:'var(--text-muted)', fontSize:'0.85rem'}}>Henüz bildirim yok.</div>
+        ) : (
+          safeAppNotifications.map(n => {
+            const isUnread = !(n.readBy || []).includes(currentUser);
+            return (
+              <div key={n.id} onClick={() => markAppNotificationAsRead(n.id)}
+                style={{padding:'0.75rem', borderBottom:'1px solid var(--border)', cursor:'pointer',
+                  background: isUnread ? '#eff6ff' : 'transparent', borderRadius:'4px', display:'flex',
+                  flexDirection:'column', gap:'0.3rem', marginBottom:'4px'}}>
+                <span style={{fontSize:'0.85rem', color:'var(--text-main)', fontWeight: isUnread ? 600 : 400}}>{n.text}</span>
+                <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.7rem', color:'var(--text-muted)'}}>
+                  <span>{n.author}</span>
+                  <span>{new Date(n.date).toLocaleString('tr-TR', { dateStyle:'short', timeStyle:'short' })}</span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Şirket seçim ekranı
+const CompanySelector = () => {
+  const { companies, companiesLoading, selectCompany } = useCompany();
+  if (companiesLoading) return <div style={{height:'100vh', display:'flex', alignItems:'center', justifyContent:'center'}}>Yükleniyor...</div>;
+  return (
+    <div style={{height:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'var(--bg-main)'}}>
+      <Building2 size={64} style={{color:'var(--primary, #3b82f6)', marginBottom:'1rem'}} />
+      <h1 style={{marginBottom:'0.5rem', fontSize:'2rem', color:'var(--text-main)'}}>TaskTrack</h1>
+      <p style={{marginBottom:'2rem', fontSize:'1rem', color:'var(--text-muted)'}}>Giriş yapmak istediğiniz şirketi seçin</p>
+      <div style={{display:'flex', flexDirection:'column', gap:'1rem', width:'320px'}}>
+        {companies.map(c => (
+          <button key={c.id} onClick={() => selectCompany(c.id)} style={{
+            padding:'1.2rem 1.5rem', borderRadius:'12px', border:`2px solid ${c.color || '#3b82f6'}`,
+            background:'var(--bg-main)', cursor:'pointer', fontSize:'1.1rem', fontWeight:700,
+            color: c.color || '#3b82f6', display:'flex', alignItems:'center', gap:'0.8rem', transition:'all 0.2s ease'
+          }}>
+            <Building2 size={22} /> {c.displayName || c.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Ana uygulama bileşeni
+const AppContent = () => {
+  const { selectedCompany, companyFirebase } = useCompany();
+  const { currentUser, loginWithGoogle, loginWithEmail, registerWithEmail, authLoading, tasks } = useTasks();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDeletedOpen, setIsDeletedOpen]   = useState(false);
+  const [searchEditTask, setSearchEditTask] = useState(null);
+  const [viewMode, setViewMode]             = useState(() => localStorage.getItem('app-view') || 'table');
+  const [emailInput, setEmailInput]         = useState('');
+  const [passwordInput, setPasswordInput]   = useState('');
+  const [isLoginMode, setIsLoginMode]       = useState(true);
+
+  const handleViewChange = (mode) => { setViewMode(mode); localStorage.setItem('app-view', mode); };
+
+  if (!selectedCompany || !companyFirebase) return <CompanySelector />;
+  if (authLoading) return <div style={{height:'100vh', display:'flex', alignItems:'center', justifyContent:'center'}}>Uygulama Yükleniyor...</div>;
+
+  if (!currentUser) {
+    const handleAuth = () => {
+      if (!emailInput.trim() || !passwordInput) return;
+      let processedEmail = emailInput.trim();
+      if (!processedEmail.includes('@')) processedEmail = processedEmail + '@tasktrack.net';
+      if (isLoginMode) loginWithEmail(processedEmail, passwordInput);
+      else registerWithEmail(processedEmail, passwordInput);
+    };
+    return (
+      <div style={{height:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'var(--bg-main)'}}>
+        <Layout size={64} style={{color:'var(--primary)', marginBottom:'1rem'}} />
+        <h1 style={{marginBottom:'2rem', fontSize:'2rem', color:'var(--text-main)'}}>TaskTrack</h1>
+        <div style={{display:'flex', flexDirection:'column', gap:'0.8rem', width:'300px', marginBottom:'1.5rem'}}>
+          <input type="text" placeholder="E-posta veya Telefon Numarası" value={emailInput}
+            onChange={e => setEmailInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAuth()}
+            style={{padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', fontSize:'0.9rem', outline:'none'}} />
+          <input type="password" placeholder="Şifre" value={passwordInput}
+            onChange={e => setPasswordInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAuth()}
+            style={{padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', fontSize:'0.9rem', outline:'none'}} />
+          <button onClick={handleAuth} style={{padding:'0.8rem', borderRadius:'8px', background:'var(--primary)', color:'#fff', cursor:'pointer', fontWeight:600, border:'none'}}>
+            {isLoginMode ? 'Giriş Yap' : 'Kayıt Ol'}
+          </button>
+        </div>
+        <button onClick={loginWithGoogle} style={{width:'300px', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem', background:'#fff', border:'1px solid #ccc', padding:'0.8rem', borderRadius:'8px', cursor:'pointer', fontWeight:600}}>
+          Google ile Giriş Yap
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app-container">
+      <main className="app-main">
+        {viewMode === 'dashboard' ? <DashboardView /> :
+         viewMode === 'kanban'    ? <KanbanView />    :
+         viewMode === 'gantt'     ? <GanttView />     :
+         <BoardView />}
+      </main>
+      <NotificationContainer />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <DeletedTasksModal isOpen={isDeletedOpen} onClose={() => setIsDeletedOpen(false)} />
+      {searchEditTask && <TaskModal isOpen={true} onClose={() => setSearchEditTask(null)} defaultStatus="todo" editTask={searchEditTask} />}
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <CompanyProvider>
+      <TaskProvider>
+        <AppContent />
+      </TaskProvider>
+    </CompanyProvider>
+  );
+}
+
+export default App
+
+
+################################################################################
+# DOSYA 6: src/components/TaskCard.jsx
+################################################################################
+
+import React from 'react';
+import { useTasks } from '../context/TaskContext';
+import { Trash2, AlertCircle, Calendar, User, Edit2 } from 'lucide-react';
+
+const priorityColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
+const priorityLabels = { low: 'Düşük', medium: 'Orta', high: 'Yüksek' };
+
+export default function TaskCard({ task, onEdit }) {
+  const { deleteTask, getUserColor, getAssignees } = useTasks();
+  const taskAssignees = getAssignees(task);
+
+  const handleDragStart = (e) => { e.dataTransfer.setData('taskId', task.id); };
+  const deadlinePassed = task.deadline && new Date(task.deadline) < new Date(new Date().setHours(0,0,0,0));
+
+  return (
+    <div className="task-card" draggable onDragStart={handleDragStart}>
+      <div className="task-header">
+        <span className="priority-badge" style={{backgroundColor:`${priorityColors[task.priority]}15`, color:priorityColors[task.priority], border:`1px solid ${priorityColors[task.priority]}40`}}>
+          <AlertCircle size={12} style={{marginRight:'4px'}}/>{priorityLabels[task.priority]}
+        </span>
+        <div className="card-actions" style={{display:'flex', gap:'4px'}}>
+          <button className="icon-btn" onClick={onEdit} title="Düzenle"><Edit2 size={16} /></button>
+          <button className="icon-btn delete-btn" onClick={() => deleteTask(task.id)} title="Sil"><Trash2 size={16} /></button>
+        </div>
+      </div>
+      <h3 className="task-title" onClick={onEdit} style={{cursor:'pointer'}}>{task.title}</h3>
+      {task.description && <p className="task-desc">{task.description}</p>}
+      <div className="task-meta">
+        {taskAssignees.length > 0 && taskAssignees.map(name => (
+          <span key={name} className="meta-badge assignee" style={getUserColor(name) ? {color:getUserColor(name), fontWeight:600, borderColor:getUserColor(name)+'40'} : {}}>
+            {getUserColor(name) && <span style={{width:7,height:7,borderRadius:'50%',background:getUserColor(name),display:'inline-block',marginRight:'3px'}}></span>}
+            <User size={12} style={{marginRight:'4px'}}/>{name}
+          </span>
+        ))}
+        {task.deadline && (
+          <span className={`meta-badge deadline ${deadlinePassed ? 'overdue' : ''}`}>
+            <Calendar size={12} style={{marginRight:'4px'}}/>
+            {new Date(task.deadline).toLocaleDateString('tr-TR', {day:'numeric', month:'long'})}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+################################################################################
+# DOSYA 7: src/components/KanbanView.jsx
+################################################################################
+
+import React, { useState } from 'react';
+import { useTasks } from '../context/TaskContext';
+import TaskModal from './TaskModal';
+import { Plus, User, Clock, AlertTriangle } from 'lucide-react';
+
+const COLUMNS = [
+  { id: 'todo',        title: 'Yapılacak',    color: '#ef4444', bgColor: 'rgba(239,68,68,0.08)' },
+  { id: 'in-progress', title: 'Devam Eden',   color: '#10b981', bgColor: 'rgba(16,185,129,0.08)' },
+  { id: 'done',        title: 'Tamamlandı',   color: '#9ca3af', bgColor: 'rgba(156,163,175,0.08)' }
+];
+
+const KanbanCard = ({ task, onEdit, onDragStart }) => {
+  const { tagsList, getUserColor, getDeadlineRowColor, getAssignees } = useTasks();
+  const taskAssignees = getAssignees(task);
+  const prioColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
+
+  let daysLeft = null;
+  if (task.deadline && task.status !== 'done') {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const dl = new Date(task.deadline); dl.setHours(0,0,0,0);
+    daysLeft = Math.ceil((dl - today) / (1000*60*60*24));
+  }
+  const cardBg = getDeadlineRowColor(daysLeft, task.status === 'done');
+  const subtasksDone  = task.subtasks?.filter(s => s.isCompleted).length || 0;
+  const subtasksTotal = task.subtasks?.length || 0;
+
+  return (
+    <div draggable onDragStart={(e) => { e.dataTransfer.setData('taskId', task.id); onDragStart(task.id); }}
+      onClick={() => onEdit(task)} className="kanban-card"
+      style={{cursor:'grab', background: cardBg !== 'transparent' ? cardBg : undefined}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'0.4rem'}}>
+        <span style={{fontWeight:600, fontSize:'0.8rem', color:'var(--text-main)', flex:1}}>{task.title}</span>
+        <span style={{width:8,height:8,borderRadius:'50%',background:prioColors[task.priority],flexShrink:0,marginTop:'0.3rem',marginLeft:'0.4rem'}}></span>
+      </div>
+      {task.customerName && <div style={{fontSize:'0.7rem', color:'var(--text-muted)', marginBottom:'0.3rem'}}>🏢 {task.customerName}</div>}
+      <div style={{display:'flex', flexWrap:'wrap', gap:'0.4rem', alignItems:'center', marginTop:'0.3rem'}}>
+        {taskAssignees.map(name => (
+          <span key={name} style={{display:'flex', alignItems:'center', gap:'0.2rem', fontSize:'0.65rem',
+            color: getUserColor(name) || 'var(--text-muted)', fontWeight: getUserColor(name) ? 600 : 400,
+            background:'var(--bg-alt)', padding:'0.15rem 0.4rem', borderRadius:'10px'}}>
+            {getUserColor(name) && <span style={{width:6,height:6,borderRadius:'50%',background:getUserColor(name),flexShrink:0}}></span>}
+            <User size={10}/> {name}
+          </span>
+        ))}
+        {daysLeft !== null && (
+          <span style={{display:'flex', alignItems:'center', gap:'0.2rem', fontSize:'0.65rem',
+            color: daysLeft < 0 ? '#ef4444' : daysLeft <= 3 ? '#f59e0b' : 'var(--text-muted)',
+            fontWeight: daysLeft <= 3 ? 600 : 400, padding:'0.15rem 0.4rem', borderRadius:'10px',
+            background: daysLeft < 0 ? 'rgba(239,68,68,0.1)' : daysLeft <= 3 ? 'rgba(245,158,11,0.1)' : 'var(--bg-alt)'}}>
+            <Clock size={10}/>
+            {daysLeft < 0 ? `${Math.abs(daysLeft)} gün gecikme` : daysLeft === 0 ? 'Bugün!' : `${daysLeft} gün`}
+          </span>
+        )}
+        {subtasksTotal > 0 && (
+          <span style={{fontSize:'0.65rem', color: subtasksDone === subtasksTotal ? '#10b981' : 'var(--text-muted)', background:'var(--bg-alt)', padding:'0.15rem 0.4rem', borderRadius:'10px'}}>
+            ✓ {subtasksDone}/{subtasksTotal}
+          </span>
+        )}
+        {task.priority === 'high' && <span style={{fontSize:'0.65rem', color:'#ef4444', fontWeight:600}}><AlertTriangle size={10}/> Yüksek</span>}
+      </div>
+      {task.tags && task.tags.length > 0 && (
+        <div style={{display:'flex', flexWrap:'wrap', gap:'0.25rem', marginTop:'0.3rem'}}>
+          {task.tags.map(tagId => {
+            const tagObj = tagsList.find(t => t.id === tagId);
+            if (!tagObj) return null;
+            return <span key={tagId} style={{fontSize:'0.6rem', padding:'0.1rem 0.35rem', borderRadius:'8px', background:`${tagObj.color}18`, color:tagObj.color, fontWeight:500, border:`1px solid ${tagObj.color}40`}}>{tagObj.label}</span>;
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default function KanbanView() {
+  const { tasks, updateTaskStatus, updateTask, currentUser, isAdmin, hideAllTasksForUsers, getAssignees } = useTasks();
+  const [isModalOpen, setModalOpen]   = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [defaultStatus, setDefaultStatus] = useState('todo');
+  const [dragOverCol, setDragOverCol] = useState(null);
+
+  const activeTasks = tasks.filter(t => {
+    if (t.isDeleted) return false;
+    if (hideAllTasksForUsers && !isAdmin && !getAssignees(t).includes(currentUser)) return false;
+    return true;
+  });
+
+  const openNewTask  = (status) => { setEditingTask(null); setDefaultStatus(status); setModalOpen(true); };
+  const openEditModal = (task) => {
+    if (task.isNewForAssignee && (getAssignees(task).length === 0 || getAssignees(task).includes(currentUser)))
+      updateTask(task.id, { isNewForAssignee: false });
+    setEditingTask(task); setModalOpen(true);
+  };
+  const handleDrop  = (e, targetStatus) => { e.preventDefault(); const taskId = e.dataTransfer.getData('taskId'); if (taskId) updateTaskStatus(taskId, targetStatus); setDragOverCol(null); };
+  const handleDragOver = (e, colId)  => { e.preventDefault(); setDragOverCol(colId); };
+
+  return (
+    <>
+      <div className="kanban-board">
+        {COLUMNS.map(col => {
+          const prioVal = { high: 3, medium: 2, low: 1 };
+          const colTasks = activeTasks.filter(t => t.status === col.id).sort((a, b) => {
+            const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+            const db2 = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+            if (da !== db2) return da - db2;
+            return (prioVal[b.priority] || 0) - (prioVal[a.priority] || 0);
+          });
+          const isOver = dragOverCol === col.id;
+          return (
+            <div key={col.id} className="kanban-column"
+              onDrop={(e) => handleDrop(e, col.id)} onDragOver={(e) => handleDragOver(e, col.id)}
+              onDragLeave={() => setDragOverCol(null)}
+              style={{borderTopColor: col.color, background: isOver ? col.bgColor : 'var(--bg-main)', transition:'background 0.2s ease'}}>
+              <div className="kanban-column-header">
+                <div style={{display:'flex', alignItems:'center', gap:'0.4rem'}}>
+                  <span style={{width:10,height:10,borderRadius:'50%',background:col.color}}></span>
+                  <span style={{fontWeight:600, fontSize:'0.85rem', color:'var(--text-main)'}}>{col.title}</span>
+                  <span style={{fontSize:'0.75rem', color:'var(--text-muted)', background:'var(--bg-alt)', padding:'0.1rem 0.5rem', borderRadius:'10px', fontWeight:600}}>{colTasks.length}</span>
+                </div>
+                <button className="icon-btn" onClick={() => openNewTask(col.id)} title="Yeni görev ekle" style={{padding:'2px'}}><Plus size={16}/></button>
+              </div>
+              <div className="kanban-cards">
+                {colTasks.length === 0 && <div style={{textAlign:'center', padding:'2rem 1rem', color:'var(--text-muted)', fontSize:'0.8rem', fontStyle:'italic', border:'2px dashed var(--border)', borderRadius:'6px'}}>Görevi buraya sürükleyin</div>}
+                {colTasks.map(task => <KanbanCard key={task.id} task={task} onEdit={openEditModal} onDragStart={() => {}} />)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <TaskModal isOpen={isModalOpen} onClose={() => { setEditingTask(null); setModalOpen(false); }} defaultStatus={defaultStatus} editTask={editingTask} />
+    </>
+  );
+}
+
+
+################################################################################
+# DOSYA 8: src/components/DashboardView.jsx
+################################################################################
+
+import React, { useState, useMemo } from 'react';
+import { useTasks } from '../context/TaskContext';
+import TaskModal from './TaskModal';
+import { TrendingUp, Clock, AlertTriangle, CheckCircle, ListTodo, Users, BarChart3 } from 'lucide-react';
+
+export default function DashboardView() {
+  const { tasks, usersList, currentUser, isAdmin, hideAllTasksForUsers, updateTask, getUserColor, getAssignees } = useTasks();
+  const [editingTask, setEditingTask] = useState(null);
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+  const activeTasks = useMemo(() => tasks.filter(t => !t.isDeleted), [tasks]);
+
+  const stats = useMemo(() => {
+    const todo       = activeTasks.filter(t => t.status === 'todo');
+    const inProgress = activeTasks.filter(t => t.status === 'in-progress');
+    const done       = activeTasks.filter(t => t.status === 'done');
+    const overdue    = activeTasks.filter(t => {
+      if (t.status === 'done' || !t.deadline) return false;
+      const dl = new Date(t.deadline); dl.setHours(0,0,0,0); return dl < today;
+    });
+    const dueToday   = activeTasks.filter(t => {
+      if (t.status === 'done' || !t.deadline) return false;
+      const dl = new Date(t.deadline); dl.setHours(0,0,0,0); return dl.getTime() === today.getTime();
+    });
+    const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
+    const completedThisWeek = done.filter(t => {
+      if (!t.logs || t.logs.length === 0) return false;
+      const lastLog = t.logs[t.logs.length - 1];
+      return lastLog.date && new Date(lastLog.date) >= weekAgo;
+    });
+    const weeklyRate = activeTasks.length > 0
+      ? Math.round((completedThisWeek.length / Math.max(1, todo.length + inProgress.length + completedThisWeek.length)) * 100) : 0;
+    const myTasks   = activeTasks.filter(t => getAssignees(t).includes(currentUser));
+    const myOverdue = myTasks.filter(t => { if (t.status === 'done' || !t.deadline) return false; const dl = new Date(t.deadline); dl.setHours(0,0,0,0); return dl < today; });
+    return { total: activeTasks.length, todo: todo.length, inProgress: inProgress.length, done: done.length,
+      overdue: overdue.length, dueToday: dueToday.length, completedThisWeek: completedThisWeek.length, weeklyRate,
+      myTotal: myTasks.length, myOverdue: myOverdue.length, overdueList: overdue, dueTodayList: dueToday };
+  }, [activeTasks, today, currentUser]);
+
+  const personStats = useMemo(() => {
+    if (!isAdmin && hideAllTasksForUsers) return [];
+    return usersList.map(u => {
+      const uTasks     = activeTasks.filter(t => getAssignees(t).includes(u.name));
+      const uTodo      = uTasks.filter(t => t.status === 'todo').length;
+      const uInProgress= uTasks.filter(t => t.status === 'in-progress').length;
+      const uDone      = uTasks.filter(t => t.status === 'done').length;
+      const uOverdue   = uTasks.filter(t => { if (t.status === 'done' || !t.deadline) return false; const dl = new Date(t.deadline); dl.setHours(0,0,0,0); return dl < today; }).length;
+      return { name: u.name, color: u.color, total: uTasks.length, todo: uTodo, inProgress: uInProgress, done: uDone, overdue: uOverdue };
+    }).filter(u => u.total > 0).sort((a, b) => b.overdue - a.overdue || b.total - a.total);
+  }, [activeTasks, usersList, today, isAdmin, hideAllTasksForUsers]);
+
+  const KpiCard = ({ icon, label, value, color, sub }) => (
+    <div style={{flex:'1 1 160px', minWidth:'140px', padding:'1rem 1.2rem', background:'var(--bg-main)',
+      border:'1px solid var(--border)', borderRadius:'10px', borderLeft:`4px solid ${color}`,
+      display:'flex', flexDirection:'column', gap:'0.3rem'}}>
+      <div style={{display:'flex', alignItems:'center', gap:'0.4rem', color:'var(--text-muted)', fontSize:'0.75rem'}}>{icon} {label}</div>
+      <div style={{fontSize:'1.8rem', fontWeight:800, color, lineHeight:1}}>{value}</div>
+      {sub && <div style={{fontSize:'0.7rem', color:'var(--text-muted)'}}>{sub}</div>}
+    </div>
+  );
+
+  return (
+    <>
+      <div style={{padding:'0.5rem 0'}}>
+        <h2 style={{margin:'0 0 1rem', fontSize:'1rem', fontWeight:700, color:'var(--text-main)', textTransform:'uppercase', display:'flex', alignItems:'center', gap:'0.5rem'}}>
+          <BarChart3 size={18}/> Özet Pano
+        </h2>
+        <div style={{display:'flex', gap:'0.75rem', flexWrap:'wrap', marginBottom:'1.2rem'}}>
+          <KpiCard icon={<ListTodo size={14}/>}   label="Toplam Görev"        value={stats.total}             color="#3b82f6" sub={`${stats.todo} yapılacak, ${stats.inProgress} devam eden`} />
+          <KpiCard icon={<AlertTriangle size={14}/>} label="Geciken"          value={stats.overdue}           color="#ef4444" sub={stats.overdue > 0 ? 'Acil ilgi gerekiyor' : 'Harika!'} />
+          <KpiCard icon={<Clock size={14}/>}      label="Bugün Biten"         value={stats.dueToday}          color="#f59e0b" sub="Bugün teslim edilmeli" />
+          <KpiCard icon={<CheckCircle size={14}/>} label="Bu Hafta Tamamlanan" value={stats.completedThisWeek} color="#10b981" sub={`Haftalık oran: %${stats.weeklyRate}`} />
+          <KpiCard icon={<TrendingUp size={14}/>} label="Tamamlanan"          value={stats.done}              color="#8b5cf6" sub={stats.total > 0 ? `%${Math.round(stats.done/stats.total*100)} tamamlanma` : ''} />
+        </div>
+        {personStats.length > 0 && (
+          <div style={{flex:'1 1 400px', minWidth:'350px'}}>
+            <div style={{border:'1px solid var(--border)', borderRadius:'8px', overflow:'hidden'}}>
+              <div style={{padding:'0.5rem 0.8rem', background:'var(--bg-alt)', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:'0.4rem'}}>
+                <Users size={14} color="var(--primary)"/>
+                <span style={{fontSize:'0.8rem', fontWeight:700, color:'var(--text-main)'}}>Ekip Performansı</span>
+              </div>
+              <table style={{width:'100%', borderCollapse:'collapse', fontSize:'0.75rem'}}>
+                <thead>
+                  <tr style={{background:'var(--bg-alt)'}}>
+                    <th style={{padding:'0.4rem 0.6rem', textAlign:'left', borderBottom:'1px solid var(--border)', fontWeight:600}}>Kişi</th>
+                    <th style={{padding:'0.4rem 0.5rem', textAlign:'center', borderBottom:'1px solid var(--border)', color:'var(--text-muted)'}}>Toplam</th>
+                    <th style={{padding:'0.4rem 0.5rem', textAlign:'center', borderBottom:'1px solid var(--border)', color:'#ef4444'}}>Yapılacak</th>
+                    <th style={{padding:'0.4rem 0.5rem', textAlign:'center', borderBottom:'1px solid var(--border)', color:'#10b981'}}>Devam</th>
+                    <th style={{padding:'0.4rem 0.5rem', textAlign:'center', borderBottom:'1px solid var(--border)', color:'#9ca3af'}}>Bitti</th>
+                    <th style={{padding:'0.4rem 0.5rem', textAlign:'center', borderBottom:'1px solid var(--border)', color:'#dc2626'}}>Geciken</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {personStats.map(p => (
+                    <tr key={p.name} style={{borderBottom:'1px solid var(--border)'}}>
+                      <td style={{padding:'0.4rem 0.6rem'}}>
+                        <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+                          <span style={{width:8,height:8,borderRadius:'50%',background:p.color||'#6b7280',flexShrink:0}}></span>
+                          <span style={{fontWeight:600, color:p.color||'var(--text-main)'}}>{p.name}</span>
+                          {p.name === currentUser && <span style={{fontSize:'0.6rem', color:'var(--primary)'}}>(siz)</span>}
+                        </div>
+                      </td>
+                      <td style={{textAlign:'center', fontWeight:600}}>{p.total}</td>
+                      <td style={{textAlign:'center', color:'#ef4444', fontWeight: p.todo > 0 ? 600 : 400}}>{p.todo}</td>
+                      <td style={{textAlign:'center', color:'#10b981', fontWeight: p.inProgress > 0 ? 600 : 400}}>{p.inProgress}</td>
+                      <td style={{textAlign:'center', color:'#9ca3af'}}>{p.done}</td>
+                      <td style={{textAlign:'center', color: p.overdue > 0 ? '#dc2626' : 'var(--text-muted)', fontWeight: p.overdue > 0 ? 700 : 400, background: p.overdue > 0 ? 'rgba(239,68,68,0.08)' : 'transparent'}}>{p.overdue}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+      <TaskModal isOpen={!!editingTask} onClose={() => setEditingTask(null)} defaultStatus="todo" editTask={editingTask} />
+    </>
+  );
+}
+
+
+################################################################################
+# DOSYA 9: src/components/DeletedTasksModal.jsx
+################################################################################
+
+import React, { useState, useEffect } from 'react';
+import { useTasks } from '../context/TaskContext';
+import { X, RefreshCcw, Trash2, Maximize, Minimize } from 'lucide-react';
+
+export default function DeletedTasksModal({ isOpen, onClose }) {
+  const { tasks, restoreTask, permanentDeleteTask, isAdmin } = useTasks();
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [position,     setPosition]     = useState({ x: 0, y: 0 });
+  const [isDragging,   setIsDragging]   = useState(false);
+  const [dragOffset,   setDragOffset]   = useState({ x: 0, y: 0 });
+
+  useEffect(() => { if (isOpen) setPosition({ x: 0, y: 0 }); }, [isOpen]);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => { if (isDragging) setPosition({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y }); };
+    const handleMouseUp = () => setIsDragging(false);
+    if (isDragging) { window.addEventListener('mousemove', handleMouseMove); window.addEventListener('mouseup', handleMouseUp); }
+    return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
+  }, [isDragging, dragOffset]);
+
+  if (!isOpen) return null;
+  const deletedTasks = tasks.filter(t => t.isDeleted);
+
+  return (
+    <div className="modal-overlay" onMouseDown={onClose} style={{zIndex:1050, padding: isFullScreen ? 0 : undefined}}>
+      <div className={`modal-content ${isFullScreen ? 'fullscreen' : ''}`}
+        style={!isFullScreen ? {maxWidth:'800px', transform:`translate(${position.x}px,${position.y}px)`} : {}}
+        onMouseDown={e => e.stopPropagation()}>
+        <div className="modal-header" onMouseDown={(e) => { setIsDragging(true); setDragOffset({x:e.clientX-position.x, y:e.clientY-position.y}); }}>
+          <h2>Silinen Görevler (Geri Dönüşüm Kutusu)</h2>
+          <div onMouseDown={e => e.stopPropagation()} style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+            <button className="icon-btn" onClick={() => setIsFullScreen(!isFullScreen)}>{isFullScreen ? <Minimize size={18}/> : <Maximize size={18}/>}</button>
+            <button className="icon-btn" onClick={onClose}><X size={20}/></button>
+          </div>
+        </div>
+        <div className="settings-body">
+          <table className="compact-table">
+            <thead><tr><th>Görev Adı</th><th>Durum</th><th>Eski Sahibi</th><th>İşlem</th></tr></thead>
+            <tbody>
+              {deletedTasks.map(t => (
+                <tr key={t.id}>
+                  <td style={{fontWeight:500, color:'var(--text-muted)'}}>{t.title}</td>
+                  <td><span style={{color:'#ef4444', fontSize:'0.8rem', fontWeight:600}}>Silindi</span></td>
+                  <td>{t.assignee || '-'}</td>
+                  <td>
+                    <button className="icon-btn" onClick={() => restoreTask(t.id)} style={{color:'#10b981'}}><RefreshCcw size={14}/></button>
+                    {isAdmin && <button className="icon-btn delete-btn" onClick={() => permanentDeleteTask(t.id)}><Trash2 size={14}/></button>}
+                  </td>
+                </tr>
+              ))}
+              {deletedTasks.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:'1rem'}}>Çöp kutusu boş.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+################################################################################
+# DOSYA 10: src/components/TaskModal.jsx  (Temel Yapı - İlk 300 Satır)
+# [NOT: Bu bileşen ~700 satır olup görev oluşturma/düzenleme formunu içerir.
+#  Tam kaynak kod için proje deposuna bakınız.]
+################################################################################
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useTasks } from '../context/TaskContext';
+import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar,
+         History, Paperclip, Download, Loader, ListTodo, Tag, Printer } from 'lucide-react';
+
+const APPS_SCRIPT_URL = '[GİZLİ_VERİ]';
+
+export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, prefillData }) {
+  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor, customersList } = useTasks();
+
+  // Form alanları state'leri
+  const [title,            setTitle]           = useState('');
+  const [customerName,     setCustomerName]     = useState('');
+  const [customerOfficialName, setCustomerOfficialName] = useState('');
+  const [customerPhone,    setCustomerPhone]    = useState('');
+  const [customerEmail,    setCustomerEmail]    = useState('');
+  const [customerAddress,  setCustomerAddress]  = useState('');
+  const [customerTaxNo,    setCustomerTaxNo]    = useState('');
+  const [customerTaxOffice,setCustomerTaxOffice]= useState('');
+  const [customerTradeRegNo,setCustomerTradeRegNo]= useState('');
+  const [customerPhone2,   setCustomerPhone2]   = useState('');
+  const [description,      setDescription]      = useState('');
+  const [priority,         setPriority]         = useState('medium');
+  const [assignees,        setAssignees]        = useState([]);       // Çoklu atanan kişi dizisi
+  const [assigneeDropOpen, setAssigneeDropOpen] = useState(false);
+  const [startDate,        setStartDate]        = useState('');
+  const [deadline,         setDeadline]         = useState('');
+  const [notes,            setNotes]            = useState([]);
+  const [attachments,      setAttachments]      = useState([]);
+  const [subtasks,         setSubtasks]         = useState([]);
+  const [tags,             setTags]             = useState([]);
+  const [recurrence,       setRecurrence]       = useState('none');   // Tekrarlayan görev türü
+  const [recurrenceDay,    setRecurrenceDay]    = useState(1);
+  const [recurrenceCount,  setRecurrenceCount]  = useState(3);
+  const [recurrenceRemaining, setRecurrenceRemaining] = useState(null);
+  const [isFullScreen,     setIsFullScreen]     = useState(false);
+  const [position,         setPosition]         = useState({ x: 0, y: 0 });
+  const [isDragging,       setIsDragging]       = useState(false);
+  const [dragOffset,       setDragOffset]       = useState({ x: 0, y: 0 });
+  const [isUploading,      setIsUploading]      = useState(false);
+  const uploadAbortRef = useRef(null);
+
+  // Görev verisi normalizasyonu (editTask yüklenince)
+  useEffect(() => {
+    if (isOpen) {
+      if (editTask) {
+        setTitle(editTask.title || '');
+        setCustomerName(editTask.customerName || '');
+        setDescription(editTask.description || '');
+        setPriority(editTask.priority || 'medium');
+        setAssignees(Array.isArray(editTask.assignees) && editTask.assignees.length > 0
+          ? editTask.assignees : (editTask.assignee ? [editTask.assignee] : []));
+        setStartDate(editTask.startDate ? editTask.startDate.split('T')[0] : '');
+        setDeadline(editTask.deadline   ? editTask.deadline.split('T')[0]   : '');
+        setNotes(editTask.notes       || []);
+        setAttachments(editTask.attachments || []);
+        setSubtasks(editTask.subtasks || []);
+        setTags(editTask.tags || []);
+        setRecurrence(editTask.recurrence || 'none');
+        setRecurrenceRemaining(editTask.recurrenceRemaining != null ? editTask.recurrenceRemaining : null);
+      } else {
+        setTitle(prefillData?.customerName ? `${prefillData.customerName} - ` : '');
+        setAssignees(currentUser ? [currentUser] : []);
+        const todayStr = new Date().toISOString().split('T')[0];
+        const nextWeek = new Date(); nextWeek.setDate(nextWeek.getDate() + 7);
+        setStartDate(todayStr);
+        setDeadline(nextWeek.toISOString().split('T')[0]);
+        setNotes([]); setAttachments([]); setSubtasks([]); setTags([]); setRecurrence('none');
+      }
+    }
+  }, [isOpen, editTask, currentUser, prefillData]);
+
+  // [Modal gövdesi, not ekleme, dosya yükleme, yazdırma ve kaydetme fonksiyonları devam eder...]
+  // Tam kaynak: ~700 satır JSX içermektedir.
+}
+
+
+################################################################################
+# DOSYA 11: src/components/BoardView.jsx  (Temel Yapı - İlk 100 Satır)
+# [NOT: Bu bileşen ~600 satır olup ana tablo görünümünü ve filtreleme sistemini içerir.]
+################################################################################
+
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useTasks } from '../context/TaskContext';
+import { Plus, Edit2, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter, Calendar, MessageCircle } from 'lucide-react';
+import TaskModal from './TaskModal';
+
+const STATUSES = [
+  { id: 'todo',        title: 'Yapılacak'   },
+  { id: 'in-progress', title: 'Devam Eden'  },
+  { id: 'done',        title: 'Tamamlandı'  }
+];
+const priorityValue = { 'low': 1, 'medium': 2, 'high': 3 };
+
+const TaskTitleCell = ({ task, onEdit }) => {
+  const { tagsList } = useTasks();
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPos,  setTooltipPos]  = useState({ x: 0, y: 0 });
+  const showTimerRef = useRef(null);
+  const hideTimerRef = useRef(null);
+  const unreadNotesCount = task.notes?.filter(n => n.isRead === false)?.length || 0;
+
+  const handleMouseEnter = (e) => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    if (showTooltip) return;
+    const x = e.clientX, y = e.clientY;
+    showTimerRef.current = setTimeout(() => { setTooltipPos({ x, y }); setShowTooltip(true); }, 1000);
+  };
+  const handleMouseLeave = () => { if (showTimerRef.current) clearTimeout(showTimerRef.current); hideTimerRef.current = setTimeout(() => setShowTooltip(false), 300); };
+
+  // Tooltip: görev notlarını ve alt görevleri önizler
+  // ... (devam eder)
+};
+
+// TaskTable alt bileşeni - kendi useTasks() çağrısına sahip
+const TaskTable = ({ tasks: tableTasks, onEdit, onNewTask, filters, sortConfig, onSort }) => {
+  const { getDeadlineRowColor, getAssignees } = useTasks();
+  // Tablo render, filtre ve arama mantığı
+  // ...
+};
+
+export default function BoardView({ customerTaskData, onCustomerTaskHandled }) {
+  const { tasks, currentUser, usersList, isAdmin, hideAllTasksForUsers,
+          tagsList, getAssignees, updateTask } = useTasks();
+  const [filters, setFilters]     = useState({ status: [], assignee: [], priority: [], tag: [], search: '' });
+  const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [editingTask,  setEditingTask] = useState(null);
+  const [defaultStatus, setDefaultStatus] = useState('todo');
+
+  // Filtre, sıralama ve arama mantığı
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(t => {
+      if (t.isDeleted) return false;
+      if (hideAllTasksForUsers && !isAdmin && !getAssignees(t).includes(currentUser)) return false;
+      // Durum, atanan kişi, öncelik, etiket ve metin filtresi uygulanır
+      return true;
+    });
+  }, [tasks, filters, currentUser, isAdmin, hideAllTasksForUsers]);
+
+  // ... (devam eder)
+}
+
+
+################################################################################
+# DOSYA 12: src/components/GanttView.jsx  (Mimari Açıklama)
+# [NOT: Bu bileşen ~500 satır olup zaman çizelgesi (Gantt) görünümünü içerir.]
+# İçerdiği temel özellikler:
+#   - Görevlerin başlangıç/bitiş tarihleri bazlı yatay bar çizimi
+#   - Dinamik renklendirme (deadline yaklaşınca renk değişimi)
+#   - GanttBarTooltip: modül seviyesinde bileşen (React hook kullanamaz)
+#   - Kişi bazlı gruplama ve filtreleme
+#   - Kaydırılabilir timeline görünümü
+#   - Görev tıklama → TaskModal açma
+################################################################################
+
+
+################################################################################
+# DOSYA 13: src/components/SettingsModal.jsx  (Mimari Açıklama)
+# [NOT: Bu bileşen ~800 satır olup uygulama ayarları modalını içerir.]
+# İçerdiği sekmeler:
+#   - Personel Listesi: kullanıcı CRUD, renk atama, auth hesabı yönetimi
+#   - Etiket Yönetimi: etiket CRUD, renk ve sıra yönetimi
+#   - Müşteriler: müşteri CRUD, müşteri notları, istatistikler
+#   - Raporlar: Chart.js ile grafik analizler (durum, öncelik, kişi dağılımı)
+#   - CSV/Excel Dışa Aktarım: XLSX kütüphanesi ile Excel dosyası üretme
+#   - Sistem Ayarları (Admin): deadline renk konfigürasyonu, görev gizleme ayarı
+################################################################################
+
+
+================================================================================
+SON
+Toplam bileşen sayısı : 13 dosya (8 adet tam kod, 5 adet mimari özet)
+Toplam yaklaşık satır : ~3500 satır kaynak kod
+Bağımlılıklar         : React 18, Firebase 12, Vite 5, Chart.js 4, Lucide, XLSX
+================================================================================

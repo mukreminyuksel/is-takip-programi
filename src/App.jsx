@@ -35,7 +35,11 @@ const NotificationDropdown = ({ isOpen, onClose }) => {
   const currentUserObj = usersList.find(u => u.name === currentUser) || {};
   const clearDate = currentUserObj.notificationsClearedAt ? new Date(currentUserObj.notificationsClearedAt) : new Date(0);
   
-  const safeAppNotifications = (appNotifications || []).filter(n => new Date(n.date) > clearDate);
+  const safeAppNotifications = (appNotifications || []).filter(n => {
+    if (new Date(n.date) <= clearDate) return false;
+    if (n.targetUsers && n.targetUsers.length > 0 && !n.targetUsers.includes(currentUser)) return false;
+    return true;
+  });
   const unreadCount = safeAppNotifications.filter(n => !(n.readBy || []).includes(currentUser)).length;
 
   const markAllAsRead = () => {
@@ -70,8 +74,11 @@ const NotificationDropdown = ({ isOpen, onClose }) => {
           safeAppNotifications.map(n => {
             const isUnread = !(n.readBy || []).includes(currentUser);
             return (
-              <div key={n.id} onClick={() => markAppNotificationAsRead(n.id)} style={{padding:'0.75rem', borderBottom:'1px solid var(--border)', cursor:'pointer', background: isUnread ? '#eff6ff' : 'transparent', borderRadius:'4px', display:'flex', flexDirection:'column', gap:'0.3rem', marginBottom:'4px'}}>
-                <span style={{fontSize:'0.85rem', color:'var(--text-main)', fontWeight: isUnread ? 600 : 400}}>{n.text}</span>
+              <div key={n.id} onClick={() => markAppNotificationAsRead(n.id)} style={{padding:'0.75rem', borderBottom:'1px solid var(--border)', cursor:'pointer', background: isUnread ? (n.targetUsers ? '#f0f9ff' : '#eff6ff') : 'transparent', borderRadius:'4px', display:'flex', flexDirection:'column', gap:'0.3rem', marginBottom:'4px', borderLeft: n.targetUsers ? '3px solid #0ea5e9' : 'none'}}>
+                <span style={{fontSize:'0.85rem', color:'var(--text-main)', fontWeight: isUnread ? 600 : 400}}>
+                  {n.targetUsers && <span style={{background:'#0ea5e9', color:'#fff', fontSize:'0.65rem', fontWeight:700, padding:'1px 5px', borderRadius:'3px', marginRight:'6px'}}>@</span>}
+                  {n.text}
+                </span>
                 <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.7rem', color:'var(--text-muted)'}}>
                   <span>{n.author}</span>
                   <span>{new Date(n.date).toLocaleString('tr-TR', { dateStyle:'short', timeStyle:'short' })}</span>
@@ -194,7 +201,11 @@ const Header = ({ onOpenSettings, onOpenDeleted, onOpenCustomers, viewMode, onVi
 
   const currentUserObj = usersList.find(u => u.name === currentUser) || {};
   const clearDate = currentUserObj.notificationsClearedAt ? new Date(currentUserObj.notificationsClearedAt) : new Date(0);
-  const safeAppNotifications = (appNotifications || []).filter(n => new Date(n.date) > clearDate);
+  const safeAppNotifications = (appNotifications || []).filter(n => {
+    if (new Date(n.date) <= clearDate) return false;
+    if (n.targetUsers && n.targetUsers.length > 0 && !n.targetUsers.includes(currentUser)) return false;
+    return true;
+  });
   const unreadCount = safeAppNotifications.filter(n => !(n.readBy || []).includes(currentUser)).length;
 
   const handleSwitchCompany = async () => {

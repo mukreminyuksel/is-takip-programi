@@ -93,7 +93,7 @@ const priorityLabels = { 'low': 'Düşük', 'medium': 'Orta', 'high': 'Yüksek' 
 const priorityValue = { 'low': 1, 'medium': 2, 'high': 3 };
 
 export default function GanttView() {
-  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers, tagsList, getDeadlineBarColor, deadlineColors, getAssignees } = useTasks();
+  const { tasks, updateTask, currentUser, getUserColor, isAdmin, hideAllTasksForUsers, tagsList, getDeadlineBarColor, deadlineColors, getAssignees, getDependencies, isBlocked, getBlockingTasks } = useTasks();
   const [scale, setScale] = useState('day');
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -106,6 +106,7 @@ export default function GanttView() {
   const [sortDir, setSortDir] = useState('asc');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({ status: [], priority: [] });
+  const [highlightChain, setHighlightChain] = useState(null); // taskId or null
 
   const activeTasks = tasks.filter(t => {
     if (t.isDeleted || !t.startDate || !t.deadline) return false;
@@ -153,6 +154,8 @@ export default function GanttView() {
 
   const colWidth = scale === 'day' ? 40 : scale === 'week' ? 80 : 120;
   const totalWidth = dateColumns.length * colWidth;
+  const currentScaleObj = SCALE_OPTIONS.find(s => s.id === scale) || { days: 1 };
+  const exactPxPerDay = colWidth / currentScaleObj.days;
 
   const formatColDate = (date) => {
     if (scale === 'day') return date.toLocaleDateString('tr-TR', { day:'numeric', month:'short' });
@@ -175,8 +178,8 @@ export default function GanttView() {
     const startOffset = Math.max(0, (start - minDate) / (1000*60*60*24));
     const duration = Math.max(1, (end - start) / (1000*60*60*24) + 1);
     
-    const left = (startOffset / totalDays) * totalWidth;
-    const width = Math.max(20, (duration / totalDays) * totalWidth);
+    const left = startOffset * exactPxPerDay;
+    const width = Math.max(20, duration * exactPxPerDay);
     
     return { left, width };
   };
@@ -241,10 +244,110 @@ export default function GanttView() {
     return sortDir === 'asc' ? <ArrowUp size={10} style={{marginLeft:'2px'}}/> : <ArrowDown size={10} style={{marginLeft:'2px'}}/>;
   };
 
+  // --- Critical Path Calculation ---
+  const criticalPathIds = useMemo(() => {
+    // Find the longest chain of dependencies (by total duration in days)
+    const taskMap = {};
+    sortedTasks.forEach(t => { taskMap[t.id] = t; });
+
+    const memo = {};
+    const calcChainLength = (taskId) => {
+      if (memo[taskId] !== undefined) return memo[taskId];
+      const t = taskMap[taskId];
+      if (!t) { memo[taskId] = 0; return 0; }
+      const deps = getDependencies(t);
+      const start = new Date(t.startDate); start.setHours(0,0,0,0);
+      const end = new Date(t.deadline); end.setHours(0,0,0,0);
+      const duration = Math.max(1, Math.ceil((end - start) / (1000*60*60*24)));
+      if (deps.length === 0) { memo[taskId] = duration; return duration; }
+      const maxDepChain = Math.max(...deps.map(id => calcChainLength(id)));
+      memo[taskId] = duration + maxDepChain;
+      return memo[taskId];
+    };
+
+    sortedTasks.forEach(t => calcChainLength(t.id));
+
+    // Find the task with longest chain, then trace back
+    let maxLen = 0; let maxId = null;
+    Object.entries(memo).forEach(([id, len]) => { if (len > maxLen) { maxLen = len; maxId = id; } });
+    if (!maxId || maxLen <= 1) return new Set();
+
+    const path = new Set();
+    const tracePath = (id) => {
+      path.add(id);
+      const t = taskMap[id];
+      if (!t) return;
+      const deps = getDependencies(t);
+      if (deps.length === 0) return;
+      // Follow the longest dep
+      let bestDep = null; let bestLen = -1;
+      deps.forEach(depId => { if ((memo[depId] || 0) > bestLen) { bestLen = memo[depId] || 0; bestDep = depId; } });
+      if (bestDep) tracePath(bestDep);
+    };
+    tracePath(maxId);
+    return path;
+  }, [sortedTasks, getDependencies]);
+
+  // --- Chain highlight helpers ---
+  const getChainIds = useCallback((taskId) => {
+    const ids = new Set();
+    const taskMap = {};
+    sortedTasks.forEach(t => { taskMap[t.id] = t; });
+    // Upstream (dependencies)
+    const traceUp = (id) => {
+      if (ids.has(id)) return;
+      ids.add(id);
+      const t = taskMap[id];
+      if (!t) return;
+      getDependencies(t).forEach(depId => traceUp(depId));
+    };
+    // Downstream (dependents)
+    const traceDown = (id) => {
+      if (ids.has(id)) return;
+      ids.add(id);
+      sortedTasks.forEach(t => {
+        if (getDependencies(t).includes(id)) traceDown(t.id);
+      });
+    };
+    traceUp(taskId);
+    traceDown(taskId);
+    return ids;
+  }, [sortedTasks, getDependencies]);
+
+  const chainIds = useMemo(() => {
+    if (!highlightChain) return new Set();
+    return getChainIds(highlightChain);
+  }, [highlightChain, getChainIds]);
+
+  // --- Auto date shifting: when a task's deadline changes, push dependent tasks forward ---
+  const autoShiftDependents = useCallback((changedTaskId, newDeadline) => {
+    const dlDate = new Date(newDeadline); dlDate.setHours(0,0,0,0);
+    const nextDay = new Date(dlDate); nextDay.setDate(nextDay.getDate() + 1);
+
+    sortedTasks.forEach(t => {
+      const deps = getDependencies(t);
+      if (!deps.includes(changedTaskId)) return;
+      if (!t.startDate) return;
+
+      const tStart = new Date(t.startDate); tStart.setHours(0,0,0,0);
+      // Only shift if current start is before or equal to the dependency's new deadline
+      if (tStart <= dlDate) {
+        const tEnd = t.deadline ? new Date(t.deadline) : null;
+        const duration = tEnd ? Math.max(1, Math.ceil((tEnd - tStart) / (1000*60*60*24))) : 1;
+        const newStart = nextDay.toISOString();
+        const newEnd = new Date(nextDay);
+        newEnd.setDate(newEnd.getDate() + duration - 1);
+        updateTask(t.id, { startDate: newStart, deadline: newEnd.toISOString() });
+        // Recursively shift downstream
+        autoShiftDependents(t.id, newEnd.toISOString());
+      }
+    });
+  }, [sortedTasks, getDependencies, updateTask]);
+
   const ROW_HEIGHT = 32;
 
   // --- Drag to resize bars ---
-  const pxPerDay = totalDays > 0 ? totalWidth / totalDays : 1;
+  const pxPerDay = exactPxPerDay;
   const [localDragTask, setLocalDragTask] = useState(null); // { id, origStart, origEnd, currentStart, currentEnd }
   const dragDataRef = useRef(null);
 
@@ -304,12 +407,89 @@ export default function GanttView() {
             updateTask(taskId, { startDate: currentDate });
          } else if (edge === 'right' && new Date(currentDate) > new Date(taskStart)) {
             updateTask(taskId, { deadline: currentDate });
+            // Auto-shift dependent tasks when deadline moves forward
+            autoShiftDependents(taskId, currentDate);
          }
       }
 
       setDragInfo(null);
       setLocalDragTask(null);
       dragDataRef.current = null;
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+  };
+
+  const handleBarDragStart = (e, taskId) => {
+    // Only drag with left click
+    if (e.button !== 0) return; 
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.startDate) return;
+
+    setDragInfo({ taskId, edge: 'move', startX: e.clientX, origDate: task.startDate });
+    
+    dragDataRef.current = {
+      taskId, edge: 'move',
+      taskStart: task.startDate,
+      taskEnd: task.deadline,
+      currStart: task.startDate,
+      currEnd: task.deadline,
+      didMove: false
+    };
+
+    setLocalDragTask({
+      id: taskId,
+      currentStart: task.startDate,
+      currentEnd: task.deadline
+    });
+
+    const handleMove = (ev) => {
+      if (!dragDataRef.current) return;
+      const dx = ev.clientX - e.clientX;
+      const daysDelta = Math.round(dx / pxPerDay);
+      if (Math.abs(dx) > 3) {
+        dragDataRef.current.didMove = true;
+      }
+      
+      const st = new Date(dragDataRef.current.taskStart);
+      st.setDate(st.getDate() + daysDelta);
+      dragDataRef.current.currStart = st.toISOString();
+
+      if (dragDataRef.current.taskEnd) {
+        const en = new Date(dragDataRef.current.taskEnd);
+        en.setDate(en.getDate() + daysDelta);
+        dragDataRef.current.currEnd = en.toISOString();
+      }
+
+      setLocalDragTask({
+        id: taskId,
+        currentStart: dragDataRef.current.currStart,
+        currentEnd: dragDataRef.current.currEnd
+      });
+    };
+
+    const handleUp = () => {
+      if (!dragDataRef.current) return;
+      const { taskId, taskStart, currStart, currEnd, didMove } = dragDataRef.current;
+      
+      if (didMove && currStart !== taskStart) {
+         updateTask(taskId, { startDate: currStart, deadline: currEnd });
+         // Gantt updates context which auto-shifts dependents anyway, 
+         // but local shift is also fine (it doesn't hurt to call it here too)
+         autoShiftDependents(taskId, currEnd);
+      }
+
+      setDragInfo(null);
+      setLocalDragTask(null);
+      
+      setTimeout(() => { dragDataRef.current = null; }, 100);
+      
       document.removeEventListener('mousemove', handleMove);
       document.removeEventListener('mouseup', handleUp);
     };
@@ -490,8 +670,10 @@ export default function GanttView() {
                 fontSize:'0.65rem',
               }}
             >
-              <div style={{flex:1, display:'flex', alignItems:'center', gap:'0.3rem', padding:'0 0.5rem', overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis', minWidth:'150px'}}>
+              <div style={{flex:1, display:'flex', alignItems:'center', gap:'0.3rem', padding:'0 0.5rem', overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis', minWidth:'150px', opacity: isBlocked(task) ? 0.6 : 1}}>
                 <span style={{width:6, height:6, borderRadius:'50%', background: statusColors[task.status], flexShrink:0}}></span>
+                {isBlocked(task) && <span style={{fontSize:'0.55rem', flexShrink:0}} title={getBlockingTasks(task).map(t => t.title).join(', ')}>🔒</span>}
+                {criticalPathIds.has(task.id) && <span style={{fontSize:'0.55rem', flexShrink:0}} title="Kritik Yol">⚡</span>}
                 <span style={{overflow:'hidden', textOverflow:'ellipsis', fontWeight:500, color:'var(--text-main)'}}>
                   {task.title}
                 </span>
@@ -607,12 +789,15 @@ export default function GanttView() {
             {/* Task bars */}
             {sortedTasks.map((task, i) => {
               // Override dates if this task is being dragged locally
-              const effectiveTask = (localDragTask && localDragTask.id === task.id) 
-                ? { ...task, startDate: localDragTask.currentStart, deadline: localDragTask.currentEnd } 
+              const effectiveTask = (localDragTask && localDragTask.id === task.id)
+                ? { ...task, startDate: localDragTask.currentStart, deadline: localDragTask.currentEnd }
                 : task;
 
               const { left, width } = getBarPosition(effectiveTask);
               const isDone = effectiveTask.status === 'done';
+              const blocked = isBlocked(task);
+              const isCritical = criticalPathIds.has(task.id);
+              const isInChain = highlightChain ? chainIds.has(task.id) : true;
 
               let barColor = statusColors[effectiveTask.status];
               const now = new Date(); now.setHours(0,0,0,0);
@@ -627,20 +812,33 @@ export default function GanttView() {
                     {/* Main bar */}
                     <div
                       className="gantt-bar"
-                      onClick={() => openEdit(task)}
+                      onMouseDown={(e) => handleBarDragStart(e, task.id)}
+                      onClick={(e) => {
+                        if (dragDataRef.current?.didMove) return;
+                        if (e.shiftKey) {
+                          // Shift+click to toggle chain highlight
+                          setHighlightChain(prev => prev === task.id ? null : task.id);
+                        } else {
+                          openEdit(task);
+                        }
+                      }}
+                      title={blocked ? `🔒 Engelli: ${getBlockingTasks(task).map(t => t.title).join(', ')}` : (isCritical ? '⚡ Kritik Yol' : '')}
                       style={{
                         position:'absolute',
                         top: 4, height: ROW_HEIGHT - 8,
                         left, width,
-                        background: barBg,
+                        background: blocked ? `repeating-linear-gradient(45deg, ${barBg}, ${barBg} 4px, rgba(0,0,0,0.15) 4px, rgba(0,0,0,0.15) 8px)` : barBg,
                         borderRadius:'3px', cursor:'pointer',
                         display:'flex', alignItems:'center', justifyContent:'center',
                         fontSize:'0.6rem', color:'#fff', fontWeight:500,
                         overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis',
                         textDecoration: isDone ? 'line-through' : 'none',
-                        opacity: isDone ? 0.5 : 1,
+                        opacity: isDone ? 0.5 : blocked ? 0.6 : (highlightChain && !isInChain ? 0.25 : 1),
+                        border: isCritical ? '2px solid #fbbf24' : 'none',
+                        boxShadow: isCritical ? '0 0 6px rgba(251,191,36,0.5)' : 'none',
                       }}
                     >
+                      {blocked && <span style={{marginRight:'2px'}}>🔒</span>}
                       {width > 60 && <span style={{padding:'0 6px'}}>{getAssignees(task).join(', ')}</span>}
                     </div>
 
@@ -679,6 +877,55 @@ export default function GanttView() {
               );
             })}
 
+            {/* Dependency arrows (SVG overlay) */}
+            <svg style={{ position:'absolute', top:0, left:0, width: totalWidth, height: sortedTasks.length * ROW_HEIGHT, pointerEvents:'none', zIndex:2 }}>
+              <defs>
+                <marker id="dep-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                  <path d="M0,0 L8,3 L0,6 Z" fill="#6366f1" />
+                </marker>
+                <marker id="dep-arrow-critical" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                  <path d="M0,0 L8,3 L0,6 Z" fill="#fbbf24" />
+                </marker>
+              </defs>
+              {sortedTasks.map((task, taskIdx) => {
+                const deps = getDependencies(task);
+                if (deps.length === 0) return null;
+                const taskPos = getBarPosition(task);
+                const targetX = taskPos.left;
+                const targetY = taskIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
+
+                return deps.map(depId => {
+                  const depIdx = sortedTasks.findIndex(t => t.id === depId);
+                  if (depIdx === -1) return null;
+                  const depTask = sortedTasks[depIdx];
+                  const depPos = getBarPosition(depTask);
+                  const sourceX = depPos.left + depPos.width;
+                  const sourceY = depIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
+
+                  const isCriticalArrow = criticalPathIds.has(task.id) && criticalPathIds.has(depId);
+                  const isChainArrow = highlightChain ? (chainIds.has(task.id) && chainIds.has(depId)) : true;
+
+                  // Bezier curve path
+                  const dx = Math.abs(targetX - sourceX);
+                  const cp = Math.max(20, dx * 0.4);
+                  const path = `M${sourceX},${sourceY} C${sourceX + cp},${sourceY} ${targetX - cp},${targetY} ${targetX},${targetY}`;
+
+                  return (
+                    <path
+                      key={`${depId}->${task.id}`}
+                      d={path}
+                      fill="none"
+                      stroke={isCriticalArrow ? '#fbbf24' : '#6366f1'}
+                      strokeWidth={isCriticalArrow ? 2.5 : 1.5}
+                      strokeDasharray={isCriticalArrow ? 'none' : '6,3'}
+                      opacity={highlightChain && !isChainArrow ? 0.1 : 0.7}
+                      markerEnd={isCriticalArrow ? 'url(#dep-arrow-critical)' : 'url(#dep-arrow)'}
+                    />
+                  );
+                });
+              })}
+            </svg>
+
             {sortedTasks.length === 0 && (
               <div style={{padding:'3rem', textAlign:'center', color:'var(--text-muted)', fontSize:'0.85rem'}}>
                 Gantt grafiğini görmek için görevlerinize başlangıç ve bitiş tarihi ekleyin.
@@ -714,8 +961,25 @@ export default function GanttView() {
           <span style={{width:12, height:2, background:'var(--primary)'}}></span>
           <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Bugün</span>
         </div>
+        <div style={{display:'flex', alignItems:'center', gap:'0.3rem', borderLeft:'1px solid var(--border)', paddingLeft:'1rem'}}>
+          <span style={{width:12, height:12, borderRadius:'2px', border:'2px solid #fbbf24', background:'transparent'}}></span>
+          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Kritik Yol</span>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+          <svg width="20" height="12"><line x1="0" y1="6" x2="20" y2="6" stroke="#6366f1" strokeWidth="1.5" strokeDasharray="4,2"/></svg>
+          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Bağımlılık</span>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:'0.3rem'}}>
+          <span style={{width:12, height:12, borderRadius:'2px', background:'repeating-linear-gradient(45deg, #ef4444, #ef4444 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px)'}}></span>
+          <span style={{fontSize:'0.7rem', color:'var(--text-main)'}}>Engelli</span>
+        </div>
+        {highlightChain && (
+          <button onClick={() => setHighlightChain(null)} style={{fontSize:'0.65rem', padding:'0.2rem 0.5rem', background:'#ede9fe', color:'#6366f1', border:'1px solid #c4b5fd', borderRadius:'4px', cursor:'pointer', fontWeight:600}}>
+            Zinciri Temizle ✕
+          </button>
+        )}
         <span style={{fontSize:'0.65rem', color:'var(--text-muted)', fontStyle:'italic'}}>
-          ↔ Çubuk kenarlarından çekerek tarih değiştirin • Boş alana tıklayıp sürükleyerek kaydırın
+          ↔ Çubuk kenarlarından tarih değiştirin • Boş alana sürükleyerek kaydırın • Shift+tık ile zincir göster
         </span>
       </div>
 

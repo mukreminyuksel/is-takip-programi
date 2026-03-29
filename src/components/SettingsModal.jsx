@@ -1208,7 +1208,7 @@ function CustomersTab({ customersList, addCustomer, editCustomer, deleteCustomer
            (c.customerPhone || '').includes(s) ||
            (c.customerEmail || '').toLowerCase().includes(s) ||
            (c.customerTaxNo || '').includes(s);
-  });
+  }).sort((a, b) => (a.customerName || '').trim().localeCompare((b.customerName || '').trim(), 'tr', { sensitivity: 'base' }));
 
   const startEdit = (c) => {
     setEditingId(c.id);

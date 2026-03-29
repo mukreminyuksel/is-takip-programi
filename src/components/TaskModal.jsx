@@ -4,7 +4,7 @@ import { useCompany } from '../context/CompanyContext';
 import { X, Maximize, Minimize, Star, Copy, Check, MessageCircle, Calendar, History, Paperclip, Download, Loader, ListTodo, Tag, Printer } from 'lucide-react';
 
 export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, prefillData }) {
-  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor, customersList, tasks: allTasks, wouldCreateCycle } = useTasks();
+  const { addTask, updateTask, currentUser, usersList, isAdmin, tagsList, getUserColor, customersList, tasks: allTasks, wouldCreateCycle, logAppEvent } = useTasks();
   const { selectedCompany } = useCompany();
   const APPS_SCRIPT_URL = selectedCompany?.gasDeploymentUrl || '';
   const DRIVE_FOLDER_ID = selectedCompany?.driveFolderId || '';
@@ -155,11 +155,78 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
 
   if (!isOpen) return null;
 
+  const extractAndNotifyMentionsText = (rawText, typeContext) => {
+    if (!rawText) return rawText;
+    let processedText = rawText;
+    const notifiedNames = new Set();
+    
+    const escapeRx = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    usersList.forEach(u => {
+      if (!u.name) return;
+      const nameNoSpace = u.name.replace(/\s+/g, '');
+      const firstName = u.name.split(' ')[0];
+      
+      // First: check if user already explicitly @mentioned
+      if (new RegExp('@' + escapeRx(nameNoSpace), 'i').test(processedText)) {
+        if (u.name !== currentUser) notifiedNames.add(u.name);
+        return; // Already tagged, skip implicit
+      }
+      
+      // Second: implicit first-name detection
+      const implicitRx = new RegExp('(^|[\\s.,!?:;()])' + escapeRx(firstName) + '([\\s.,!?:;()]|$)', 'gi');
+      const replaced = processedText.replace(implicitRx, '$1@' + nameNoSpace + '$2');
+      if (replaced !== processedText) {
+        processedText = replaced;
+        if (u.name !== currentUser) notifiedNames.add(u.name);
+      }
+    });
+
+    if (notifiedNames.size > 0 && logAppEvent) {
+      const targets = Array.from(notifiedNames);
+      const msg = `${currentUser} sizi '${title || 'Bir Görev'}' isimli görevin ${typeContext} bahsetti.`;
+      logAppEvent(msg, currentUser, targets);
+    }
+    
+    return processedText;
+  };
+
+  const renderTextWithMentions = (text) => {
+    if (!text) return text;
+    let elements = [text];
+    
+    usersList.forEach(u => {
+      if (!u.name) return;
+      const nameNoSpace = u.name.replace(/\s+/g, '');
+      const regex = new RegExp(`(@${nameNoSpace})`, 'gi');
+      
+      const newElements = [];
+      elements.forEach(el => {
+        if (typeof el === 'string') {
+          const parts = el.split(regex);
+          parts.forEach((part, i) => {
+            if (i % 2 === 1) { // Matched part
+              newElements.push(<span key={`${u.id}-${Math.random()}`} style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#0284c7', fontWeight: 600, padding: '1px 5px', borderRadius: '4px', fontSize: '0.9em' }}>{part}</span>);
+            } else if (part) {
+              newElements.push(part);
+            }
+          });
+        } else {
+          newElements.push(el);
+        }
+      });
+      elements = newElements;
+    });
+    
+    return elements;
+  };
+
   const handleAddNote = () => {
     if (!newNote.trim()) return;
+    const processedText = extractAndNotifyMentionsText(newNote, 'notlarında');
     const newNoteObj = { 
       id: Date.now().toString(), 
-      text: newNote, 
+      text: processedText, 
       date: new Date().toISOString(),
       author: currentUser,
       importance: notePriority,
@@ -395,7 +462,8 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
 
   const handleAddSubtask = () => {
     if (!newSubtask.trim()) return;
-    const st = { id: Date.now().toString(), text: newSubtask, isCompleted: false, assignee: '' };
+    const processedText = extractAndNotifyMentionsText(newSubtask, 'alt görevlerinde');
+    const st = { id: Date.now().toString(), text: processedText, isCompleted: false, assignee: '' };
     const updated = [...subtasks, st];
     setSubtasks(updated);
     setNewSubtask('');
@@ -531,10 +599,16 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
   const buildTaskData = () => {
     const finalPhone = formatPhone(customerPhone);
     const finalPhone2 = formatPhone(customerPhone2);
+    
+    let processedDescription = description;
+    if (!editTask || editTask.description !== description) {
+      processedDescription = extractAndNotifyMentionsText(description, 'açıklamasında');
+    }
+
     return {
       title, customerName, customerOfficialName: customerOfficialName || customerName, customerPhone: finalPhone, customerEmail, customerAddress,
       customerTaxNo, customerTaxOffice, customerTradeRegNo, customerPhone2: finalPhone2,
-      description, priority, assignees, assignee: assignees[0] || '',
+      description: processedDescription, priority, assignees, assignee: assignees[0] || '',
       startDate: startDate ? new Date(startDate).toISOString() : null,
       deadline: deadline ? new Date(deadline).toISOString() : null,
       notes, attachments, subtasks, tags, dependencies, recurrence,
@@ -953,7 +1027,16 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
                 style={{width:'100%', padding:'0.35rem', borderRadius:'4px', border:'1px solid var(--border)', fontSize:'0.8rem', marginBottom:'0.4rem', background:'var(--bg-main)', color:'var(--text-main)'}}
               >
                 <option value="">Bağımlı görev ekle...</option>
-                {(allTasks || []).filter(t => !t.isDeleted && t.id !== (editTask?.id) && !dependencies.includes(t.id)).map(t => (
+                {(allTasks || [])
+                  .filter(t => !t.isDeleted && t.id !== (editTask?.id) && !dependencies.includes(t.id))
+                  .sort((a, b) => {
+                    // Önce 'Tamamlanmayanlar (Aktif)' üstte çıksın, 'Tamamlananlar' alta insin
+                    if (a.status !== 'done' && b.status === 'done') return -1;
+                    if (a.status === 'done' && b.status !== 'done') return 1;
+                    // Aktif/Pasif grupları kendi içinde A'dan Z'ye Alfabetik sıralansın
+                    return a.title.localeCompare(b.title);
+                  })
+                  .map(t => (
                   <option key={t.id} value={t.id}>{t.title} {t.status === 'done' ? '✓' : ''}</option>
                 ))}
               </select>
@@ -995,7 +1078,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
                 {subtasks.map(st => (
                   <div key={st.id} style={{display:'flex', alignItems:'center', gap:'0.4rem', background: st.isCompleted ? 'var(--bg-main)' : 'var(--bg-card)', padding:'0.4rem 0.5rem', borderRadius:'6px', border:'1px solid var(--border)', flexWrap:'wrap'}}>
                     <input type="checkbox" checked={st.isCompleted} onChange={() => toggleSubtask(st.id)} style={{cursor:'pointer', width:'16px', height:'16px', flexShrink:0}} />
-                    <span style={{flex:1, fontSize:'0.85rem', color: st.isCompleted ? 'var(--text-muted)' : 'var(--text-main)', textDecoration: st.isCompleted ? 'line-through' : 'none', minWidth:'80px'}}>{st.text}</span>
+                    <span style={{flex:1, fontSize:'0.85rem', color: st.isCompleted ? 'var(--text-muted)' : 'var(--text-main)', textDecoration: st.isCompleted ? 'line-through' : 'none', minWidth:'80px'}}>{renderTextWithMentions(st.text)}</span>
                     <select value={st.assignee || ''} onChange={e => updateSubtaskAssignee(st.id, e.target.value)} onClick={e => e.stopPropagation()} style={{fontSize:'0.72rem', padding:'2px 4px', borderRadius:'4px', border:'1px solid var(--border)', background:'var(--bg-main)', color: st.assignee ? 'var(--primary)' : 'var(--text-muted)', maxWidth:'90px', flexShrink:0}}>
                       <option value="">Atanmamış</option>
                       {usersList?.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
@@ -1121,7 +1204,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
               if (!customerSearch.trim()) return true;
               const s = customerSearch.toLowerCase();
               return (c.customerName || '').toLowerCase().includes(s) || (c.customerPhone || '').includes(s) || (c.customerEmail || '').toLowerCase().includes(s) || (c.customerTaxNo || '').includes(s);
-            });
+            }).sort((a, b) => (a.customerName || '').trim().localeCompare((b.customerName || '').trim(), 'tr', { sensitivity: 'base' }));
             return (
               <div style={{position:'absolute', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: isFullScreen ? 0 : '8px'}} onClick={() => setShowCustomerPicker(false)}>
                 <div style={{background:'var(--bg-main)', borderRadius:'10px', width:'90%', maxWidth:'700px', maxHeight:'80%', display:'flex', flexDirection:'column', boxShadow:'0 20px 40px rgba(0,0,0,0.2)'}} onClick={e => e.stopPropagation()}>
@@ -1224,7 +1307,7 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
                         )}
                       </div>
                     </div>
-                    <p style={{fontWeight: note.isRead === false ? '700' : 'normal', color: note.isRead === false ? '#ef4444' : 'inherit', marginBottom: note.readAt ? '4px' : '0'}}>{note.text}</p>
+                    <p style={{fontWeight: note.isRead === false ? '700' : 'normal', color: note.isRead === false ? '#ef4444' : 'inherit', marginBottom: note.readAt ? '4px' : '0'}}>{renderTextWithMentions(note.text)}</p>
                     {note.isRead && note.readAt && (
                       <div style={{fontSize: '0.65rem', fontStyle: 'italic', color: '#16a34a', marginTop: '6px', borderTop: '1px dashed #e2e8f0', paddingTop: '4px'}}>
                         ✓ {note.readBy} tarafından {new Date(note.readAt).toLocaleDateString('tr-TR')} tarih, {new Date(note.readAt).toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})} saatinde okunmuştur.

@@ -1,0 +1,572 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================
+  TASKTRACK - VERİTABANI ŞEMASI (Firebase Firestore / NoSQL)
+  ============================================================
+  Telif Hakkı Tescil Başvurusu için hazırlanmıştır.
+  Eser Adı  : TaskTrack
+  Versiyon  : GÖREV PANELİ (V9.5.0)
+  DB Türü   : Firebase Firestore (NoSQL, Belge Tabanlı)
+  Hazırlayan: Sistem Analizi (Otomatik Üretim)
+  Tarih     : 2026-03-23
+
+  AÇIKLAMA:
+  Bu dosya iki ayrı Firebase projesini belgelemektedir:
+
+  1. MASTER VERİTABANI: Şirket kayıtlarını (companies koleksiyonu) saklar.
+     Tüm şirketler bu merkezi veritabanında listelenir.
+
+  2. ŞİRKET VERİTABANI: Her şirkete özgü dinamik Firebase projesi.
+     tasks, usersList, tagsList, settings, customers, appNotifications
+     koleksiyonlarını içerir.
+
+  Veriler; dummy (örnek) veri içermektedir.
+  ============================================================
+-->
+
+<Database engine="Firebase Firestore" type="NoSQL-Document" version="12.11.0">
+
+  <!-- ========================================================= -->
+  <!-- MASTER VERİTABANI: Şirket Yönetim Katmanı                 -->
+  <!-- ========================================================= -->
+  <MasterDatabase projectId="[GİZLİ_VERİ]">
+
+    <!-- -------------------------------------------------------- -->
+    <!-- KOLEKSİYON: companies                                    -->
+    <!-- Kayıtlı şirketlerin Firebase yapılandırmalarını tutar.  -->
+    <!-- -------------------------------------------------------- -->
+    <Collection name="companies">
+
+      <Document id="xK8mP2nQrL9wVtYb">
+        <Field name="name"        type="string"    value="AVRUPAPROJE" />
+        <Field name="displayName" type="string"    value="Avrupa Proje" />
+        <Field name="color"       type="string"    value="#3b82f6" />
+        <Field name="createdAt"   type="timestamp" value="2025-01-15T10:00:00.000Z" />
+        <Field name="githubRepo"       type="string" value="" />
+        <Field name="gasDeploymentUrl" type="string" value="" />
+        <Field name="firebaseConfig"   type="map">
+          <SubField name="apiKey"            type="string" value="[GİZLİ_VERİ]" />
+          <SubField name="authDomain"        type="string" value="[GİZLİ_VERİ]" />
+          <SubField name="projectId"         type="string" value="[GİZLİ_VERİ]" />
+          <SubField name="storageBucket"     type="string" value="[GİZLİ_VERİ]" />
+          <SubField name="messagingSenderId" type="string" value="[GİZLİ_VERİ]" />
+          <SubField name="appId"             type="string" value="[GİZLİ_VERİ]" />
+        </Field>
+      </Document>
+
+      <Document id="mN3pR7kJwXqCvYzA">
+        <Field name="name"        type="string"    value="PRCD" />
+        <Field name="displayName" type="string"    value="PRCD Yapı" />
+        <Field name="color"       type="string"    value="#10b981" />
+        <Field name="createdAt"   type="timestamp" value="2026-01-20T09:00:00.000Z" />
+        <Field name="githubRepo"       type="string" value="" />
+        <Field name="gasDeploymentUrl" type="string" value="" />
+        <Field name="firebaseConfig"   type="map">
+          <SubField name="apiKey"            type="string" value="[GİZLİ_VERİ]" />
+          <SubField name="authDomain"        type="string" value="[GİZLİ_VERİ]" />
+          <SubField name="projectId"         type="string" value="[GİZLİ_VERİ]" />
+          <SubField name="storageBucket"     type="string" value="[GİZLİ_VERİ]" />
+          <SubField name="messagingSenderId" type="string" value="[GİZLİ_VERİ]" />
+          <SubField name="appId"             type="string" value="[GİZLİ_VERİ]" />
+        </Field>
+      </Document>
+
+    </Collection>
+
+  </MasterDatabase>
+
+
+  <!-- ========================================================= -->
+  <!-- ŞİRKET VERİTABANI: Görev ve Kullanıcı Yönetim Katmanı    -->
+  <!-- (Her şirket için ayrı Firebase projesi - yapı aynıdır)    -->
+  <!-- ========================================================= -->
+  <CompanyDatabase projectId="[GİZLİ_VERİ]">
+
+    <!-- -------------------------------------------------------- -->
+    <!-- KOLEKSİYON: tasks                                        -->
+    <!-- Uygulamadaki tüm görevleri saklar.                       -->
+    <!-- -------------------------------------------------------- -->
+    <Collection name="tasks">
+
+      <!-- Örnek 1: Çoklu atanan kişi, aktif görev -->
+      <Document id="Bq7xK2mNpY4wRtLs">
+        <Field name="title"       type="string"  value="Kurumsal Web Sitesi Yenileme" />
+        <Field name="description" type="string"  value="Ana sayfanın mobil uyumlu yeniden tasarımı" />
+        <Field name="status"      type="string"  value="in-progress"
+               note="Olası değerler: todo | in-progress | done" />
+        <Field name="priority"    type="string"  value="high"
+               note="Olası değerler: low | medium | high" />
+        <Field name="assignee"    type="string"  value="Ahmet Yılmaz"
+               note="Geriye dönük uyumluluk için birincil atanan kişi" />
+        <Field name="assignees"   type="array"
+               note="Yeni format: çoklu atanan kişi dizisi">
+          <Item type="string" value="Ahmet Yılmaz" />
+          <Item type="string" value="Fatma Kaya" />
+        </Field>
+        <Field name="startDate"   type="timestamp" value="2026-03-01T00:00:00.000Z" />
+        <Field name="deadline"    type="timestamp" value="2026-04-15T00:00:00.000Z" />
+        <Field name="date"        type="timestamp" value="2026-03-01T08:30:00.000Z"
+               note="Görev oluşturulma zamanı" />
+        <Field name="isDeleted"        type="boolean" value="false" />
+        <Field name="isNewForAssignee" type="boolean" value="true"
+               note="true: atanan kişi henüz görüntülemedi" />
+        <Field name="recurrence" type="string" value="none"
+               note="Olası değerler: none | daily | weekly | monthly | yearly" />
+        <Field name="recurrenceDay"       type="number" value="null" />
+        <Field name="recurrenceCount"     type="number" value="null" />
+        <Field name="recurrenceRemaining" type="number" value="null" />
+
+        <!-- Müşteri Bilgileri (görevle ilişkili) -->
+        <Field name="customerName"        type="string" value="ABC Teknoloji A.Ş." />
+        <Field name="customerOfficialName"type="string" value="ABC Teknoloji Anonim Şirketi" />
+        <Field name="customerPhone"       type="string" value="0212 555 00 00" />
+        <Field name="customerPhone2"      type="string" value="0532 111 22 33" />
+        <Field name="customerEmail"       type="string" value="info@abcteknoloji.com" />
+        <Field name="customerAddress"     type="string" value="Maslak, Sarıyer, İstanbul" />
+        <Field name="customerTaxNo"       type="string" value="1234567890" />
+        <Field name="customerTaxOffice"   type="string" value="Büyük Mükellefler" />
+        <Field name="customerTradeRegNo"  type="string" value="TR-12345" />
+
+        <!-- Etiket Kimlikleri (tagsList koleksiyonuna referans) -->
+        <Field name="tags" type="array">
+          <Item type="string" value="tagId_Web_ref" />
+          <Item type="string" value="tagId_Tasarim_ref" />
+        </Field>
+
+        <!-- Alt Görevler (inline dizi) -->
+        <Field name="subtasks" type="array">
+          <Item type="map">
+            <SubField name="id"          type="string"  value="subtask_001" />
+            <SubField name="text"        type="string"  value="Wireframe hazırla" />
+            <SubField name="isCompleted" type="boolean" value="true" />
+          </Item>
+          <Item type="map">
+            <SubField name="id"          type="string"  value="subtask_002" />
+            <SubField name="text"        type="string"  value="Tasarım onayını al" />
+            <SubField name="isCompleted" type="boolean" value="false" />
+          </Item>
+          <Item type="map">
+            <SubField name="id"          type="string"  value="subtask_003" />
+            <SubField name="text"        type="string"  value="Frontend kodlaması" />
+            <SubField name="isCompleted" type="boolean" value="false" />
+          </Item>
+        </Field>
+
+        <!-- Görev Notları / Yorum Geçmişi -->
+        <Field name="notes" type="array">
+          <Item type="map">
+            <SubField name="id"         type="string"    value="note_1710000000000" />
+            <SubField name="text"       type="string"    value="Müşteri ilk taslağı onayladı." />
+            <SubField name="date"       type="timestamp" value="2026-03-05T14:22:00.000Z" />
+            <SubField name="author"     type="string"    value="Ahmet Yılmaz" />
+            <SubField name="importance" type="string"    value="normal"
+                      note="Olası değerler: normal | important" />
+            <SubField name="isRead"     type="boolean"   value="true" />
+          </Item>
+          <Item type="map">
+            <SubField name="id"         type="string"    value="note_1710100000000" />
+            <SubField name="text"       type="string"    value="Renk paleti değiştirilmesi istendi." />
+            <SubField name="date"       type="timestamp" value="2026-03-10T09:15:00.000Z" />
+            <SubField name="author"     type="string"    value="Fatma Kaya" />
+            <SubField name="importance" type="string"    value="important" />
+            <SubField name="isRead"     type="boolean"   value="false" />
+          </Item>
+        </Field>
+
+        <!-- Ekler (Firebase Storage URL'leri) -->
+        <Field name="attachments" type="array">
+          <Item type="map">
+            <SubField name="name" type="string" value="wireframe_v1.pdf" />
+            <SubField name="url"  type="string" value="https://firebasestorage.googleapis.com/..." />
+            <SubField name="size" type="number" value="245760" note="byte" />
+            <SubField name="type" type="string" value="application/pdf" />
+            <SubField name="uploadedAt" type="timestamp" value="2026-03-03T11:00:00.000Z" />
+            <SubField name="uploadedBy" type="string"    value="Ahmet Yılmaz" />
+          </Item>
+        </Field>
+
+        <!-- Değişiklik Günlüğü -->
+        <Field name="logs" type="array">
+          <Item type="map">
+            <SubField name="id"   type="string"    value="log_1709000000000" />
+            <SubField name="text" type="string"    value="Görev oluşturuldu." />
+            <SubField name="user" type="string"    value="Ahmet Yılmaz" />
+            <SubField name="date" type="timestamp" value="2026-03-01T08:30:00.000Z" />
+          </Item>
+          <Item type="map">
+            <SubField name="id"   type="string"    value="log_1710200000001" />
+            <SubField name="text" type="string"    value="Durum değiştirildi: 'Yapılacak' -> 'Devam Eden'" />
+            <SubField name="user" type="string"    value="Ahmet Yılmaz" />
+            <SubField name="date" type="timestamp" value="2026-03-08T10:00:00.000Z" />
+          </Item>
+          <Item type="map">
+            <SubField name="id"   type="string"    value="log_1710300000002" />
+            <SubField name="text" type="string"    value="Kişi değiştirildi: 'Ahmet Yılmaz' -> 'Ahmet Yılmaz, Fatma Kaya'" />
+            <SubField name="user" type="string"    value="Ahmet Yılmaz" />
+            <SubField name="date" type="timestamp" value="2026-03-12T13:45:00.000Z" />
+          </Item>
+        </Field>
+      </Document>
+
+      <!-- Örnek 2: Tekrarlayan görev (aylık), silinmiş -->
+      <Document id="Ct8yL3nOqZ5xSuMt">
+        <Field name="title"            type="string"  value="Aylık Performans Raporu" />
+        <Field name="description"      type="string"  value="İş takip sisteminden aylık KPI raporu hazırla" />
+        <Field name="status"           type="string"  value="done" />
+        <Field name="priority"         type="string"  value="medium" />
+        <Field name="assignee"         type="string"  value="Mehmet Demir" />
+        <Field name="assignees"        type="array">
+          <Item type="string" value="Mehmet Demir" />
+        </Field>
+        <Field name="startDate"        type="timestamp" value="2026-02-01T00:00:00.000Z" />
+        <Field name="deadline"         type="timestamp" value="2026-02-28T00:00:00.000Z" />
+        <Field name="date"             type="timestamp" value="2026-01-31T16:00:00.000Z" />
+        <Field name="isDeleted"        type="boolean" value="true" />
+        <Field name="isNewForAssignee" type="boolean" value="false" />
+        <Field name="recurrence"          type="string" value="monthly" />
+        <Field name="recurrenceDay"       type="number" value="1" />
+        <Field name="recurrenceCount"     type="number" value="12" />
+        <Field name="recurrenceRemaining" type="number" value="10" />
+        <Field name="customerName"   type="string" value="" />
+        <Field name="tags"           type="array">
+          <Item type="string" value="tagId_Rapor_ref" />
+        </Field>
+        <Field name="subtasks"    type="array" />
+        <Field name="notes"       type="array" />
+        <Field name="attachments" type="array" />
+        <Field name="logs"        type="array">
+          <Item type="map">
+            <SubField name="id"   type="string"    value="log_1710400000000" />
+            <SubField name="text" type="string"    value="Görev oluşturuldu." />
+            <SubField name="user" type="string"    value="Admin" />
+            <SubField name="date" type="timestamp" value="2026-01-31T16:00:00.000Z" />
+          </Item>
+          <Item type="map">
+            <SubField name="id"   type="string"    value="log_1710500000001" />
+            <SubField name="text" type="string"    value="Durum güncellendi: 'Devam Eden' -> 'Tamamlandı'" />
+            <SubField name="user" type="string"    value="Mehmet Demir" />
+            <SubField name="date" type="timestamp" value="2026-02-28T17:30:00.000Z" />
+          </Item>
+        </Field>
+      </Document>
+
+    </Collection>
+
+
+    <!-- -------------------------------------------------------- -->
+    <!-- KOLEKSİYON: usersList                                    -->
+    <!-- Sisteme kayıtlı personel bilgilerini tutar.              -->
+    <!-- -------------------------------------------------------- -->
+    <Collection name="usersList">
+
+      <Document id="Dp9zM4oRrA6yTvNu">
+        <Field name="name"      type="string"  value="Ahmet Yılmaz"
+               note="Görevlerde atanan kişi olarak kullanılan görünen ad" />
+        <Field name="role"      type="string"  value="admin"
+               note="Olası değerler: admin | user" />
+        <Field name="email"     type="string"  value="ahmet.yilmaz@ornek.com" />
+        <Field name="phone"     type="string"  value="0532 100 20 30" />
+        <Field name="whatsapp"  type="string"  value="0532 100 20 30" />
+        <Field name="finance"   type="string"  value="Maaş: 30.000 TL" />
+        <Field name="color"     type="string"  value="#3b82f6"
+               note="Kullanıcıya atanan renk kodu (UI'da badge ve grafiklerde kullanılır)" />
+        <Field name="isOnline"  type="boolean" value="true" />
+        <Field name="lastLogin" type="timestamp" value="2026-03-23T09:15:00.000Z" />
+        <Field name="isDeleted" type="boolean" value="false" />
+        <Field name="authEmail" type="string"  value="ahmet.yilmaz@ornek.com"
+               note="Firebase Auth'ta kullanılan e-posta" />
+        <Field name="authLogin" type="string"  value="ahmet.yilmaz@ornek.com" />
+      </Document>
+
+      <Document id="Eq0aN5pSsB7zUwOv">
+        <Field name="name"      type="string"  value="Fatma Kaya" />
+        <Field name="role"      type="string"  value="user" />
+        <Field name="email"     type="string"  value="fatma.kaya@ornek.com" />
+        <Field name="phone"     type="string"  value="0533 200 30 40" />
+        <Field name="whatsapp"  type="string"  value="0533 200 30 40" />
+        <Field name="finance"   type="string"  value="" />
+        <Field name="color"     type="string"  value="#10b981" />
+        <Field name="isOnline"  type="boolean" value="false" />
+        <Field name="lastLogin" type="timestamp" value="2026-03-22T18:00:00.000Z" />
+        <Field name="isDeleted" type="boolean" value="false" />
+        <Field name="authEmail" type="string"  value="5330200304@tasktrack.net"
+               note="Telefon tabanlı giriş: numara@tasktrack.net formatında" />
+        <Field name="authLogin" type="string"  value="5330200304" />
+      </Document>
+
+      <Document id="Fr1bO6qTtC8aVxPw">
+        <Field name="name"      type="string"  value="Mehmet Demir" />
+        <Field name="role"      type="string"  value="user" />
+        <Field name="email"     type="string"  value="mehmet.demir@ornek.com" />
+        <Field name="phone"     type="string"  value="0541 300 40 50" />
+        <Field name="whatsapp"  type="string"  value="" />
+        <Field name="finance"   type="string"  value="" />
+        <Field name="color"     type="string"  value="#8b5cf6" />
+        <Field name="isOnline"  type="boolean" value="false" />
+        <Field name="lastLogin" type="timestamp" value="2026-03-21T12:00:00.000Z" />
+        <Field name="isDeleted" type="boolean" value="false" />
+        <Field name="authEmail" type="string"  value="mehmet.demir@ornek.com" />
+        <Field name="authLogin" type="string"  value="mehmet.demir@ornek.com" />
+      </Document>
+
+    </Collection>
+
+
+    <!-- -------------------------------------------------------- -->
+    <!-- KOLEKSİYON: tagsList                                     -->
+    <!-- Görevlere atanabilen etiketleri tanımlar.                -->
+    <!-- -------------------------------------------------------- -->
+    <Collection name="tagsList">
+
+      <Document id="Gs2cP7rUuD9bWyQx">
+        <Field name="label" type="string" value="Web" />
+        <Field name="color" type="string" value="#3b82f6" />
+        <Field name="order" type="number" value="0"
+               note="Görüntüleme sırası (küçük = önce)" />
+      </Document>
+
+      <Document id="Ht3dQ8sVvE0cXzRy">
+        <Field name="label" type="string" value="Tasarım" />
+        <Field name="color" type="string" value="#8b5cf6" />
+        <Field name="order" type="number" value="1" />
+      </Document>
+
+      <Document id="Iu4eR9tWwF1dYaSz">
+        <Field name="label" type="string" value="Mobil" />
+        <Field name="color" type="string" value="#06b6d4" />
+        <Field name="order" type="number" value="2" />
+      </Document>
+
+      <Document id="Jv5fS0uXxG2eZbTa">
+        <Field name="label" type="string" value="Acil" />
+        <Field name="color" type="string" value="#ef4444" />
+        <Field name="order" type="number" value="3" />
+      </Document>
+
+      <Document id="Kw6gT1vYyH3fAcUb">
+        <Field name="label" type="string" value="Müşteri" />
+        <Field name="color" type="string" value="#f59e0b" />
+        <Field name="order" type="number" value="4" />
+      </Document>
+
+      <Document id="Lx7hU2wZzI4gBdVc">
+        <Field name="label" type="string" value="Bakım" />
+        <Field name="color" type="string" value="#10b981" />
+        <Field name="order" type="number" value="5" />
+      </Document>
+
+      <Document id="My8iV3xAaJ5hCeWd">
+        <Field name="label" type="string" value="Rapor" />
+        <Field name="color" type="string" value="#6366f1" />
+        <Field name="order" type="number" value="6" />
+      </Document>
+
+      <Document id="Nz9jW4yBbK6iDfXe">
+        <Field name="label" type="string" value="Toplantı" />
+        <Field name="color" type="string" value="#ec4899" />
+        <Field name="order" type="number" value="7" />
+      </Document>
+
+    </Collection>
+
+
+    <!-- -------------------------------------------------------- -->
+    <!-- KOLEKSİYON: customers                                    -->
+    <!-- Müşteri firmaların merkezi kayıtlarını tutar.            -->
+    <!-- -------------------------------------------------------- -->
+    <Collection name="customers">
+
+      <Document id="Oa0kX5zCcL7jEgYf">
+        <Field name="customerName"         type="string" value="ABC Teknoloji A.Ş." />
+        <Field name="customerOfficialName" type="string" value="ABC Teknoloji Anonim Şirketi" />
+        <Field name="customerPhone"        type="string" value="0212 555 00 00" />
+        <Field name="customerPhone2"       type="string" value="0532 111 22 33" />
+        <Field name="customerEmail"        type="string" value="info@abcteknoloji.com" />
+        <Field name="customerAddress"      type="string" value="Maslak Mah. Büyükdere Cad. No:1, Sarıyer / İstanbul" />
+        <Field name="customerTaxNo"        type="string" value="1234567890" />
+        <Field name="customerTaxOffice"    type="string" value="Büyük Mükellefler VD" />
+        <Field name="customerTradeRegNo"   type="string" value="İstanbul / 12345" />
+        <Field name="createdAt"            type="timestamp" value="2025-06-01T10:00:00.000Z" />
+        <Field name="updatedAt"            type="timestamp" value="2026-03-10T14:30:00.000Z" />
+        <!-- Müşteriye özel notlar dizisi -->
+        <Field name="notes" type="array">
+          <Item type="map">
+            <SubField name="id"     type="string"    value="cnote_1710600000000" />
+            <SubField name="text"   type="string"    value="Müşteri sözleşmeyi 2026 Nisan'a uzattı." />
+            <SubField name="date"   type="timestamp" value="2026-03-10T14:30:00.000Z" />
+            <SubField name="author" type="string"    value="Ahmet Yılmaz" />
+          </Item>
+        </Field>
+      </Document>
+
+      <Document id="Pb1lY6aDdM8kFhZg">
+        <Field name="customerName"         type="string" value="XYZ İnşaat Ltd. Şti." />
+        <Field name="customerOfficialName" type="string" value="XYZ İnşaat ve Yapı Sanayi Limited Şirketi" />
+        <Field name="customerPhone"        type="string" value="0312 444 00 00" />
+        <Field name="customerPhone2"       type="string" value="" />
+        <Field name="customerEmail"        type="string" value="proje@xyzinsaat.com" />
+        <Field name="customerAddress"      type="string" value="Atatürk Bulvarı No:100, Çankaya / Ankara" />
+        <Field name="customerTaxNo"        type="string" value="9876543210" />
+        <Field name="customerTaxOffice"    type="string" value="Çankaya VD" />
+        <Field name="customerTradeRegNo"   type="string" value="Ankara / 67890" />
+        <Field name="createdAt"            type="timestamp" value="2025-09-15T09:00:00.000Z" />
+        <Field name="updatedAt"            type="timestamp" value="2025-09-15T09:00:00.000Z" />
+        <Field name="notes" type="array" />
+      </Document>
+
+    </Collection>
+
+
+    <!-- -------------------------------------------------------- -->
+    <!-- KOLEKSİYON: settings                                     -->
+    <!-- Uygulama geneli yapılandırma ayarlarını tutar.           -->
+    <!-- Tek bir 'general' dokümanı kullanılır.                   -->
+    <!-- -------------------------------------------------------- -->
+    <Collection name="settings">
+
+      <Document id="general">
+        <Field name="hideAllTasksForUsers" type="boolean" value="false"
+               note="true: normal kullanıcılar yalnızca kendi görevlerini görür" />
+
+        <!-- Tarihe kalan gün sayısına göre satır rengi eşlemeleri -->
+        <Field name="deadlineColors" type="array">
+          <Item type="map">
+            <SubField name="days"  type="number" value="7"    note="7 gün veya daha az kaldıysa" />
+            <SubField name="color" type="string" value="rgba(253, 224, 71, 0.15)" />
+            <SubField name="hex"   type="string" value="#fde047" />
+            <SubField name="alpha" type="number" value="0.15" />
+            <SubField name="label" type="string" value="7 gün" />
+          </Item>
+          <Item type="map">
+            <SubField name="days"  type="number" value="5" />
+            <SubField name="color" type="string" value="rgba(250, 204, 21, 0.18)" />
+            <SubField name="hex"   type="string" value="#facc15" />
+            <SubField name="alpha" type="number" value="0.18" />
+            <SubField name="label" type="string" value="5 gün" />
+          </Item>
+          <Item type="map">
+            <SubField name="days"  type="number" value="3" />
+            <SubField name="color" type="string" value="rgba(245, 158, 11, 0.20)" />
+            <SubField name="hex"   type="string" value="#f59e0b" />
+            <SubField name="alpha" type="number" value="0.20" />
+            <SubField name="label" type="string" value="3 gün" />
+          </Item>
+          <Item type="map">
+            <SubField name="days"  type="number" value="2" />
+            <SubField name="color" type="string" value="rgba(239, 68, 68, 0.20)" />
+            <SubField name="hex"   type="string" value="#ef4444" />
+            <SubField name="alpha" type="number" value="0.20" />
+            <SubField name="label" type="string" value="2 gün" />
+          </Item>
+          <Item type="map">
+            <SubField name="days"  type="number" value="1" />
+            <SubField name="color" type="string" value="rgba(185, 28, 28, 0.25)" />
+            <SubField name="hex"   type="string" value="#b91c1c" />
+            <SubField name="alpha" type="number" value="0.25" />
+            <SubField name="label" type="string" value="1 gün" />
+          </Item>
+          <Item type="map">
+            <SubField name="days"  type="number" value="0" />
+            <SubField name="color" type="string" value="rgba(168, 85, 247, 0.22)" />
+            <SubField name="hex"   type="string" value="#a855f7" />
+            <SubField name="alpha" type="number" value="0.22" />
+            <SubField name="label" type="string" value="Son gün" />
+          </Item>
+          <Item type="map">
+            <SubField name="days"  type="number" value="-1" note="Negatif: süre geçmiş" />
+            <SubField name="color" type="string" value="rgba(124, 58, 237, 0.25)" />
+            <SubField name="hex"   type="string" value="#7c3aed" />
+            <SubField name="alpha" type="number" value="0.25" />
+            <SubField name="label" type="string" value="Süresi geçmiş" />
+          </Item>
+        </Field>
+      </Document>
+
+    </Collection>
+
+
+    <!-- -------------------------------------------------------- -->
+    <!-- KOLEKSİYON: appNotifications                             -->
+    <!-- Sistem geneli kalıcı bildirim akışını tutar.             -->
+    <!-- 7 günden eski kayıtlar otomatik silinir.                 -->
+    <!-- -------------------------------------------------------- -->
+    <Collection name="appNotifications">
+
+      <Document id="Qc2mZ7bEeN9lGiAh">
+        <Field name="text"   type="string"    value="Yeni iş atandı: 'Kurumsal Web Sitesi Yenileme'" />
+        <Field name="author" type="string"    value="Ahmet Yılmaz" />
+        <Field name="date"   type="timestamp" value="2026-03-01T08:31:00.000Z" />
+        <Field name="readBy" type="array"     note="Bildirimi okuyan kullanıcı adları">
+          <Item type="string" value="Ahmet Yılmaz" />
+        </Field>
+      </Document>
+
+      <Document id="Rd3nA8cFfO0mHjBi">
+        <Field name="text"   type="string"    value="'Kurumsal Web Sitesi Yenileme' görevinin durumunu 'Devam Eden' yaptı." />
+        <Field name="author" type="string"    value="Ahmet Yılmaz" />
+        <Field name="date"   type="timestamp" value="2026-03-08T10:01:00.000Z" />
+        <Field name="readBy" type="array">
+          <Item type="string" value="Ahmet Yılmaz" />
+          <Item type="string" value="Fatma Kaya" />
+        </Field>
+      </Document>
+
+      <Document id="Se4oB9dGgP1nIkCj">
+        <Field name="text"   type="string"    value="'Aylık Performans Raporu' görevi Mehmet Demir adlı kullanıcıya atandı." />
+        <Field name="author" type="string"    value="Admin" />
+        <Field name="date"   type="timestamp" value="2026-01-31T16:01:00.000Z" />
+        <Field name="readBy" type="array">
+          <Item type="string" value="Admin" />
+          <Item type="string" value="Mehmet Demir" />
+          <Item type="string" value="Ahmet Yılmaz" />
+        </Field>
+      </Document>
+
+    </Collection>
+
+  </CompanyDatabase>
+
+
+  <!-- ========================================================= -->
+  <!-- VERİ MODELİ ÖZETİ                                        -->
+  <!-- ========================================================= -->
+  <DataModelSummary>
+
+    <Collections>
+      <Item name="companies"        scope="master"  purpose="Çoklu şirket kaydı ve Firebase config yönetimi" />
+      <Item name="tasks"            scope="company" purpose="Tüm görevler: durum, öncelik, atama, tarih, alt görev, not, ek, log" />
+      <Item name="usersList"        scope="company" purpose="Personel listesi: rol, iletişim, renk, auth bilgileri" />
+      <Item name="tagsList"         scope="company" purpose="Görev etiketleri: ad, renk, sıra" />
+      <Item name="customers"        scope="company" purpose="Müşteri CRM: firma bilgileri, notlar" />
+      <Item name="settings"         scope="company" purpose="Uygulama ayarları: görünürlük, deadline renk konfigürasyonu" />
+      <Item name="appNotifications" scope="company" purpose="Kalıcı bildirim akışı: metin, yazar, tarih, okunma durumu" />
+    </Collections>
+
+    <FieldTypes>
+      <Item type="string"    description="Metin verisi" />
+      <Item type="number"    description="Sayısal değer (tam sayı veya ondalık)" />
+      <Item type="boolean"   description="true / false" />
+      <Item type="timestamp" description="ISO 8601 UTC tarih/saat (string olarak saklanır)" />
+      <Item type="array"     description="Sıralı liste; string, number veya map içerebilir" />
+      <Item type="map"       description="İç içe anahtar-değer nesnesi (Firestore map tipi)" />
+    </FieldTypes>
+
+    <BackwardCompatibility>
+      <Note>tasks koleksiyonu hem eski format (assignee: string) hem yeni format
+            (assignees: string[]) destekler. getAssignees() helper fonksiyonu
+            her iki formatı normalize ederek dizi döndürür.</Note>
+    </BackwardCompatibility>
+
+    <StorageStrategy>
+      <Note>Dosya ekleri Firebase Storage'da saklanır; tasks koleksiyonundaki
+            attachments dizisi yalnızca metadata ve Storage URL referanslarını tutar.</Note>
+    </StorageStrategy>
+
+    <AutoCleanup>
+      <Note>appNotifications koleksiyonundaki 7 günden eski belgeler, uygulama
+            açılışında otomatik olarak silinir (istemci taraflı temizlik).</Note>
+    </AutoCleanup>
+
+  </DataModelSummary>
+
+</Database>

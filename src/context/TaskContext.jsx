@@ -512,15 +512,19 @@ export const TaskProvider = ({ children }) => {
     } catch (e) {}
   };
 
-  const logAppEvent = async (text, author = null) => {
+  const logAppEvent = async (text, author = null, targetUsers = null) => {
     if (!db) return;
     try {
-      await addDoc(collection(db, 'appNotifications'), {
+      const payload = {
         text,
         author: author || currentUser || 'Sistem',
         date: new Date().toISOString(),
         readBy: []
-      });
+      };
+      if (targetUsers && Array.isArray(targetUsers)) {
+        payload.targetUsers = targetUsers;
+      }
+      await addDoc(collection(db, 'appNotifications'), payload);
     } catch (e) {
       /* error handled */
     }
@@ -647,7 +651,7 @@ export const TaskProvider = ({ children }) => {
     // Bağımlılık kontrolü: "todo" dışına çıkarken engelle
     if (newStatus !== 'todo' && isBlocked(oldTask)) {
       const blockers = getBlockingTasks(oldTask).map(t => t.title).join(', ');
-      alert(`Bu görev başlatılamaz!\n\nÖnce şu görevlerin tamamlanması gerekiyor:\n${blockers}`);
+      addNotification(`Bu görev başlatılamaz! Önce şu görevlerin tamamlanması gerekiyor: ${blockers}`);
       return;
     }
     try {
@@ -733,6 +737,28 @@ export const TaskProvider = ({ children }) => {
         logAppEvent(`'${updatedData.title || oldTask.title}' görevinin hedefini güncelledi.`, oldTask.assignee);
       }
       await updateDoc(doc(db, 'tasks', id), finalData);
+
+      // Auto-shift dependent tasks forward if deadline crosses dependent start date
+      if (updatedData.deadline && oldTask.deadline !== updatedData.deadline) {
+        const dlDate = new Date(updatedData.deadline); dlDate.setHours(0,0,0,0);
+        const nextDay = new Date(dlDate); nextDay.setDate(nextDay.getDate() + 1);
+        
+        tasks.forEach(t => {
+          const deps = t.dependencies || [];
+          if (deps.includes(id) && t.startDate) {
+            const tStart = new Date(t.startDate); tStart.setHours(0,0,0,0);
+            if (tStart <= dlDate) {
+              const tEnd = t.deadline ? new Date(t.deadline) : null;
+              const duration = tEnd ? Math.max(1, Math.ceil((tEnd - tStart) / (1000*60*60*24))) : 1;
+              const newStart = nextDay.toISOString();
+              const newEnd = new Date(nextDay);
+              newEnd.setDate(newEnd.getDate() + duration - 1);
+              updateTask(t.id, { startDate: newStart, deadline: newEnd.toISOString() });
+            }
+          }
+        });
+      }
+
       if (updatedData.customerName) saveCustomerFromTask({ ...oldTask, ...updatedData });
 
       if (updatedData.status === 'done' && oldTask.status !== 'done' && oldTask.recurrence && oldTask.recurrence !== 'none') {
@@ -926,7 +952,8 @@ export const TaskProvider = ({ children }) => {
       customersList, addCustomer, editCustomer, deleteCustomer,
       deadlineColors, saveDeadlineColors, getDeadlineRowColor, getDeadlineBarColor, getAssignees,
       getDependencies, getBlockingTasks, isBlocked, wouldCreateCycle,
-      companyDb: db
+      companyDb: db,
+      logAppEvent
     }}>
       {children}
     </TaskContext.Provider>

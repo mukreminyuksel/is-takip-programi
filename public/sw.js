@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tasktrack-v9.9.2';
+const CACHE_NAME = 'tasktrack-v9.9.3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
