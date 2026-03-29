@@ -265,7 +265,7 @@ body {
   background: var(--bg-main);
   border: 1px solid var(--border);
   border-radius: 4px;
-  width: 900px; min-width: 600px; max-width: 95vw;
+  width: 900px; max-width: 95vw;
   min-height: 500px; max-height: 90vh;
   overflow: hidden;
   display: flex;
@@ -595,14 +595,22 @@ body {
   .kanban-column { max-height: 350px; }
 
   /* Modaller — tam ekran */
-  .settings-modal, .task-modal,
-  div[style*="position: fixed"][style*="inset: 0"] > div {
+  .modal-overlay {
+    padding: 0 !important;
+    align-items: stretch !important;
+  }
+  .modal-content {
     width: 100vw !important;
     max-width: 100vw !important;
+    min-width: 0 !important;
     height: 100vh !important;
     max-height: 100vh !important;
     border-radius: 0 !important;
     margin: 0 !important;
+  }
+  .modal-form {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Filtreler */

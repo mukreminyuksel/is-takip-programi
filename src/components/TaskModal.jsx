@@ -737,10 +737,10 @@ export default function TaskModal({ isOpen, onClose, defaultStatus, editTask, pr
         </div>
       </div>
     )}
-    <div className="modal-overlay" onMouseDown={onClose} style={{ padding: isFullScreen ? 0 : '1rem' }}>
+    <div className="modal-overlay" onMouseDown={onClose} style={{ padding: isFullScreen ? 0 : (window.innerWidth <= 768 ? 0 : '1rem') }}>
       <div 
         className={`modal-content ${isFullScreen ? 'fullscreen' : ''}`}
-        style={!isFullScreen ? { 
+        style={!isFullScreen && window.innerWidth > 768 ? { 
           transform: `translate(${position.x}px, ${position.y}px)`, 
           transition: isDragging ? 'none' : 'transform 0.1s ease',
           resize: 'both',
